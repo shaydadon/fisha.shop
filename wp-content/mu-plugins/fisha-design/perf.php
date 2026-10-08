@@ -143,19 +143,6 @@ add_action( 'init', function () {
 	}
 }, 99 );
 
-// Diagnostics (dev host only, ?fisha_diag=1): who turned page caching off?
-if ( isset( $_GET['fisha_diag'] ) && function_exists( 'fisha_is_dev_site' ) && fisha_is_dev_site() ) {
-	$GLOBALS['fisha_nocache_by'] = array();
-	$who = function () {
-		foreach ( debug_backtrace( DEBUG_BACKTRACE_IGNORE_ARGS ) as $f ) if ( ! empty( $f['file'] ) && strpos( $f['file'], 'wp-includes' ) === false && strpos( $f['file'], 'perf.php' ) === false ) return str_replace( ABSPATH, '', $f['file'] ) . ':' . $f['line'];
-		return '?';
-	};
-	add_filter( 'nocache_headers', function ( $h ) use ( $who ) { $GLOBALS['fisha_nocache_by'][] = 'nocache_headers@' . $who(); return $h; }, 0 );
-	add_action( 'litespeed_control_set_nocache', function ( $r = '' ) use ( $who ) { $GLOBALS['fisha_nocache_by'][] = 'ls_nocache(' . $r . ')@' . $who(); }, 0 );
-	add_action( 'send_headers', function () { header( 'X-Fisha-Donotcache: ' . ( defined( 'DONOTCACHEPAGE' ) ? 'yes' : 'no' ) ); }, 9999 );
-	add_action( 'wp_footer', function () { echo "\n<!-- fisha-diag: " . esc_html( implode( ' | ', $GLOBALS['fisha_nocache_by'] ) ) . ' | DONOTCACHEPAGE=' . ( defined( 'DONOTCACHEPAGE' ) ? 'yes' : 'no' ) . ' | user=' . get_current_user_id() . " -->\n"; }, 9999 );
-}
-
 // SEO: canonical URL on our full-page shop templates (WordPress only prints one on single pages)
 add_action( 'wp_head', function () {
 	if ( defined( 'WPSEO_VERSION' ) || class_exists( 'RankMath' ) ) return;
