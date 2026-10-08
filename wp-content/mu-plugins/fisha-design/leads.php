@@ -435,13 +435,14 @@ add_filter( 'manage_fisha_lead_posts_columns', function () {
 	return array( 'cb' => '<input type="checkbox">', 'title' => 'Lead', 'fisha_kind' => 'Type', 'fisha_email' => 'Email', 'date' => 'Received' );
 } );
 add_action( 'manage_fisha_lead_posts_custom_column', function ( $col, $id ) {
-	if ( 'fisha_kind' === $col ) echo 'drop' === get_post_meta( $id, '_kind', true ) ? 'Drop list' : 'Request';
+	if ( 'fisha_kind' === $col ) { $k = get_post_meta( $id, '_kind', true ); echo 'drop' === $k ? 'Drop list' : ( 'contact' === $k ? 'Message' : 'Request' ); }
 	if ( 'fisha_email' === $col ) { $e = get_post_meta( $id, '_email', true ); echo '<a href="mailto:' . esc_attr( $e ) . '">' . esc_html( $e ) . '</a>'; }
 }, 10, 2 );
 add_filter( 'views_edit-fisha_lead', function ( $views ) {
 	$base = admin_url( 'edit.php?post_type=fisha_lead' );
 	$cur  = isset( $_GET['fisha_kind'] ) ? sanitize_key( $_GET['fisha_kind'] ) : '';
 	$views['fisha_requests'] = '<a href="' . esc_url( add_query_arg( 'fisha_kind', 'request', $base ) ) . '"' . ( 'request' === $cur ? ' class="current"' : '' ) . '>Requests</a>';
+	$views['fisha_msgs']     = '<a href="' . esc_url( add_query_arg( 'fisha_kind', 'contact', $base ) ) . '"' . ( 'contact' === $cur ? ' class="current"' : '' ) . '>Messages</a>';
 	$views['fisha_drops']    = '<a href="' . esc_url( add_query_arg( 'fisha_kind', 'drop', $base ) ) . '"' . ( 'drop' === $cur ? ' class="current"' : '' ) . '>Drop list</a>';
 	$views['fisha_csv']      = '<a href="' . esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=fisha_drop_csv' ), 'fisha_drop_csv' ) ) . '">⬇ Export drop list (CSV)</a>';
 	return $views;
@@ -465,11 +466,11 @@ add_action( 'admin_post_fisha_drop_csv', function () {
 add_action( 'add_meta_boxes_fisha_lead', function () {
 	add_meta_box( 'fisha_lead_details', 'Details', function ( $post ) {
 		$m = array();
-		foreach ( array( 'kind', 'type', 'name', 'email', 'phone', 'interest', 'size', 'placement', 'budget', 'timing', 'source', 'consent' ) as $k ) {
+		foreach ( array( 'kind', 'type', 'name', 'email', 'phone', 'order_no', 'interest', 'size', 'placement', 'budget', 'timing', 'source', 'consent' ) as $k ) {
 			$v = get_post_meta( $post->ID, '_' . $k, true );
 			if ( '' !== $v && null !== $v ) $m[ $k ] = $v;
 		}
-		if ( isset( $m['type'] ) ) $m['type'] = fisha_request_types()[ $m['type'] ] ?? $m['type'];
+		if ( isset( $m['type'] ) ) $m['type'] = fisha_request_types()[ $m['type'] ] ?? ( function_exists( 'fisha_contact_topics' ) && isset( fisha_contact_topics()[ $m['type'] ] ) ? fisha_contact_topics()[ $m['type'] ][0] : $m['type'] );
 		if ( isset( $m['budget'] ) ) $m['budget'] = fisha_request_budgets()[ $m['budget'] ] ?? $m['budget'];
 		if ( isset( $m['interest'] ) ) $m['interest'] = fisha_drop_interest_label( $m['interest'] );
 		echo '<table class="widefat striped"><tbody>';

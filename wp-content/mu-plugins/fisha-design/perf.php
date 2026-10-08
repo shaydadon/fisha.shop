@@ -23,7 +23,7 @@ function fisha_ctx() {
 		'shop' => $shop || ( $woo && is_woocommerce() ), 'product' => $product, 'cartish' => $cartish,
 		'woo_any' => $shop || $product || $cartish || ( $woo && is_woocommerce() ),
 		'elementor' => $elementor && ! $shop, // our shop templates don't render Elementor content
-		'cf7' => $post && ( has_shortcode( $content, 'contact-form-7' ) || has_shortcode( $content, 'fisha_contact' ) ),
+		'cf7' => $post && ( has_shortcode( $content, 'contact-form-7' ) ),
 		'woolentor' => $post && ( false !== strpos( $content, 'woolentor' ) ),
 	);
 	return $c;
