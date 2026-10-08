@@ -1,0 +1,415 @@
+/* ---------- Site font: Nunito everywhere ---------- */
+html:root { /* beats the theme's own :root font presets, which load later */
+	--fisha-font: "Nunito", sans-serif;
+	--wp--preset--font-family--manrope: var(--fisha-font);
+	--wp--preset--font-family--trirong: var(--fisha-font);
+	--wp--preset--font-family--dmsans: var(--fisha-font);
+}
+html body,
+html body.elementor-page, /* the Hostinger theme sets Manrope here */
+button, input, select, textarea,
+h1, h2, h3, h4, h5, h6,
+.wp-block-navigation,
+.wp-block-site-title,
+.wc-block-components-button,
+.wp-element-button,
+.wp-block-button__link {
+	font-family: var(--fisha-font);
+}
+/* Hebrew keeps a font that has Hebrew letters */
+[lang="he"], [dir="rtl"] { font-family: "Varela Round", var(--fisha-font); }
+
+/* ---------- Header fish with following eyes ---------- */
+.fisha-eyes {
+	--fisha-size: 64px;     /* fish width in the header */
+	--fisha-gap: 1rem;      /* space from the cart icon */
+	position: relative;
+	display: inline-block;
+	flex: 0 0 auto;
+	width: var(--fisha-size);
+	margin-inline-start: var(--fisha-gap);
+	line-height: 0;
+	user-select: none;
+	pointer-events: none;
+}
+.fisha-eyes__body {
+	display: block;
+	width: 100%;
+	height: auto;
+}
+/* Pupils image is exported on the same canvas as the body, so it stacks exactly on top */
+.fisha-eyes__pupils-wrap {
+	position: absolute;
+	inset: 0;
+}
+.fisha-eyes__pupils {
+	display: block;
+	width: 100%;
+	height: auto;
+	transform: translate3d(var(--fx, 0px), var(--fy, 0px), 0);
+	transition: transform 0.08s ease-out;
+	will-change: transform;
+}
+@media (max-width: 781px) {
+	.fisha-eyes { --fisha-size: 48px; --fisha-gap: 0.5rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+	.fisha-eyes__pupils { transition: none; }
+}
+
+/* ---------- Header layout: "fisha" logo left, fish right, menu centred between them ---------- */
+@media (min-width: 782px) {
+	.hostinger-ai-menu-wrapper {
+		--fisha-logo-ink-inset: 13px; /* empty space inside the logo image on each side of the word "fisha" */
+		display: flex !important;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0 !important;
+	}
+	.hostinger-ai-menu-wrapper > .wp-block-group:first-child {
+		flex: 0 0 auto;
+		gap: 0;
+		/* line the visible word up with the container edge and measure gaps from the ink, not the image box */
+		margin-inline: calc(-1 * var(--fisha-logo-ink-inset));
+	}
+	.hostinger-ai-site-navigation-wrapper {
+		flex: 1 1 auto;
+		justify-content: flex-start !important;
+		/* match the flex gap that sits between the cart and the fish */
+		padding-inline-start: 15px;
+	}
+	/* equal auto margins before the menu and before the fish = equal distances */
+	.hostinger-ai-site-navigation-wrapper > .hostinger-ai-site-navigation { margin-inline-start: auto !important; }
+	.hostinger-ai-site-navigation-wrapper > .fisha-eyes { margin-inline-start: auto; }
+}
+
+/* ---------- Cart icon: Fisha shopping bag ---------- */
+.wc-block-mini-cart__icon.fisha-bag-icon {
+	width: 24px;
+	height: 24px;
+	fill: none;
+	color: rgb(23, 35, 45); /* same ink as the account icon and menu text */
+}
+
+/* ---------- Home: "Fisha Story" text column lines up with the hero headline ---------- */
+@media (min-width: 768px) {
+	.elementor-element-66e0de0 {
+		width: var(--fisha-hero-width, 600px);
+		max-width: 100%;
+		margin-inline: auto;
+		align-self: center;
+	}
+}
+
+/* ---------- Home hero: transparent pencil drawing sitting directly on the section's tint ---------- */
+.fisha-hero-img img { display: block; margin-inline: auto; border-radius: 0 !important; box-shadow: none !important; background: none !important; }
+
+/* ---------- Home "Fisha Story": links in the accent colour, same weight as the text ---------- */
+.elementor .elementor-element-66e0de0 .elementor-heading-title a,
+.elementor .elementor-element-66e0de0 .elementor-heading-title a:visited {
+	color: #E48734 !important;
+	font-weight: inherit !important;
+	transition: opacity 0.2s ease;
+}
+.elementor .elementor-element-66e0de0 .elementor-heading-title a:hover { opacity: 0.75; }
+
+/* ---------- Home: River teaser ---------- */
+.fisha-teaser {
+	--ink: rgb(23, 35, 45);
+	--accent: #E48734;
+	margin: clamp(3rem, 7vw, 6rem) auto 0;
+	text-align: center;
+	color: var(--ink);
+}
+.fisha-teaser__eyebrow {
+	margin: 0 0 0.5rem;
+	font-size: 0.85rem;
+	font-weight: 700;
+	letter-spacing: 0.14em;
+	text-transform: uppercase;
+	color: var(--accent);
+}
+.fisha-teaser__title {
+	margin: 0 auto;
+	max-width: 22ch;
+	font-size: clamp(1.75rem, 3.6vw, 2.5rem);
+	font-weight: 700;
+	line-height: 1.15;
+	color: var(--ink);
+}
+.fisha-teaser__text {
+	max-width: 46ch;
+	margin: 1rem auto 0;
+	font-size: clamp(1rem, 1.6vw, 1.2rem);
+	line-height: 1.7;
+	font-weight: 400;
+}
+.fisha-teaser__board {
+	margin-top: clamp(1.75rem, 4vw, 3rem);
+	padding: clamp(2rem, 4.5vw, 3.75rem) clamp(1.25rem, 4vw, 3.5rem);
+	border-radius: 24px;
+	background-color: #ebe4d6;
+	background-image: radial-gradient(rgba(23, 35, 45, 0.13) 1px, transparent 1.2px);
+	background-size: 22px 22px;
+}
+.fisha-teaser__grid {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: clamp(1.25rem, 3vw, 2.5rem);
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+.fisha-teaser__item { transform: rotate(var(--tilt)); }
+.fisha-teaser__card {
+	position: relative;
+	display: block;
+	background: #fff;
+	box-shadow: 0 1px 2px rgba(23, 35, 45, 0.12), 0 12px 26px -14px rgba(23, 35, 45, 0.4);
+	transition: transform 0.35s cubic-bezier(0.2, 0.7, 0.2, 1), box-shadow 0.35s ease;
+}
+.fisha-teaser__card img {
+	display: block;
+	width: 100%;
+	aspect-ratio: 4 / 5;
+	height: auto;
+	object-fit: cover;
+	border-radius: 0;
+}
+.fisha-teaser__card:hover,
+.fisha-teaser__card:focus-visible {
+	transform: rotate(calc(-1 * var(--tilt))) translateY(-8px) scale(1.03);
+	box-shadow: 0 2px 4px rgba(23, 35, 45, 0.12), 0 28px 44px -18px rgba(23, 35, 45, 0.5);
+	outline: none;
+}
+.fisha-teaser__card:focus-visible { box-shadow: 0 0 0 3px var(--accent), 0 28px 44px -18px rgba(23, 35, 45, 0.5); }
+.fisha-teaser__tape {
+	position: absolute;
+	top: -12px;
+	left: calc(50% - 42px);
+	width: 84px;
+	height: 26px;
+	z-index: 1;
+	opacity: 0.9;
+	transform: rotate(-3deg);
+}
+.fisha-teaser__item:nth-child(even) .fisha-teaser__tape { transform: rotate(4deg); left: calc(50% - 30px); }
+.fisha-teaser__cta {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
+	margin-top: clamp(1.75rem, 4vw, 2.75rem);
+	padding: 0.9rem 2rem;
+	border-radius: 999px;
+	background: var(--ink);
+	color: #fff !important;
+	font-size: 1.05rem;
+	font-weight: 700;
+	text-decoration: none !important;
+	transition: background 0.2s ease, transform 0.2s ease;
+}
+.fisha-teaser__cta:hover,
+.fisha-teaser__cta:focus-visible { background: var(--accent); transform: translateY(-2px); outline: none; }
+.fisha-teaser__cta span { transition: transform 0.2s ease; }
+.fisha-teaser__cta:hover span { transform: translateX(4px); }
+@media (max-width: 781px) {
+	.fisha-teaser__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+	.fisha-teaser__tape { width: 60px; height: 20px; top: -9px; left: calc(50% - 30px); }
+}
+@media (prefers-reduced-motion: reduce) {
+	.fisha-teaser__card, .fisha-teaser__cta, .fisha-teaser__cta span { transition: none; }
+}
+.fisha-teaser .fisha-mosaic__tape--orange { background: rgba(232, 156, 86, 0.62); }
+.fisha-teaser .fisha-mosaic__tape--blue   { background: rgba(116, 150, 176, 0.5); }
+.fisha-teaser .fisha-mosaic__tape--beige  { background: rgba(214, 199, 160, 0.75); }
+
+/* ---------- Header menu: "Shop" in the accent colour ---------- */
+.hostinger-ai-menu .wp-block-navigation-item a[href*="/shop-2/"],
+.hostinger-ai-menu .wp-block-navigation-item a[href*="/shop-2/"]:visited {
+	color: #E48734 !important;
+}
+.hostinger-ai-menu .wp-block-navigation-item a[href*="/shop-2/"]:hover { opacity: 0.8; }
+
+/* ---------- Header menu: no underline — bold on hover (and on the current page) ---------- */
+.hostinger-ai-menu .wp-block-navigation a,
+.hostinger-ai-menu .wp-block-navigation a:hover,
+.hostinger-ai-menu .wp-block-navigation a:focus,
+.hostinger-ai-menu .wp-block-navigation .current-menu-item > a {
+	text-decoration: none !important;
+	border-bottom: 0 !important;
+	box-shadow: none !important;
+	background-image: none !important;
+}
+.hostinger-ai-menu .wp-block-navigation-item__content::after,
+.hostinger-ai-menu .wp-block-navigation-item__content::before { display: none !important; }
+/* reserve the bold width so neighbours don't shift when an item turns bold */
+.hostinger-ai-menu .wp-block-navigation-item__label[data-text] { display: inline-grid; }
+.hostinger-ai-menu .wp-block-navigation-item__label[data-text]::after {
+	content: attr(data-text);
+	font-weight: 700;
+	height: 0;
+	overflow: hidden;
+	visibility: hidden;
+	pointer-events: none;
+	user-select: none;
+}
+.hostinger-ai-menu .wp-block-navigation-item__content:hover .wp-block-navigation-item__label,
+.hostinger-ai-menu .wp-block-navigation-item__content:focus-visible .wp-block-navigation-item__label,
+.hostinger-ai-menu .current-menu-item > .wp-block-navigation-item__content .wp-block-navigation-item__label {
+	font-weight: 700;
+}
+
+/* Shop: vertical dropdown with the categories */
+@media (min-width: 600px) {
+	.hostinger-ai-menu .wp-block-navigation .wp-block-navigation__submenu-container {
+		min-width: 190px !important;
+		padding: 0.5rem 0 !important;
+		border: 0 !important;
+		border-radius: 14px;
+		background: #fff !important;
+		box-shadow: 0 16px 36px -14px rgba(23, 35, 45, 0.35), 0 2px 6px rgba(23, 35, 45, 0.08);
+		transform: translateY(6px);
+		transition: opacity 0.18s ease, transform 0.18s ease;
+	}
+	.hostinger-ai-menu .wp-block-navigation .has-child:hover > .wp-block-navigation__submenu-container,
+	.hostinger-ai-menu .wp-block-navigation .has-child:focus-within > .wp-block-navigation__submenu-container { transform: translateY(0); }
+	.hostinger-ai-menu .wp-block-navigation__submenu-container .wp-block-navigation-item__content {
+		padding: 0.55rem 1.25rem !important;
+		color: rgb(23, 35, 45) !important;
+		white-space: nowrap;
+	}
+}
+.hostinger-ai-menu .wp-block-navigation__submenu-icon { margin-inline-start: 0.25em; }
+.hostinger-ai-menu .wp-block-navigation__submenu-icon svg { stroke: currentColor; }
+
+/* ---------- Mobile menu (overlay) ---------- */
+.fisha-subtoggle { display: none; }
+.hostinger-ai-menu .is-menu-open a,
+.hostinger-ai-menu .is-menu-open a:hover,
+.hostinger-ai-menu .is-menu-open a:focus,
+.hostinger-ai-menu .is-menu-open a:active {
+	border-bottom: 0 !important;
+	text-decoration: none !important;
+	box-shadow: none !important;
+}
+.hostinger-ai-menu .is-menu-open .wp-block-navigation__submenu-container {
+	border: 0 !important;
+	box-shadow: none !important;
+	background: transparent !important;
+}
+/* Shop row: label + arrow, categories underneath */
+.hostinger-ai-menu .is-menu-open .has-child {
+	display: grid !important;
+	grid-template-columns: auto auto 1fr;
+	align-items: center;
+	column-gap: 0.25rem;
+}
+.hostinger-ai-menu .is-menu-open .has-child > a { grid-column: 1; }
+.hostinger-ai-menu .is-menu-open .has-child > .wp-block-navigation-submenu__toggle { display: none !important; }
+.hostinger-ai-menu .is-menu-open .has-child > .fisha-subtoggle {
+	grid-column: 2;
+	display: inline-grid;
+	place-items: center;
+	width: 36px;
+	height: 36px;
+	margin: 0;
+	padding: 0;
+	border: 0;
+	border-radius: 50%;
+	background: none;
+	color: inherit;
+	cursor: pointer;
+	-webkit-tap-highlight-color: transparent;
+}
+.hostinger-ai-menu .is-menu-open .has-child > .fisha-subtoggle:focus-visible { outline: 2px solid #E48734; outline-offset: 1px; }
+.hostinger-ai-menu .is-menu-open .has-child > .fisha-subtoggle svg { transition: transform 0.2s ease; }
+.hostinger-ai-menu .is-menu-open .has-child.fisha-closed > .fisha-subtoggle svg { transform: rotate(180deg); }
+.hostinger-ai-menu .is-menu-open .has-child > .wp-block-navigation__submenu-container {
+	grid-column: 1 / -1;
+	padding: 0.35rem 0 0.25rem 1rem !important;
+	gap: 0.35rem !important;
+}
+.hostinger-ai-menu .is-menu-open .has-child.fisha-closed > .wp-block-navigation__submenu-container { display: none !important; }
+
+/* ---------- Fisha CTA button (shared look with the River teaser button) ---------- */
+.fisha-cta {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.9rem 2rem;
+	border-radius: 999px;
+	background: rgb(23, 35, 45);
+	color: #fff !important;
+	font-size: 1.05rem;
+	font-weight: 700;
+	line-height: 1.2;
+	text-decoration: none !important;
+	transition: background 0.2s ease, transform 0.2s ease;
+}
+.fisha-cta:hover,
+.fisha-cta:focus-visible { background: #E48734; transform: translateY(-2px); outline: none; }
+.fisha-cta span { transition: transform 0.2s ease; }
+.fisha-cta:hover span { transform: translateX(4px); }
+@media (prefers-reduced-motion: reduce) { .fisha-cta, .fisha-cta span { transition: none; } }
+.fisha-teaser__cta { line-height: 1.2; } /* same height as every .fisha-cta button */
+
+/* ---------- Footer ---------- */
+.fisha-footer {
+	--ink: rgb(23, 35, 45);
+	background: #e9eaea; /* same tint as the homepage hero */
+	color: var(--ink);
+	padding: clamp(3rem, 6vw, 4.5rem) var(--wp--style--root--padding-right, 1.5rem) 1.5rem var(--wp--style--root--padding-left, 1.5rem);
+	font-size: 1rem;
+}
+.fisha-footer a { color: inherit; text-decoration: none !important; transition: color 0.2s ease; }
+.fisha-footer a:hover, .fisha-footer a:focus-visible { color: #E48734; }
+.fisha-footer .fisha-footer__cols { gap: clamp(2rem, 5vw, 4rem); margin-bottom: 0; }
+.fisha-footer .wp-block-site-logo img { width: 96px; height: auto; }
+.fisha-footer__about { max-width: 36ch; margin-top: 1rem; line-height: 1.7; color: rgba(23, 35, 45, 0.8); }
+.fisha-footer__label {
+	margin: 0 0 1rem;
+	font-size: 0.8rem;
+	font-weight: 700;
+	letter-spacing: 0.14em;
+	text-transform: uppercase;
+	color: #E48734;
+}
+.fisha-footer__nav .wp-block-navigation__container { gap: 0.65rem !important; }
+.fisha-footer__nav .wp-block-navigation-item__content { padding: 0 !important; color: var(--ink); }
+.fisha-footer__social { gap: 0.9rem !important; }
+.fisha-footer__social .wp-social-link { color: var(--ink) !important; background: none !important; }
+.fisha-footer__social .wp-social-link svg { width: 24px; height: 24px; fill: currentColor; }
+.fisha-footer__social .wp-social-link:hover { color: #E48734 !important; transform: none; }
+.fisha-footer__bottom {
+	gap: 0.3rem !important;
+	margin-top: clamp(2.5rem, 5vw, 3.5rem) !important;
+	padding-top: 1.25rem;
+	border-top: 1px solid rgba(23, 35, 45, 0.15);
+	font-size: 0.9rem;
+	color: rgba(23, 35, 45, 0.75);
+}
+.fisha-footer__bottom p { margin: 0; }
+.fisha-footer__credit a { font-weight: 700; color: var(--ink); }
+@media (max-width: 781px) {
+	/* brand on top, Explore + Shop side by side, Follow below */
+	.fisha-footer .fisha-footer__cols { flex-wrap: wrap !important; row-gap: 2rem; }
+	.fisha-footer .fisha-footer__cols > .fisha-footer__brand,
+	.fisha-footer .fisha-footer__cols > .fisha-footer__follow { flex-basis: 100% !important; }
+	.fisha-footer .fisha-footer__cols > .fisha-footer__col:not(.fisha-footer__follow) { flex-basis: calc(50% - 1rem) !important; flex-grow: 0 !important; }
+}
+
+/* ---------- No underline anywhere in header/footer menus (theme puts a border on the current <li> + on hover) ---------- */
+html body nav .current-menu-item,
+html body nav .current-menu-item > a,
+html body nav .wp-block-navigation-item,
+html body nav .wp-block-navigation-item a,
+html body nav .wp-block-navigation-item a:hover,
+html body nav .wp-block-navigation-item a:focus,
+html body .hostinger-ai-site-navigation a:hover {
+	border-bottom: 0 !important;
+	text-decoration: none !important;
+}
+/* footer: current page shown in the accent colour instead */
+.fisha-footer .current-menu-item > .wp-block-navigation-item__content { color: #E48734 !important; }
+.fisha-footer__legal a { font-weight: 400; }
+.fisha-footer__legal .sep { margin: 0 0.5em; opacity: 0.5; }

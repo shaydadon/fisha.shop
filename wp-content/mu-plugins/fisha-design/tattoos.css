@@ -1,0 +1,234 @@
+/* ===== Fisha Tattood ===== */
+body.fisha-tattoos-page { overflow-x: clip; }
+body.fisha-tattoos-page .entry-content { margin-block-start: 0 !important; }
+body.fisha-tattoos-page .entry-content > .fisha-tattoos,
+body.fisha-tattoos-page .wp-block-post-content > * { max-width: none !important; }
+body.fisha-tattoos-page .wp-block-post-content { padding-left: 0 !important; padding-right: 0 !important; }
+
+.fisha-tattoos {
+	--ink: rgb(23, 35, 45);
+	--accent: #E48734;
+	--paper: #f4efe6;
+	--pad: clamp(1.25rem, 5vw, 4rem);
+	color: var(--ink);
+	background:
+		radial-gradient(rgba(23, 35, 45, 0.09) 1px, transparent 1.2px) 0 0 / 22px 22px,
+		var(--paper);
+	margin: 0 !important;
+}
+.fisha-tattoos * { box-sizing: border-box; }
+.fisha-tattoos { overflow-x: clip; }
+
+/* ---------- Hero ---------- */
+.ft-hero {
+	max-width: 1240px;
+	margin: 0 auto;
+	padding: clamp(2.5rem, 7vw, 6rem) var(--pad) clamp(3rem, 6vw, 5rem);
+	display: grid;
+	grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+	gap: clamp(2rem, 6vw, 5rem);
+	align-items: center;
+}
+.ft-eyebrow {
+	margin: 0 0 1rem;
+	font-size: 0.82rem;
+	font-weight: 700;
+	letter-spacing: 0.16em;
+	text-transform: uppercase;
+	color: var(--accent);
+}
+.fisha-tattoos .ft-title {
+	margin: 0;
+	font-family: "Nunito", sans-serif;
+	font-size: clamp(2.8rem, 7.2vw, 5.6rem);
+	font-weight: 800;
+	line-height: 0.95;
+	letter-spacing: -0.02em;
+	color: var(--ink);
+}
+.ft-title span {
+	display: block;
+	color: transparent;
+	-webkit-text-stroke: 2px var(--ink);
+	font-style: italic;
+	position: relative;
+}
+.ft-title span::after { /* hand-drawn orange underline */
+	content: "";
+	position: absolute;
+	left: 0.05em; bottom: -0.12em;
+	width: 3.6em; height: 0.28em;
+	background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 20' preserveAspectRatio='none'><path d='M3 14 C 60 4, 120 18, 180 9 S 270 6, 297 11' fill='none' stroke='%23E48734' stroke-width='5' stroke-linecap='round'/></svg>") no-repeat center / 100% 100%;
+}
+.ft-lead {
+	margin: 1.9rem 0 1.4rem;
+	max-width: 34rem;
+	font-size: clamp(1.05rem, 1.6vw, 1.25rem);
+	line-height: 1.7;
+	font-weight: 400;
+}
+.ft-tags { list-style: none; display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0 0 2rem; padding: 0; }
+.ft-tags li {
+	padding: 0.35rem 0.9rem;
+	border: 1.5px solid var(--ink);
+	border-radius: 999px;
+	font-size: 0.85rem;
+	font-weight: 600;
+	background: rgba(255, 255, 255, 0.5);
+}
+.ft-tags li:nth-child(2) { transform: rotate(-2deg); }
+.ft-tags li:nth-child(3) { border-color: var(--accent); color: var(--accent); transform: rotate(1.5deg); }
+
+.ft-hero__media { position: relative; justify-self: center; width: min(100%, 420px); }
+.ft-arch {
+	position: relative;
+	aspect-ratio: 9 / 14;
+	border-radius: 999px 999px 28px 28px;
+	overflow: hidden;
+	background: #1d2a33;
+	box-shadow: 0 0 0 10px #fff, 0 0 0 11.5px var(--ink), 0 30px 60px -25px rgba(23, 35, 45, 0.55);
+	transform: rotate(1.5deg);
+}
+.ft-hero__video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ft-sound {
+	position: absolute; right: 14px; bottom: 14px;
+	width: 46px; height: 46px; border-radius: 50%;
+	border: 0; padding: 11px; cursor: pointer;
+	background: rgba(255, 255, 255, 0.92); color: var(--ink);
+	box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+	transition: background 0.2s, color 0.2s, transform 0.2s;
+}
+.ft-sound:hover, .ft-sound:focus-visible { background: var(--accent); color: #fff; transform: scale(1.06); outline: none; }
+.ft-sound svg { width: 100%; height: 100%; display: block; }
+.ft-sound .ft-sound__on, .ft-sound[aria-pressed="true"] .ft-sound__off { display: none; }
+.ft-sound[aria-pressed="true"] .ft-sound__on { display: block; }
+.ft-badge {
+	position: absolute;
+	left: -46px; top: 12%;
+	width: 124px; height: 124px;
+	animation: ft-spin 22s linear infinite;
+	filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.15));
+}
+.ft-badge circle { fill: var(--accent); }
+.ft-badge text { font: 800 10.5px "Nunito", sans-serif; letter-spacing: 1px; fill: #fff; }
+.ft-badge image { animation: ft-spin 22s linear infinite reverse; transform-origin: 60px 60px; }
+@keyframes ft-spin { to { transform: rotate(360deg); } }
+
+/* ---------- Marquee ---------- */
+.ft-marquee { background: var(--ink); color: #fff; overflow: hidden; padding: 0.95rem 0; transform: rotate(-1.2deg); margin: 0 -2%; }
+.ft-marquee__track { display: flex; width: max-content; gap: 1.6rem; animation: ft-marquee 38s linear infinite; }
+.ft-marquee span { font-size: clamp(1.1rem, 2.2vw, 1.6rem); font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap; }
+.ft-marquee i { font-style: normal; color: var(--accent); font-size: 1.2em; line-height: 1.3; }
+@keyframes ft-marquee { to { transform: translateX(-50%); } }
+
+/* ---------- Flash sheet (gallery) ---------- */
+.ft-sheet { max-width: 1240px; margin: 0 auto; padding: clamp(4rem, 9vw, 7rem) var(--pad) clamp(3rem, 6vw, 5rem); }
+.ft-sheet__head { text-align: center; max-width: 40rem; margin: 0 auto clamp(2.5rem, 5vw, 3.5rem); }
+.fisha-tattoos h2 { margin: 0 0 0.8rem; font-size: clamp(2rem, 4.2vw, 3rem); font-weight: 800; line-height: 1.1; color: var(--ink); }
+.ft-sheet__head p, .ft-outro p { margin: 0; font-size: 1.1rem; line-height: 1.7; }
+
+.ft-grid { columns: 3 300px; column-gap: clamp(1rem, 2.5vw, 1.75rem); }
+.ft-card {
+	break-inside: avoid;
+	margin: 0 0 clamp(1rem, 2.5vw, 1.75rem);
+	opacity: 0;
+	transform: translateY(28px);
+	transition: opacity 0.7s ease var(--d, 0ms), transform 0.7s cubic-bezier(.2, .7, .2, 1) var(--d, 0ms);
+}
+.ft-card.is-in { opacity: 1; transform: none; }
+.no-js .ft-card, .ft-noanim .ft-card { opacity: 1; transform: none; }
+.ft-card__open {
+	position: relative; display: block; width: 100%;
+	padding: 10px 10px 44px;
+	border: 1.5px solid var(--ink);
+	border-radius: 18px;
+	background: #fff;
+	cursor: zoom-in;
+	text-align: left;
+	box-shadow: 6px 6px 0 var(--ink);
+	transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+.ft-card:nth-child(4n+2) .ft-card__open { box-shadow: 6px 6px 0 var(--accent); }
+.ft-card__open:hover, .ft-card__open:focus-visible { transform: translate(-3px, -3px) rotate(-0.6deg); box-shadow: 10px 10px 0 var(--accent); outline: none; }
+.ft-card__media { display: block; width: 100%; height: auto; border-radius: 10px; background: #e9e3d8; }
+.ft-card__no {
+	position: absolute; left: 14px; bottom: 12px;
+	font-size: 0.85rem; font-weight: 800; letter-spacing: 0.08em; color: var(--ink);
+}
+.ft-card__open::after { /* "view" hint */
+	content: "View ↗"; position: absolute; right: 14px; bottom: 12px;
+	font-size: 0.8rem; font-weight: 700; color: var(--accent);
+	opacity: 0; transform: translateX(-6px); transition: opacity 0.25s, transform 0.25s;
+}
+.ft-card__open:hover::after, .ft-card__open:focus-visible::after { opacity: 1; transform: none; }
+.ft-card--video .ft-card__open { cursor: pointer; }
+.ft-card--video .ft-card__open::after { content: "Watch ▶"; }
+.ft-card__play {
+	position: absolute; left: 50%; top: calc(50% - 17px);
+	width: 64px; height: 64px; margin: -32px 0 0 -32px; padding: 18px 16px 18px 20px;
+	border-radius: 50%; background: rgba(255, 255, 255, 0.9); color: var(--ink);
+	box-shadow: 0 8px 22px rgba(0, 0, 0, 0.25);
+	transition: transform 0.25s, background 0.25s, color 0.25s;
+}
+.ft-card__play svg { width: 100%; height: 100%; display: block; }
+.ft-card--video .ft-card__open:hover .ft-card__play { transform: scale(1.1); background: var(--accent); color: #fff; }
+
+/* ---------- Outro ---------- */
+.ft-outro { text-align: center; max-width: 44rem; margin: 0 auto; padding: 0 var(--pad) clamp(4rem, 9vw, 7rem); }
+.ft-outro p { margin-bottom: 2rem; }
+
+/* ---------- Lightbox ---------- */
+.ft-lightbox {
+	position: fixed; inset: 0; z-index: 100000;
+	display: grid; grid-template-columns: 64px 1fr 64px; grid-template-rows: 1fr auto;
+	align-items: center;
+	background: rgba(14, 20, 26, 0.94);
+	color: #fff;
+	animation: ft-fade 0.25s ease;
+}
+.ft-lightbox[hidden] { display: none; }
+@keyframes ft-fade { from { opacity: 0; } }
+.ft-lb__stage { grid-column: 2; grid-row: 1; height: 100%; display: flex; align-items: center; justify-content: center; padding: 3.5rem 0 0.5rem; min-width: 0; touch-action: pan-y; }
+.ft-lb__stage img, .ft-lb__stage video { max-width: 100%; max-height: calc(100vh - 7rem); max-height: calc(100dvh - 7rem); border-radius: 12px; display: block; object-fit: contain; animation: ft-pop 0.3s ease; }
+@keyframes ft-pop { from { opacity: 0; transform: scale(0.97); } }
+.ft-lb__nav, .ft-lb__close {
+	border: 0; background: rgba(255, 255, 255, 0.1); color: #fff; cursor: pointer;
+	width: 48px; height: 48px; border-radius: 50%; font-size: 30px; line-height: 1;
+	display: grid; place-items: center; justify-self: center;
+	transition: background 0.2s;
+}
+.ft-lb__nav:hover, .ft-lb__close:hover, .ft-lb__nav:focus-visible, .ft-lb__close:focus-visible { background: var(--accent); outline: none; }
+.ft-lb__prev { grid-column: 1; grid-row: 1; }
+.ft-lb__next { grid-column: 3; grid-row: 1; }
+.ft-lb__close { position: absolute; top: 14px; right: 14px; }
+.ft-lb__caption { grid-column: 1 / -1; grid-row: 2; margin: 0; padding: 0.75rem 1rem 1.1rem; text-align: center; font-size: 0.95rem; opacity: 0.85; }
+.ft-lb__count { font-weight: 800; color: var(--accent); margin-right: 0.5rem; }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 900px) {
+	.ft-hero { grid-template-columns: 1fr; text-align: center; }
+	.ft-lead { margin-left: auto; margin-right: auto; }
+	.ft-tags { justify-content: center; }
+	.ft-hero .fisha-cta-wrap { text-align: center !important; }
+	.ft-title span::after { left: 50%; transform: translateX(-50%); }
+	.ft-hero__media { width: min(78%, 360px); margin-top: 1rem; }
+	.ft-badge { left: auto; right: -34px; top: -26px; width: 104px; height: 104px; }
+}
+@media (max-width: 640px) {
+	.ft-grid { columns: 2; column-gap: 0.8rem; }
+	.ft-card { margin-bottom: 0.8rem; }
+	.ft-card__open { padding: 6px 6px 34px; border-radius: 14px; box-shadow: 4px 4px 0 var(--ink); }
+	.ft-card:nth-child(4n+2) .ft-card__open { box-shadow: 4px 4px 0 var(--accent); }
+	.ft-card__no { left: 10px; bottom: 9px; font-size: 0.75rem; }
+	.ft-card__open::after { display: none; }
+	.ft-card__play { width: 48px; height: 48px; margin: -24px 0 0 -24px; padding: 13px 11px 13px 15px; top: calc(50% - 14px); }
+	.ft-title span { -webkit-text-stroke-width: 1.5px; }
+	.ft-lightbox { grid-template-columns: 0 1fr 0; }
+	.ft-lb__nav { position: absolute; bottom: 12px; width: 44px; height: 44px; }
+	.ft-lb__prev { left: 12px; } .ft-lb__next { right: 12px; }
+	.ft-lb__caption { padding: 0.75rem 4rem 1.2rem; font-size: 0.85rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+	.ft-badge, .ft-badge image, .ft-marquee__track { animation: none; }
+	.ft-card { opacity: 1; transform: none; transition: none; }
+}

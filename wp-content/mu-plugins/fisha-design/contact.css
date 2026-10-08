@@ -1,0 +1,173 @@
+/* ===== Contact ===== */
+body.fisha-contact-page { overflow-x: clip; }
+body.fisha-contact-page .entry-content { margin-block-start: 0 !important; }
+body.fisha-contact-page .wp-block-post-content > * { max-width: none !important; }
+body.fisha-contact-page .wp-block-post-content { padding-left: 0 !important; padding-right: 0 !important; }
+
+.fisha-contact {
+	--ink: rgb(23, 35, 45);
+	--accent: #E48734;
+	--paper: #f4efe6;
+	--pad: clamp(1.25rem, 5vw, 4rem);
+	color: var(--ink);
+	background:
+		radial-gradient(rgba(23, 35, 45, 0.09) 1px, transparent 1.2px) 0 0 / 22px 22px,
+		var(--paper);
+	margin: 0 !important;
+	padding-bottom: clamp(3rem, 7vw, 5.5rem);
+	overflow-x: clip;
+}
+.fisha-contact * { box-sizing: border-box; }
+
+/* ---------- Hero ---------- */
+.fc-hero { max-width: 760px; margin: 0 auto; padding: clamp(2.5rem, 6vw, 4.5rem) var(--pad) 0; text-align: center; }
+.fc-eyebrow { margin: 0 0 0.9rem; font-size: 0.82rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent); }
+.fisha-contact .fc-title {
+	margin: 0;
+	font-family: "Nunito", sans-serif;
+	font-size: clamp(2.4rem, 6vw, 4.2rem);
+	font-weight: 800;
+	line-height: 1.02;
+	letter-spacing: -0.02em;
+	color: var(--ink);
+}
+.fc-lead { margin: 1.25rem auto 0; max-width: 34rem; font-size: clamp(1.05rem, 1.6vw, 1.2rem); line-height: 1.7; }
+.fc-hero__river { width: min(100%, 420px); margin: clamp(0.5rem, 2vw, 1rem) auto 0; }
+
+/* ---------- Loops (animated WebP stickers) ---------- */
+.fc-loop { margin: 0; line-height: 0; pointer-events: none; user-select: none; }
+.fc-loop img { width: 100%; height: auto; display: block; }
+
+/* ---------- Stage: loops | form | loops ---------- */
+.fc-stage {
+	max-width: 1280px;
+	margin: clamp(1rem, 3vw, 2rem) auto 0;
+	padding: 0 var(--pad);
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(0, 600px) minmax(0, 1fr);
+	gap: clamp(1rem, 3vw, 2.5rem);
+	align-items: center;
+}
+.fc-side { display: flex; flex-direction: column; align-items: center; gap: clamp(2rem, 5vw, 4rem); }
+.fc-float { animation: fc-bob 6s ease-in-out infinite; }
+.fc-float--a { width: min(100%, 230px); --r: -4deg; }
+.fc-float--b { width: min(70%, 130px); --r: 5deg; animation-delay: -2s; align-self: flex-end; }
+.fc-float--c { width: min(100%, 250px); --r: 3deg; animation-delay: -1s; }
+.fc-float--d { width: min(70%, 150px); --r: -5deg; animation-delay: -3.5s; align-self: flex-start; }
+@keyframes fc-bob {
+	0%, 100% { transform: translateY(0) rotate(var(--r, 0deg)); }
+	50% { transform: translateY(-10px) rotate(calc(var(--r, 0deg) * -0.4)); }
+}
+
+/* ---------- Form card ---------- */
+.fc-card {
+	position: relative;
+	background: #fff;
+	border: 1.5px solid var(--ink);
+	border-radius: 22px;
+	box-shadow: 8px 8px 0 var(--ink);
+	padding: clamp(1.5rem, 4vw, 2.5rem);
+}
+.fc-card__tape {
+	position: absolute; top: -14px; left: 50%;
+	width: 110px; height: 28px; margin-left: -55px;
+	background: rgba(228, 135, 52, 0.75);
+	transform: rotate(-3deg);
+	border-radius: 2px;
+}
+.fisha-contact .fc-card__title { margin: 0 0 0.25rem; font-size: clamp(1.5rem, 2.6vw, 1.9rem); font-weight: 800; color: var(--ink); line-height: 1.2; }
+.fc-card__sub { margin: 0 0 1.5rem; font-size: 0.92rem; color: rgba(23, 35, 45, 0.7); }
+.fc-req { color: var(--accent); font-weight: 800; }
+
+/* CF7 form */
+.fc-form .fc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem 1rem; }
+.fc-form .fc-field { display: block; margin: 0; }
+.fc-form .fc-field--full { grid-column: 1 / -1; }
+.fc-form .fc-field > span:first-child { display: block; margin-bottom: 0.4rem; font-size: 0.9rem; font-weight: 700; }
+.fc-form .wpcf7-form-control-wrap { display: block; }
+.fc-form input[type="text"],
+.fc-form input[type="email"],
+.fc-form select,
+.fc-form textarea {
+	width: 100%;
+	font: inherit;
+	font-size: 1rem;
+	color: var(--ink);
+	background: var(--paper);
+	border: 1.5px solid rgba(23, 35, 45, 0.25);
+	border-radius: 12px;
+	padding: 0.8rem 1rem;
+	transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+	appearance: none;
+	-webkit-appearance: none;
+}
+.fc-form select {
+	padding-right: 2.6rem;
+	background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M6 9l6 6 6-6' fill='none' stroke='%2317232d' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+	background-repeat: no-repeat;
+	background-position: right 0.9rem center;
+	background-size: 18px;
+	cursor: pointer;
+}
+.fc-form textarea { min-height: 150px; resize: vertical; line-height: 1.6; }
+.fc-form ::placeholder { color: rgba(23, 35, 45, 0.45); }
+.fc-form input:focus, .fc-form select:focus, .fc-form textarea:focus {
+	outline: none;
+	border-color: var(--accent);
+	background-color: #fff;
+	box-shadow: 0 0 0 4px rgba(228, 135, 52, 0.18);
+}
+.fc-form .fc-submit { margin-top: 1.4rem; display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+.fc-form input[type="submit"],
+.fc-form .wpcf7-submit {
+	font: inherit;
+	font-size: 1rem;
+	font-weight: 700;
+	color: #fff;
+	background: var(--ink);
+	border: 0;
+	border-radius: 999px;
+	padding: 0.95rem 2rem;
+	cursor: pointer;
+	transition: background 0.2s, transform 0.2s;
+}
+.fc-form .wpcf7-submit:hover, .fc-form .wpcf7-submit:focus-visible { background: var(--accent); transform: translateY(-2px); outline: none; }
+.fc-form .wpcf7-submit:disabled { opacity: 0.6; cursor: wait; }
+.fc-form .wpcf7-spinner { margin: 0; }
+.fc-form .wpcf7-not-valid { border-color: #c4472d !important; }
+.fc-form .wpcf7-not-valid-tip { margin-top: 0.35rem; font-size: 0.85rem; color: #c4472d; }
+.fc-form .wpcf7-response-output {
+	margin: 1.25rem 0 0 !important;
+	padding: 0.85rem 1.1rem !important;
+	border-radius: 12px;
+	font-size: 0.95rem;
+	border-width: 1.5px !important;
+}
+.fc-form.sent .wpcf7-response-output { border-color: #3f8f63 !important; background: #eef7f1; }
+.fc-form.invalid .wpcf7-response-output,
+.fc-form.failed .wpcf7-response-output,
+.fc-form.spam .wpcf7-response-output { border-color: #c4472d !important; background: #fcefeb; }
+
+.fc-note { margin: clamp(2.5rem, 5vw, 3.5rem) auto 0; padding: 0 var(--pad); text-align: center; font-size: 1rem; font-style: italic; color: rgba(23, 35, 45, 0.7); }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 1000px) {
+	.fc-stage { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); max-width: 680px; }
+	.fc-card { grid-column: 1 / -1; grid-row: 1; }
+	.fc-side { flex-direction: row; justify-content: space-around; align-items: center; gap: 1rem; }
+	.fc-float--a, .fc-float--c { width: min(60%, 170px); }
+	.fc-float--b, .fc-float--d { width: min(35%, 100px); align-self: center; }
+}
+@media (max-width: 560px) {
+	.fc-form .fc-grid { grid-template-columns: 1fr; }
+	.fc-card { box-shadow: 5px 5px 0 var(--ink); border-radius: 18px; }
+	.fc-form .wpcf7-submit { width: 100%; }
+	.fc-stage { gap: 0.75rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+	.fc-float { animation: none; transform: rotate(var(--r, 0deg)); }
+}
+@media (max-width: 1000px) {
+	.fc-stage { row-gap: 1.75rem; }
+	.fc-side { padding-top: 0.5rem; }
+}

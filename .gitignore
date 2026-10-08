@@ -1,0 +1,25 @@
+# Track only Fisha's own code. Everything else — WordPress core, third-party
+# plugins and themes, uploads, wp-config.php, database dumps — stays out of git.
+/*
+!/.gitignore
+!/.gitattributes
+!/.github/
+!/README.md
+!/docker/
+!/docker-compose.yml
+!/wp-content/
+
+# database dumps contain users and password hashes: never commit them
+/docker/db/*
+!/docker/db/README.txt
+
+/wp-content/*
+!/wp-content/mu-plugins/
+/wp-content/mu-plugins/*
+!/wp-content/mu-plugins/fisha-design.php
+!/wp-content/mu-plugins/fisha-design/
+
+*.bak
+*.log
+.DS_Store
+Thumbs.db

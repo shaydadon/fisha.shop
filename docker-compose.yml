@@ -1,0 +1,103 @@
+# Fisha.shop — local development
+#   Site:        http://localhost:8484
+#   phpMyAdmin:  http://localhost:8485
+name: fisha
+
+services:
+  db:
+    image: mariadb:11
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: fisha
+      MARIADB_USER: fisha
+      MARIADB_PASSWORD: fisha
+      MARIADB_ROOT_PASSWORD: root
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./docker/db:/docker-entrypoint-initdb.d:ro
+
+  wordpress:
+    image: wordpress:php8.3-apache
+    restart: unless-stopped
+    depends_on: [db]
+    ports:
+      - "8484:80"
+    environment: &wpenv
+      FISHA_DOCKER: "1"
+      FISHA_URL: http://localhost:8484
+      FISHA_DB_HOST: db
+      FISHA_DB_NAME: fisha
+      FISHA_DB_USER: fisha
+      FISHA_DB_PASSWORD: fisha
+    volumes:
+      - ./:/var/www/html
+      - ./docker/php.ini:/usr/local/etc/php/conf.d/zz-fisha.ini:ro
+      # Speed: WordPress core, plugins and themes run from fast Docker volumes (Linux disk) instead of the
+      # Windows-shared folder (~1ms per file access). They are copied in by the "sync" service below.
+      # Files we edit (mu-plugins, uploads, wp-config, fisha-tasks) stay live from the Windows folder.
+      - wp_admin:/var/www/html/wp-admin
+      - wp_includes:/var/www/html/wp-includes
+      - wp_plugins:/var/www/html/wp-content/plugins
+      - wp_themes:/var/www/html/wp-content/themes
+
+  phpmyadmin:
+    image: phpmyadmin:latest
+    restart: unless-stopped
+    depends_on: [db]
+    ports:
+      - "8485:80"
+    environment:
+      PMA_HOST: db
+      PMA_USER: root
+      PMA_PASSWORD: root
+      UPLOAD_LIMIT: 256M
+
+  # Copies core/plugins/themes from the Windows folder into the fast volumes.
+  # Run:  docker compose run --rm sync        (start.ps1 does this automatically; only copies when the volumes are empty)
+  # Refresh after changing plugins in the Windows folder:  $env:FORCE=1; docker compose run --rm sync; $env:FORCE=0
+  # After installing/updating plugins in wp-admin, copy them back with:  docker compose run --rm sync-back
+  sync:
+    image: alpine:3.20
+    profiles: [tools]
+    volumes:
+      - ./:/src:ro
+      - wp_admin:/dst/wp-admin
+      - wp_includes:/dst/wp-includes
+      - wp_plugins:/dst/wp-content/plugins
+      - wp_themes:/dst/wp-content/themes
+    environment:
+      FORCE: "${FORCE:-0}"
+    command: >
+      sh -c "if [ -f /dst/wp-includes/version.php ] && [ \"$$FORCE\" != 1 ]; then echo 'fast volumes already filled (set FORCE=1 to refresh)'; exit 0; fi;
+             for d in wp-admin wp-includes wp-content/plugins wp-content/themes; do
+               echo syncing $$d; rm -rf /dst/$$d/* /dst/$$d/.[!.]* 2>/dev/null; cp -a /src/$$d/. /dst/$$d/;
+             done; chown -R 33:33 /dst; echo done"
+
+  sync-back:
+    image: alpine:3.20
+    profiles: [tools]
+    volumes:
+      - ./:/dst
+      - wp_plugins:/src/wp-content/plugins:ro
+      - wp_themes:/src/wp-content/themes:ro
+    command: >
+      sh -c "for d in wp-content/plugins wp-content/themes; do
+               echo copying $$d back; cp -a /src/$$d/. /dst/$$d/;
+             done; echo done"
+
+  # Command-line tool, run on demand:  docker compose run --rm wpcli <command>
+  wpcli:
+    image: wordpress:cli-php8.3
+    profiles: [tools]
+    depends_on: [db]
+    user: "33:33"
+    environment: *wpenv
+    volumes:
+      - ./:/var/www/html
+
+volumes:
+  db_data:
+  wp_admin:
+  wp_includes:
+  wp_plugins:
+  wp_themes:

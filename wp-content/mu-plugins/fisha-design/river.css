@@ -1,0 +1,295 @@
+/* ===== River — Fisha sketchbook gallery ===== */
+body.fisha-river-page { overflow-x: clip; }
+
+.fisha-river {
+	--river-paper: #f6f1e7;
+	--river-ink: rgb(23, 35, 45);
+	--river-accent: #e28838;
+	--river-h: clamp(260px, 46vh, 520px);
+	color: var(--river-ink);
+}
+
+/* Hebrew intro */
+.fisha-river__intro {
+	max-width: 640px;
+	margin: 0 auto clamp(1.25rem, 3vw, 2.25rem);
+	font-family: "Nunito", sans-serif;
+	font-size: clamp(1rem, 1.4vw, 1.125rem);
+	line-height: 1.8;
+	text-align: center;
+	text-wrap: pretty;
+}
+.fisha-river__intro p { margin: 0 0 0.6em; }
+.fisha-river__intro[lang="he"] { font-family: "Varela Round", "Nunito", sans-serif; }
+.fisha-river__intro p:last-child { margin-bottom: 0; }
+
+/* Full-bleed paper stage */
+.fisha-river__stage {
+	position: relative;
+	width: 100vw;
+	margin-inline-start: calc(50% - 50vw);
+	padding: clamp(1rem, 2.5vw, 2rem) 0 1rem;
+	background: var(--river-paper);
+}
+.fisha-river__track {
+	position: relative;
+	display: flex;
+	align-items: center;
+	gap: clamp(1.25rem, 3vw, 2.75rem);
+	padding: 1.25rem clamp(1rem, 4vw, 3rem);
+	overflow-x: auto;
+	overflow-y: hidden;
+	scrollbar-width: none;
+	cursor: grab;
+	outline: none;
+	-webkit-overflow-scrolling: touch;
+}
+.fisha-river__track::-webkit-scrollbar { display: none; }
+.fisha-river__track.is-dragging { cursor: grabbing; }
+.fisha-river__track:focus-visible { box-shadow: inset 0 0 0 2px var(--river-accent); }
+
+.fisha-river__slide {
+	position: relative;
+	flex: 0 0 auto;
+	align-self: flex-start;
+	margin: 0;
+}
+.fisha-river__frame {
+	position: relative;
+	height: var(--river-h);
+	transform: rotate(var(--tilt, 0deg));
+	transition: transform 0.6s ease;
+}
+.fisha-river__slide:nth-child(3n+1) { --tilt: -0.6deg; }
+.fisha-river__slide:nth-child(3n+2) { --tilt: 0.45deg; }
+.fisha-river__slide:hover { --tilt: 0deg; }
+
+/* Caption under each painting (never wider than the painting) */
+.fisha-river__caption {
+	width: 0;
+	min-width: 100%;
+	margin-top: 0.85rem;
+	display: flex;
+	flex-direction: column;
+	gap: 0.15rem;
+	font: 400 0.875rem/1.5 "Nunito", system-ui, sans-serif;
+	color: rgba(23, 35, 45, 0.72);
+}
+.fisha-river__caption-title {
+	font-weight: 700;
+	font-size: 0.95rem;
+	color: var(--river-ink);
+}
+.fisha-river__caption-text {
+	max-width: 60ch;
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
+
+/* The river line, with Fisha swimming along it */
+.fisha-river__stream {
+	position: relative;
+	height: 78px;
+	margin: 0.25rem clamp(1rem, 4vw, 3rem) 0;
+	pointer-events: none;
+}
+.fisha-river__stream .fisha-river__water {
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: 6px;
+	width: 100%;
+	height: 26px;
+	margin: 0;
+	color: rgba(23, 35, 45, 0.38);
+}
+.fisha-river__swimmer {
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 78px;
+	height: auto;
+	max-width: none;
+	transform-origin: 50% 70%;
+	will-change: transform;
+	transition: opacity 0.45s ease;
+	user-select: none;
+}
+.fisha-river__swimmer.is-wrapping { opacity: 0; transition: none; }
+.fisha-river__frame img {
+	display: block;
+	height: 100%;
+	width: auto;
+	max-width: none;
+	background: #fff;
+	box-shadow: 0 1px 2px rgba(23, 35, 45, 0.08), 0 10px 28px -12px rgba(23, 35, 45, 0.28);
+	user-select: none;
+	-webkit-user-drag: none;
+}
+
+/* Magnifier on every artwork */
+.fisha-river__zoom {
+	position: absolute;
+	right: 12px;
+	bottom: 12px;
+	display: grid;
+	place-items: center;
+	width: 40px;
+	height: 40px;
+	padding: 0;
+	border: 0;
+	border-radius: 50%;
+	background: rgba(255, 255, 255, 0.92);
+	color: var(--river-ink);
+	box-shadow: 0 2px 10px rgba(23, 35, 45, 0.18);
+	cursor: zoom-in;
+	transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+.fisha-river__zoom:hover,
+.fisha-river__zoom:focus-visible { transform: scale(1.1); background: var(--river-ink); color: #fff; outline: none; }
+
+/* Controls */
+.fisha-river__controls {
+	display: flex;
+	justify-content: center;
+	gap: 0.75rem;
+	padding-top: 0.75rem;
+}
+.fisha-river__btn {
+	display: grid;
+	place-items: center;
+	width: 44px;
+	height: 44px;
+	padding: 0;
+	border: 1.5px solid currentColor;
+	border-radius: 50%;
+	background: transparent;
+	color: var(--river-ink);
+	cursor: pointer;
+	transition: background 0.2s ease, color 0.2s ease;
+}
+.fisha-river__btn:hover,
+.fisha-river__btn:focus-visible { background: var(--river-ink); color: var(--river-paper); outline: none; }
+.fisha-river__btn .i-play { display: none; }
+.fisha-river__btn[aria-pressed="true"] .i-play { display: block; }
+.fisha-river__btn[aria-pressed="true"] .i-pause { display: none; }
+
+.fisha-river__empty { text-align: center; padding: 4rem 0; }
+
+/* Music toggle */
+.fisha-river__sound {
+	position: fixed;
+	right: clamp(12px, 2vw, 28px);
+	bottom: clamp(12px, 2vw, 28px);
+	z-index: 90;
+	display: inline-flex;
+	align-items: center;
+	gap: 0.45rem;
+	padding: 0.55rem 0.95rem 0.55rem 0.75rem;
+	border: 1.5px solid var(--river-ink);
+	border-radius: 999px;
+	background: #fff;
+	color: var(--river-ink);
+	font: 600 0.9rem/1 "Nunito", system-ui, sans-serif;
+	cursor: pointer;
+	box-shadow: 0 4px 16px rgba(23, 35, 45, 0.12);
+}
+.fisha-river__sound:hover,
+.fisha-river__sound:focus-visible { background: var(--river-ink); color: #fff; outline: none; }
+.fisha-river__sound .x { display: none; }
+.fisha-river__sound.is-off .x { display: inline; }
+.fisha-river__sound.is-off .w { display: none; }
+.fisha-river__sound:not(.is-off) .w { animation: fisha-wave 1.6s ease-in-out infinite; }
+@keyframes fisha-wave { 50% { opacity: 0.35; } }
+
+/* Zoom viewer */
+.fisha-lightbox {
+	--river-paper: #f6f1e7;
+	--river-ink: rgb(23, 35, 45);
+	--river-accent: #e28838;
+	position: fixed;
+	inset: 0;
+	z-index: 100000;
+	background: var(--river-paper);
+	color: var(--river-ink, rgb(23, 35, 45));
+	touch-action: none;
+	opacity: 0;
+	transition: opacity 0.25s ease;
+}
+.fisha-lightbox.is-open { opacity: 1; }
+.fisha-lightbox[hidden] { display: none; }
+.fisha-lightbox__stage {
+	position: absolute;
+	inset: 0 0 72px;
+	overflow: hidden;
+	cursor: zoom-in;
+}
+.fisha-lightbox.is-zoomed .fisha-lightbox__stage { cursor: grab; }
+.fisha-lightbox.is-panning .fisha-lightbox__stage { cursor: grabbing; }
+.fisha-lightbox__img {
+	position: absolute;
+	left: 50%;
+	top: 50%;
+	max-width: none;
+	transform-origin: 0 0;
+	user-select: none;
+	-webkit-user-drag: none;
+	box-shadow: 0 10px 40px -16px rgba(23, 35, 45, 0.35);
+	background: #fff;
+}
+.fisha-lightbox__img.is-animating { transition: transform 0.25s ease; }
+.fisha-lightbox__bar {
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	height: 72px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 0.6rem;
+}
+.fisha-lightbox__count { min-width: 4.5em; text-align: center; font: 600 0.9rem "Nunito", sans-serif; }
+.fisha-lightbox__close { position: absolute; top: 14px; right: 14px; }
+.fisha-lightbox .fisha-river__btn { background: rgba(255, 255, 255, 0.85); }
+.fisha-lightbox .fisha-river__btn:hover,
+.fisha-lightbox .fisha-river__btn:focus-visible { background: var(--river-ink, rgb(23, 35, 45)); color: #fff; }
+.fisha-lightbox__hint {
+	position: absolute;
+	top: 18px;
+	left: 50%;
+	transform: translateX(-50%);
+	padding: 0.35rem 0.8rem;
+	border-radius: 999px;
+	background: rgba(23, 35, 45, 0.75);
+	color: #fff;
+	font: 0.85rem "Nunito", sans-serif;
+	pointer-events: none;
+	transition: opacity 0.6s ease;
+}
+
+@media (max-width: 781px) {
+	.fisha-river { --river-h: clamp(200px, 42vh, 420px); }
+	.fisha-river__stream { height: 62px; }
+	.fisha-river__swimmer { width: 58px; }
+	.fisha-river__sound-label { display: none; }
+	.fisha-river__sound { padding: 0.6rem; }
+	.fisha-river__zoom { width: 44px; height: 44px; }
+}
+@media (prefers-reduced-motion: reduce) {
+	.fisha-river__frame { transform: none; transition: none; }
+	.fisha-river__sound .w { animation: none; }
+}
+
+/* HD page: OpenSeadragon deep-zoom viewer */
+.fisha-lightbox__osd { position: absolute !important; top: 0; left: 0; width: 100%; height: 100%; display: none; }
+.fisha-lightbox.is-hd .fisha-lightbox__osd { display: block; }
+.fisha-lightbox.is-hd .fisha-lightbox__img { display: none; }
+.fisha-lightbox.is-hd .fisha-lightbox__stage { cursor: grab; }
+
+/* Autoplay blocked by the browser: gently invite the first tap */
+.fisha-river__sound.is-waiting { animation: fisha-invite 1.8s ease-in-out infinite; }
+@keyframes fisha-invite { 0%, 100% { box-shadow: 0 4px 16px rgba(23, 35, 45, 0.12), 0 0 0 0 rgba(226, 136, 56, 0.45); } 50% { box-shadow: 0 4px 16px rgba(23, 35, 45, 0.12), 0 0 0 10px rgba(226, 136, 56, 0); } }
+@media (prefers-reduced-motion: reduce) { .fisha-river__sound.is-waiting { animation: none; } }
