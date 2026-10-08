@@ -145,3 +145,37 @@ function fisha_product_card( $p, $i = 0 ) {
 	<?php
 	return ob_get_clean();
 }
+
+/**
+ * "Pick another design" row on product pages of a series (e.g. the hand-drawn Clippers):
+ * every product with the same _fisha_series meta, as small swatches linking to each other.
+ */
+function fisha_series_siblings( $product_id ) {
+	$series = get_post_meta( $product_id, '_fisha_series', true );
+	if ( ! $series ) return array();
+	return wc_get_products( array(
+		'status' => 'publish', 'limit' => 40, 'visibility' => 'catalog',
+		'meta_key' => '_fisha_series', 'meta_value' => $series,
+		'orderby' => array( 'menu_order' => 'ASC', 'date' => 'DESC' ),
+	) );
+}
+function fisha_series_picker() {
+	global $product;
+	if ( ! $product ) return;
+	$sibs = fisha_series_siblings( $product->get_id() );
+	if ( count( $sibs ) < 2 ) return;
+	wp_enqueue_style( 'fisha-shop', FISHA_DESIGN_URL . 'shop.css', array( 'fisha-design' ), fisha_asset_ver( 'shop.css' ) );
+	$avail = count( array_filter( $sibs, fn( $p ) => $p->is_in_stock() ) );
+	echo '<div class="fs-series"><p class="fs-series__label">Pick your design <span>' . (int) $avail . ' of ' . count( $sibs ) . ' available · each one is unique</span></p><ul class="fs-series__list">';
+	foreach ( $sibs as $p ) {
+		$cur = $p->get_id() === $product->get_id();
+		$out = ! $p->is_in_stock();
+		printf( '<li><a href="%s" class="fs-series__item%s%s" title="%s"%s>%s</a></li>',
+			esc_url( get_permalink( $p->get_id() ) ), $cur ? ' is-current' : '', $out ? ' is-out' : '',
+			esc_attr( $p->get_name() . ( $out ? ' (sold)' : '' ) ), $cur ? ' aria-current="true"' : '',
+			wp_get_attachment_image( $p->get_image_id(), 'thumbnail', false, array( 'alt' => $p->get_name(), 'loading' => 'lazy' ) ) );
+	}
+	echo '</ul></div>';
+}
+add_action( 'woocommerce_single_product_summary', 'fisha_series_picker', 25 );
+add_shortcode( 'fisha_series_picker', function () { ob_start(); fisha_series_picker(); return ob_get_clean(); } );

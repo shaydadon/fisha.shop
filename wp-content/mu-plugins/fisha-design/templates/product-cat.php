@@ -20,7 +20,7 @@ $hero    = fisha_cat_hero_ids( $term );
 // Shelves (parent category) or one grid (leaf category)
 $shelves = array();
 if ( $children ) {
-	foreach ( $children as $c ) $shelves[] = array( 'term' => $c, 'products' => fisha_cat_products( $c, 8 ) );
+	foreach ( $children as $c ) $shelves[] = array( 'term' => $c, 'products' => fisha_cat_products( $c, count( $children ) === 1 ? 24 : 8 ) );
 	// products sitting directly in the parent (not in any child)
 	$direct = array_filter( fisha_cat_products( $term, 24 ), function ( $p ) use ( $children ) {
 		return ! array_intersect( $p->get_category_ids(), wp_list_pluck( $children, 'term_id' ) );

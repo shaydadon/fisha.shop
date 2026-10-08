@@ -327,3 +327,15 @@ body.fisha-shop-cat { overflow-x: clip; }
 	.fs-happy__grid { grid-template-columns: 1fr; max-width: 360px; margin: 0 auto; }
 	.fs-happy__item--2 figure, .fs-happy__item--3 figure { margin-top: 0; }
 }
+
+/* ===== Series picker (product page: other hand-drawn designs) ===== */
+.fs-series { margin: 1.25rem 0 1.5rem; font-family: "Nunito", sans-serif; }
+.fs-series__label { margin: 0 0 0.6rem; font-weight: 800; color: rgb(23, 35, 45); }
+.fs-series__label span { display: block; font-size: 0.82rem; font-weight: 600; opacity: 0.6; }
+.fs-series__list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.fs-series__item { display: block; width: 56px; height: 56px; border-radius: 12px; overflow: hidden; border: 2px solid transparent; background: #efe8dc; transition: border-color 0.2s, transform 0.2s; }
+.fs-series__item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.fs-series__item:hover { transform: translateY(-2px); border-color: #E48734; }
+.fs-series__item.is-current { border-color: rgb(23, 35, 45); box-shadow: 0 0 0 2px #fff inset; }
+.fs-series__item.is-out { opacity: 0.4; position: relative; }
+.fs-series__item.is-out::after { content: ""; position: absolute; left: -10%; top: 50%; width: 120%; height: 2px; background: rgb(23, 35, 45); transform: rotate(-45deg); }
