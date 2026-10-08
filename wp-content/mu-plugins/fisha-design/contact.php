@@ -137,7 +137,7 @@ add_shortcode( 'fisha_contact', function ( $atts ) {
 		<p class="fc-eyebrow"><?php echo esc_html( $a['eyebrow'] ); ?></p>
 		<h1 class="fc-title"><?php echo esc_html( $a['title'] ); ?></h1>
 		<p class="fc-lead"><?php echo esc_html( $a['text'] ); ?></p>
-		<div class="fc-river"><?php echo fisha_contact_img( $st, 'loop-fisha', 'fc-river__img', true, false ); ?></div>
+		<div class="fc-river"<?php if ( ! empty( $st['loop-fisha'] ) ) echo ' data-anim="' . esc_url( str_replace( $st['loop-fisha']['still'], $st['loop-fisha']['file'], $st['loop-fisha']['src'] ) ) . '"'; ?>><?php echo fisha_contact_img( $st, 'loop-fisha', 'fc-river__img', true, false ); ?></div>
 	</header>
 
 	<section class="fc-stage" aria-label="Send us a message">

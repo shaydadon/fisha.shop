@@ -23,6 +23,17 @@
 		im.src = pick.src;
 	});
 
+	// Hero fish: the still frame paints first, the blinking loop takes over once it has loaded.
+	var river = document.querySelector('.fc-river[data-anim]');
+	if (river && !still) {
+		var swap = function () {
+			var im = new Image();
+			im.onload = function () { var img = river.querySelector('img'); if (img) img.src = im.src; };
+			im.src = river.getAttribute('data-anim');
+		};
+		if (document.readyState === 'complete') swap(); else window.addEventListener('load', swap);
+	}
+
 	form.querySelector('input[name="source"]').value = location.href.split('#')[0];
 	var nojs = form.querySelector('input[name="fisha_nojs"]');
 	if (nojs) nojs.remove();
