@@ -3,6 +3,7 @@ body.fisha-shop-cat { overflow-x: clip; }
 .fisha-shop {
 	--ink: rgb(23, 35, 45);
 	--accent: #E48734;
+	--accent-ink: #9E4F0E; /* text-safe orange: 5.1:1 on paper */
 	--paper: #f4efe6;
 	--line: rgba(23, 35, 45, 0.14);
 	--pad: clamp(1.25rem, 5vw, 4rem);
@@ -31,9 +32,9 @@ body.fisha-shop-cat { overflow-x: clip; }
 .fs-crumbs ol { list-style: none; display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0 0 1.75rem; padding: 0; font-size: 0.88rem; }
 .fs-crumbs li + li::before { content: "/"; margin-right: 0.4rem; opacity: 0.4; }
 .fs-crumbs a { text-decoration: none; opacity: 0.7; }
-.fs-crumbs a:hover { opacity: 1; color: var(--accent); }
+.fs-crumbs a:hover { opacity: 1; color: var(--accent-ink); }
 .fs-crumbs [aria-current] { font-weight: 700; }
-.fs-eyebrow { margin: 0 0 0.9rem; font-size: 0.82rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent); }
+.fs-eyebrow { margin: 0 0 0.9rem; font-size: 0.82rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent-ink); }
 .fisha-shop .fs-title {
 	margin: 0;
 	font-family: "Nunito", sans-serif;
@@ -43,7 +44,7 @@ body.fisha-shop-cat { overflow-x: clip; }
 	letter-spacing: -0.02em;
 	color: var(--ink);
 }
-.fs-title span { color: var(--accent); }
+.fs-title span { color: var(--accent-ink); }
 .fs-lead { margin: 1.4rem 0 0; max-width: 33rem; font-size: clamp(1.05rem, 1.5vw, 1.2rem); line-height: 1.7; }
 .fs-hero__count { margin: 1.4rem 0 0; font-size: 0.9rem; font-weight: 700; letter-spacing: 0.04em; opacity: 0.65; }
 
@@ -93,9 +94,9 @@ body.fisha-shop-cat { overflow-x: clip; }
 	transition: background 0.2s, color 0.2s, transform 0.2s;
 }
 .fs-chip span { font-size: 0.75rem; font-weight: 800; padding: 0.05rem 0.45rem; border-radius: 999px; background: var(--paper); }
-.fs-chip:hover { transform: translateY(-1px); border-color: var(--accent); color: var(--accent); }
+.fs-chip:hover { transform: translateY(-1px); border-color: var(--accent); color: var(--accent-ink); }
 .fs-chip.is-active { background: var(--ink); color: #fff; }
-.fs-chip.is-active span { background: var(--accent); color: #fff; }
+.fs-chip.is-active span { background: var(--accent-ink); color: #fff; }
 
 /* ---------- Shelves ---------- */
 .fs-body { max-width: var(--wrap); margin: 0 auto; padding: clamp(2rem, 4vw, 3rem) var(--pad) clamp(3rem, 6vw, 5rem); }
@@ -106,7 +107,7 @@ body.fisha-shop-cat { overflow-x: clip; }
 .fs-shelf__head p { margin: 0.4rem 0 0; max-width: 36rem; line-height: 1.6; opacity: 0.8; }
 .fs-shelf__tools { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; }
 .fs-viewall { font-weight: 700; text-decoration: none; white-space: nowrap; padding: 0.35rem 0; border-bottom: 2px solid var(--accent); }
-.fs-viewall:hover { color: var(--accent); }
+.fs-viewall:hover { color: var(--accent-ink); }
 .fs-arrow {
 	width: 40px; height: 40px; border-radius: 50%; border: 1.5px solid var(--ink); background: #fff; color: var(--ink);
 	font-size: 22px; line-height: 1; cursor: pointer; display: grid; place-items: center; transition: background 0.2s, color 0.2s, opacity 0.2s;
@@ -136,14 +137,14 @@ body.fisha-shop-cat { overflow-x: clip; }
 .fs-card__link:hover .fs-card__img { transform: scale(1.04); }
 .fs-card__link:hover .has-alt .fs-card__img--alt { opacity: 1; }
 .fs-card__link:focus-visible { outline: none; }
-.fs-card__badge { position: absolute; left: 12px; top: 12px; padding: 0.25rem 0.65rem; border-radius: 999px; background: var(--accent); color: #fff; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.04em; }
+.fs-card__badge { position: absolute; left: 12px; top: 12px; padding: 0.25rem 0.65rem; border-radius: 999px; background: var(--accent-ink); color: #fff; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.04em; }
 .fs-card__badge--out { background: var(--ink); }
 .fs-card__body { display: grid; grid-template-columns: 1fr auto; gap: 0.15rem 0.75rem; padding: 0.85rem 0.2rem 0; }
 .fisha-shop .fs-card__title { grid-column: 1 / -1; margin: 0; font-size: 1.02rem; font-weight: 700; line-height: 1.35; color: var(--ink); }
 .fs-card__meta { font-size: 0.85rem; opacity: 0.65; }
 .fs-card__price { grid-column: 1 / -1; font-weight: 800; font-size: 1rem; }
 .fs-card__price del { opacity: 0.5; font-weight: 400; margin-right: 0.35rem; }
-.fs-card__price ins { text-decoration: none; color: var(--accent); }
+.fs-card__price ins { text-decoration: none; color: var(--accent-ink); }
 .fs-card__add {
 	position: absolute; right: 12px; top: calc(100cqw - 56px);
 	width: 44px; height: 44px; border-radius: 50%;
@@ -156,7 +157,7 @@ body.fisha-shop-cat { overflow-x: clip; }
 .fs-card__add:hover, .fs-card__add:focus-visible { background: var(--accent); transform: scale(1.06); outline: none; }
 .fs-card__add.loading { opacity: 0.6; pointer-events: none; }
 .fs-card__add.added { background: var(--accent); }
-.fs-card__add.added::after { content: "✓"; position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; border-radius: 50%; background: #fff; color: var(--accent); font-size: 12px; font-weight: 800; display: grid; place-items: center; box-shadow: 0 1px 4px rgba(0,0,0,.2); }
+.fs-card__add.added::after { content: "✓"; position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; border-radius: 50%; background: #fff; color: var(--accent-ink); font-size: 12px; font-weight: 800; display: grid; place-items: center; box-shadow: 0 1px 4px rgba(0,0,0,.2); }
 .fs-card .added_to_cart { display: none !important; } /* Woo's "View cart" link — the header bag updates instead */
 
 /* ---------- Empty + about ---------- */
@@ -200,7 +201,7 @@ body.fisha-shop-cat { overflow-x: clip; }
 .fs-cats__name { font-size: 1.2rem; font-weight: 800; }
 .fs-cats__count { font-size: 0.85rem; font-weight: 700; opacity: 0.6; }
 .fs-cats__arrow { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; border: 1.5px solid var(--ink); transition: background 0.2s, color 0.2s, transform 0.2s; }
-.fs-cats a:hover, .fs-cats a:focus-visible { color: var(--accent); padding-left: 0.75rem; outline: none; }
+.fs-cats a:hover, .fs-cats a:focus-visible { color: var(--accent-ink); padding-left: 0.75rem; outline: none; }
 .fs-cats a:hover .fs-cats__arrow, .fs-cats a:focus-visible .fs-cats__arrow { background: var(--accent); border-color: var(--accent); color: #fff; transform: rotate(-25deg); }
 
 .fs-hero__stack { position: relative; min-height: 440px; }
@@ -229,7 +230,7 @@ body.fisha-shop-cat { overflow-x: clip; }
 .fs-select select.is-set { border-color: var(--accent); background: #fdf1e6; }
 .fs-filters__status { margin: 0 0 0 auto; display: flex; align-items: center; gap: 0.75rem; font-size: 0.88rem; font-weight: 700; white-space: nowrap; }
 .fs-filters__count { opacity: 0.65; }
-.fs-filters__clear { font: inherit; font-size: 0.85rem; font-weight: 800; color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.fs-filters__clear { font: inherit; font-size: 0.85rem; font-weight: 800; color: var(--accent-ink); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
 .fs-filters__clear[hidden], .fs-noresults[hidden], .fs-shelf[hidden], .fs-card[hidden] { display: none !important; }
 
 /* "see all" tile + empty states */
@@ -262,11 +263,11 @@ body.fisha-shop-cat { overflow-x: clip; }
 .fs-faq__help .fisha-cta { justify-self: start; padding-block: 0.6rem; font-size: 0.92rem; }
 .fs-faq__group + .fs-faq__group { margin-top: 2rem; }
 .fs-faq__group[hidden] { display: none; }
-.fisha-shop .fs-faq__group h3 { margin: 0 0 0.5rem; font-size: 0.82rem; font-weight: 800; letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent); }
+.fisha-shop .fs-faq__group h3 { margin: 0 0 0.5rem; font-size: 0.82rem; font-weight: 800; letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent-ink); }
 .fs-faq__item { border-bottom: 1.5px solid var(--line); }
 .fs-faq__item summary { list-style: none; cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 1.05rem 0.1rem; font-size: 1.08rem; font-weight: 700; line-height: 1.4; transition: color 0.2s; }
 .fs-faq__item summary::-webkit-details-marker { display: none; }
-.fs-faq__item summary:hover, .fs-faq__item summary:focus-visible { color: var(--accent); outline: none; }
+.fs-faq__item summary:hover, .fs-faq__item summary:focus-visible { color: var(--accent-ink); outline: none; }
 .fs-faq__icon { flex-shrink: 0; position: relative; width: 30px; height: 30px; border-radius: 50%; border: 1.5px solid var(--ink); transition: background 0.2s, transform 0.3s; }
 .fs-faq__icon::before, .fs-faq__icon::after { content: ""; position: absolute; left: 50%; top: 50%; width: 11px; height: 2px; margin: -1px 0 0 -5.5px; background: var(--ink); border-radius: 2px; transition: transform 0.3s, background 0.2s; }
 .fs-faq__icon::after { transform: rotate(90deg); }
@@ -275,7 +276,7 @@ body.fisha-shop-cat { overflow-x: clip; }
 .fs-faq__item[open] .fs-faq__icon::after { transform: rotate(0deg); }
 .fs-faq__a { padding: 0 3rem 1.2rem 0.1rem; line-height: 1.75; }
 .fs-faq__a p { margin: 0; opacity: 0.85; }
-.fs-faq__a a { color: var(--accent); font-weight: 700; }
+.fs-faq__a a { color: var(--accent-ink); font-weight: 700; }
 
 @media (max-width: 900px) {
 	.fs-hero__stack { min-height: 0; height: 78vw; max-height: 420px; max-width: 520px; width: 100%; margin: 0 auto; }
@@ -305,7 +306,7 @@ body.fisha-shop-cat { overflow-x: clip; }
 }
 
 /* ===== Originals: price on request + Happy clients wall ===== */
-.fs-card__ask { font-weight: 700; color: var(--accent); }
+.fs-card__ask { font-weight: 700; color: var(--accent-ink); }
 .fs-happy { max-width: var(--wrap); margin: 0 auto; padding: clamp(2.5rem, 6vw, 4.5rem) var(--pad); border-top: 1.5px solid var(--ink); }
 .fs-happy__head { max-width: 40rem; margin-bottom: clamp(2rem, 4vw, 3rem); }
 .fisha-shop .fs-happy__head h2 { margin: 0 0 0.6rem; font-size: clamp(2rem, 4vw, 2.9rem); font-weight: 800; line-height: 1.05; color: var(--ink); }
@@ -319,7 +320,7 @@ body.fisha-shop-cat { overflow-x: clip; }
 .fs-happy__item img { display: block; width: 100%; height: auto; aspect-ratio: 4 / 5; object-fit: cover; border-radius: 3px; }
 .fs-happy__item figcaption { margin-top: 0.8rem; font-size: 0.95rem; font-weight: 700; line-height: 1.4; text-align: center; }
 .fs-happy__item:nth-child(3n+2) .fs-photo__tape { background: rgba(160, 196, 205, 0.85); transform: rotate(5deg); }
-.fs-happy__stamp { position: absolute; top: 22px; right: 22px; padding: 0.3rem 0.75rem; border: 2px solid var(--accent); border-radius: 999px; background: rgba(255, 255, 255, 0.92); color: var(--accent); font-size: 0.75rem; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; transform: rotate(8deg); }
+.fs-happy__stamp { position: absolute; top: 22px; right: 22px; padding: 0.3rem 0.75rem; border: 2px solid var(--accent); border-radius: 999px; background: rgba(255, 255, 255, 0.92); color: var(--accent-ink); font-size: 0.75rem; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; transform: rotate(8deg); }
 .fs-happy__cta { margin-top: clamp(2.5rem, 5vw, 3.5rem); display: flex; align-items: center; justify-content: center; gap: 1rem 1.5rem; flex-wrap: wrap; text-align: center; }
 .fs-happy__cta p { margin: 0; font-size: 1.15rem; font-weight: 700; }
 @media (max-width: 900px) { .fs-happy__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

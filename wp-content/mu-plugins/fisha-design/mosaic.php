@@ -25,6 +25,13 @@ add_filter( 'body_class', function ( $c ) {
 	return $c;
 } );
 
+// The mosaic hero carries the H1 — drop the theme's page-title block on River.
+add_filter( 'render_block_core/post-title', function ( $html, $block, $instance = null ) {
+	if ( ! fisha_is_mosaic_page() ) return $html;
+	$pid = ( $instance && isset( $instance->context['postId'] ) ) ? (int) $instance->context['postId'] : get_the_ID();
+	return $pid === get_queried_object_id() ? '' : $html;
+}, 10, 3 );
+
 add_shortcode( 'fisha_mosaic', function ( $atts, $content = '' ) {
 	$d = fisha_river_dir( 'fisha-river' );
 	$f = $d['path'] . 'manifest.json';
@@ -34,10 +41,15 @@ add_shortcode( 'fisha_mosaic', function ( $atts, $content = '' ) {
 	$tapes = array( 'orange', 'blue', 'beige' );
 	ob_start(); ?>
 <section class="fisha-mosaic" aria-label="River — Fisha sketches">
-	<?php if ( trim( (string) $content ) ) : ?>
-	<?php $is_he = (bool) preg_match( '/\p{Hebrew}/u', $content ); ?>
-	<div class="fisha-river__intro" dir="<?php echo $is_he ? 'rtl' : 'ltr'; ?>" lang="<?php echo $is_he ? 'he' : 'en'; ?>"><?php echo wpautop( wp_kses_post( trim( $content ) ) ); ?></div>
-	<?php endif; ?>
+	<header class="fisha-mosaic__hero">
+		<p class="fisha-mosaic__eyebrow">From the sketchbook</p>
+		<h1 class="fisha-mosaic__title"><?php echo esc_html( get_the_title() ); ?></h1>
+		<?php if ( trim( (string) $content ) ) : ?>
+		<?php $is_he = (bool) preg_match( '/\p{Hebrew}/u', $content ); ?>
+		<div class="fisha-river__intro" dir="<?php echo $is_he ? 'rtl' : 'ltr'; ?>" lang="<?php echo $is_he ? 'he' : 'en'; ?>"><?php echo wpautop( wp_kses_post( trim( $content ) ) ); ?></div>
+		<?php endif; ?>
+		<p class="fisha-mosaic__hint">Tap any sketch to see it up close.</p>
+	</header>
 	<div class="fisha-mosaic__board">
 		<div class="fisha-mosaic__grid">
 			<?php foreach ( $m['images'] as $i => $img ) :

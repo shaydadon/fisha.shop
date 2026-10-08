@@ -7,6 +7,7 @@ body.fisha-contact-page .wp-block-post-content { padding-left: 0 !important; pad
 .fisha-contact {
 	--ink: rgb(23, 35, 45);
 	--accent: #E48734;
+	--accent-ink: #9E4F0E; /* text-safe orange: 5.1:1 on paper */
 	--paper: #f4efe6;
 	--pad: clamp(1.25rem, 5vw, 4rem);
 	color: var(--ink);
@@ -21,7 +22,7 @@ body.fisha-contact-page .wp-block-post-content { padding-left: 0 !important; pad
 
 /* ---------- Hero ---------- */
 .fc-hero { max-width: 760px; margin: 0 auto; padding: clamp(2.5rem, 6vw, 4.5rem) var(--pad) 0; text-align: center; }
-.fc-eyebrow { margin: 0 0 0.9rem; font-size: 0.82rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent); }
+.fc-eyebrow { margin: 0 0 0.9rem; font-size: 0.82rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent-ink); }
 .fisha-contact .fc-title {
 	margin: 0;
 	font-family: "Nunito", sans-serif;
@@ -77,7 +78,7 @@ body.fisha-contact-page .wp-block-post-content { padding-left: 0 !important; pad
 }
 .fisha-contact .fc-card__title { margin: 0 0 0.25rem; font-size: clamp(1.5rem, 2.6vw, 1.9rem); font-weight: 800; color: var(--ink); line-height: 1.2; }
 .fc-card__sub { margin: 0 0 1.5rem; font-size: 0.92rem; color: rgba(23, 35, 45, 0.7); }
-.fc-req { color: var(--accent); font-weight: 800; }
+.fc-req { color: var(--accent-ink); font-weight: 800; }
 
 /* CF7 form */
 .fc-form .fc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem 1rem; }
@@ -131,7 +132,7 @@ body.fisha-contact-page .wp-block-post-content { padding-left: 0 !important; pad
 	cursor: pointer;
 	transition: background 0.2s, transform 0.2s;
 }
-.fc-form .wpcf7-submit:hover, .fc-form .wpcf7-submit:focus-visible { background: var(--accent); transform: translateY(-2px); outline: none; }
+.fc-form .wpcf7-submit:hover, .fc-form .wpcf7-submit:focus-visible { background: var(--accent-ink); transform: translateY(-2px); outline: none; }
 .fc-form .wpcf7-submit:disabled { opacity: 0.6; cursor: wait; }
 .fc-form .wpcf7-spinner { margin: 0; }
 .fc-form .wpcf7-not-valid { border-color: #c4472d !important; }

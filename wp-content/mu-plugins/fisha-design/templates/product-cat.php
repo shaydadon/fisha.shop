@@ -144,6 +144,7 @@ $fisha_footer = do_blocks( '<!-- wp:template-part {"slug":"footer","tagName":"fo
 		</section>
 		<?php endforeach; ?>
 	<?php elseif ( $grid ) : ?>
+		<?php do_action( 'fisha_before_grid', $term ); ?>
 		<ul class="fs-grid">
 			<?php foreach ( $grid as $i => $p ) echo fisha_product_card( $p, $i ); ?>
 		</ul>

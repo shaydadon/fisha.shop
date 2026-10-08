@@ -18,6 +18,7 @@ require_once FISHA_DESIGN_DIR . 'contact.php';
 require_once FISHA_DESIGN_DIR . 'shop.php';
 require_once FISHA_DESIGN_DIR . 'cart.php';
 require_once FISHA_DESIGN_DIR . 'legal.php';
+require_once FISHA_DESIGN_DIR . 'ux.php';
 
 function fisha_asset_ver( $rel ) {
 	$f = FISHA_DESIGN_DIR . $rel;

@@ -1,0 +1,82 @@
+/* ===== Fisha UX layer — from the UI/UX audit (contrast · touch targets · readable sizes) ===== */
+:root {
+	--fisha-ink: rgb(23, 35, 45);
+	--fisha-accent: #E48734;      /* decoration, fills, tape, icons */
+	--fisha-accent-ink: #9E4F0E;  /* orange TEXT: 5.1:1 on paper, 5.9:1 on white, 4.9:1 on the grey footer */
+	--fisha-paper: #f4efe6;
+}
+
+/* ---------- 1. Contrast: orange text uses the text-safe shade ---------- */
+.elementor .elementor-heading-title .light,
+.elementor-widget-heading .light { color: var(--fisha-accent-ink) !important; }
+.fisha-footer__label { color: var(--fisha-accent-ink) !important; }
+.fisha-footer .current-menu-item > .wp-block-navigation-item__content { color: var(--fisha-accent-ink) !important; }
+.wp-block-navigation .current-menu-item > a, .wp-block-navigation a[aria-current="page"] { color: var(--fisha-accent-ink); }
+a.fisha-teaser__more, .fisha-teaser a:not(.fisha-teaser__cta):not(.fisha-teaser__card) { color: var(--fisha-accent-ink); }
+
+/* ---------- 2. Touch targets: ≥44px on touch screens ---------- */
+/* bigger hit area without changing the layout: padding + equal negative margin */
+.wp-block-navigation__responsive-container-open,
+.wp-block-navigation__responsive-container-close { padding: 10px !important; margin: -10px !important; box-sizing: content-box; }
+header .wc-block-mini-cart__button, header .wp-block-woocommerce-customer-account a { min-height: 44px; }
+.fisha-footer__nav .wp-block-navigation__container { gap: 0 !important; }
+.fisha-footer__nav .wp-block-navigation-item__content { display: inline-flex !important; align-items: center; min-height: 44px; padding: 0 !important; }
+.fisha-footer__social .wp-social-link a, .fisha-footer__social .wp-social-link { min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
+.fisha-footer__legal a, .fisha-footer__credit a { display: inline-block; padding: 0.6rem 0.15rem; }
+.fs-chip, .fs-select select { min-height: 44px; }
+.fs-viewall { display: inline-flex; align-items: center; min-height: 44px; }
+.fs-filters__clear { min-height: 44px; padding: 0 0.25rem; }
+.fs-arrow { width: 44px; height: 44px; }
+.fs-crumbs a { display: inline-block; padding: 0.55rem 0; }
+.fs-series__item { width: 56px; height: 56px; }
+
+/* ---------- 3. Readable sizes: nothing important under 14px ---------- */
+.fs-eyebrow, .fc-eyebrow, .fl-eyebrow, .ft-eyebrow, .fisha-teaser__eyebrow, .fisha-woo-eyebrow { font-size: 0.875rem !important; }
+.fisha-footer__label { font-size: 0.875rem !important; }
+.fl-toc__label { font-size: 0.875rem !important; }
+.fs-card__meta { font-size: 0.9375rem; opacity: 0.75; }
+.fs-card__badge { font-size: 0.875rem; }
+.fs-cats__count { font-size: 0.9375rem; opacity: 0.75; }
+.fs-chip span { font-size: 0.8125rem; }
+.fs-crumbs ol { font-size: 0.9375rem; }
+.fs-series__label span { font-size: 0.9375rem; }
+.ft-tags li { font-size: 0.9375rem !important; }
+.fs-filters__status { font-size: 0.9375rem; }
+.fisha-footer__bottom { font-size: 0.9375rem !important; }
+
+/* ---------- 4. Skip link (our full-page templates) ---------- */
+.fisha-skip:focus { position: fixed !important; left: 1rem; top: 1rem; z-index: 100000; width: auto; height: auto; clip: auto; padding: 0.75rem 1.25rem; background: #fff; color: var(--fisha-ink); font-weight: 800; border-radius: 999px; box-shadow: 0 6px 18px rgba(0,0,0,.2); }
+
+/* ---------- 5. Focus rings that are always visible ---------- */
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible {
+	outline: 3px solid var(--fisha-accent-ink) !important; outline-offset: 2px;
+}
+
+/* ---------- 6. Header logo a little bigger on phones ---------- */
+@media (max-width: 781px) {
+	header .wp-block-site-logo img { width: 84px !important; height: auto !important; }
+}
+
+/* ---------- 7. Home hero: stronger heading + shop button ---------- */
+.elementor-element-25adc73 .elementor-heading-title { font-weight: 700 !important; letter-spacing: -0.01em; }
+.fisha-hero-cta .elementor-button {
+	background: var(--fisha-ink) !important; color: #fff !important; border-radius: 999px !important;
+	padding: 1rem 1.9rem !important; font-family: "Nunito", sans-serif !important; font-size: 1.0625rem !important; font-weight: 800 !important;
+	min-height: 52px; transition: background 0.2s ease, transform 0.2s ease;
+}
+.fisha-hero-cta .elementor-button:hover, .fisha-hero-cta .elementor-button:focus-visible { background: var(--fisha-accent-ink) !important; transform: translateY(-2px); }
+.fisha-hero-cta .elementor-button .elementor-button-text::after { content: " →"; }
+
+@media (prefers-reduced-motion: reduce) {
+	*, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+}
+
+/* audit round 2 */
+.fisha-cta, .fs-faq__help .fisha-cta { min-height: 44px; display: inline-flex; align-items: center; }
+.fl-toc a { min-height: 44px; display: flex !important; align-items: center; }
+.fs-series__label span { opacity: 0.8 !important; }
+.fs-chip span { font-size: 0.875rem; }
+html { overflow-x: clip; }
+.fisha-shop .fs-faq__group h3 { font-size: 0.875rem; }
+.fisha-shop .fs-card__meta { font-size: 0.9375rem; }
+body.single-product .wp-block-woocommerce-product-meta a, body.single-product .wp-block-post-terms a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 0.15rem; }
