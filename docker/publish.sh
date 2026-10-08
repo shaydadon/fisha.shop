@@ -29,7 +29,7 @@ echo "   -> database file";  $RS "$SSH" /tmp/fisha-export.sql "$R:fisha-sync/fis
 echo "   -> plugins";        $RS "$SSH" --delete /vol/plugins/ "$R:$WP_PATH/wp-content/plugins/"
 echo "   -> themes";         $RS "$SSH" --delete /vol/themes/  "$R:$WP_PATH/wp-content/themes/"
 echo "   -> uploads (adds/updates, never deletes)"
-$RS "$SSH" --exclude 'wc-logs/' --exclude 'cache/' --exclude '*.log' /site/wp-content/uploads/ "$R:$WP_PATH/wp-content/uploads/"
+$RS "$SSH" --exclude 'wc-logs/' --exclude 'cache/' --exclude '*.log' --exclude 'elementor/css/' /site/wp-content/uploads/ "$R:$WP_PATH/wp-content/uploads/"
 echo "   -> Fisha design code"
 $RS "$SSH" --delete --exclude 'tools/' /site/wp-content/mu-plugins/fisha-design/ "$R:$WP_PATH/wp-content/mu-plugins/fisha-design/"
 $RS "$SSH" /site/wp-content/mu-plugins/fisha-design.php "$R:$WP_PATH/wp-content/mu-plugins/fisha-design.php"

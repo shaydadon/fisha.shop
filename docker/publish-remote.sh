@@ -43,5 +43,7 @@ HT
   fi
 fi
 
+# Elementor keeps pre-built CSS files (with absolute image URLs) in uploads/elementor/css - rebuild them for this address
+wp elementor flush-css --quiet 2>/dev/null || rm -f wp-content/uploads/elementor/css/post-*.css
 (wp litespeed-purge all --quiet 2>/dev/null || $W cache flush) || true
 echo "      server done"
