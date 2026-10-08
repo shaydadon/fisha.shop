@@ -95,6 +95,20 @@ services:
     volumes:
       - ./:/var/www/html
 
+  # Copies the local site to Hostinger. Run via:  .\docker\publish.ps1  (dev)  or  .\docker\publish.ps1 -Target live
+  publish:
+    image: alpine:3.20
+    profiles: [tools]
+    environment:
+      TARGET: "${FISHA_TARGET:-dev}"
+      PREFIX: "${FISHA_PREFIX:-wp_}"
+    volumes:
+      - ./:/site:ro
+      - wp_plugins:/vol/plugins:ro
+      - wp_themes:/vol/themes:ro
+      - ${USERPROFILE:-~}/.ssh/fisha_deploy:/key:ro
+    command: sh /site/docker/publish.sh
+
 volumes:
   db_data:
   wp_admin:
