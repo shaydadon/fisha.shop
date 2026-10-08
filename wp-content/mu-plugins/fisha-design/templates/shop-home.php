@@ -137,7 +137,7 @@ $fisha_footer = do_blocks( '<!-- wp:template-part {"slug":"footer","tagName":"fo
 					<?php echo wp_get_attachment_image( $p->get_image_id(), 'woocommerce_single', false, array( 'loading' => 'eager', 'alt' => '', 'sizes' => '(max-width: 900px) 45vw, 300px' ) ); ?>
 				</figure>
 			<?php endforeach; ?>
-			<img class="fs-hero__fish" src="<?php echo esc_url( FISHA_DESIGN_URL . 'img/fisha-body.png' ); ?>" alt="" width="120" height="85">
+			<img class="fs-hero__fish" src="<?php echo esc_url( FISHA_DESIGN_URL . 'img/fisha-logo.png' ); ?>" alt="" width="120" height="85">
 		</div>
 		<?php endif; ?>
 	</section>
@@ -204,7 +204,7 @@ $fisha_footer = do_blocks( '<!-- wp:template-part {"slug":"footer","tagName":"fo
 				</ul>
 			<?php else : ?>
 				<div class="fs-soon">
-					<img src="<?php echo esc_url( FISHA_DESIGN_URL . 'img/fisha-body.png' ); ?>" alt="" aria-hidden="true" width="90" height="64">
+					<img src="<?php echo esc_url( FISHA_DESIGN_URL . 'img/fisha-logo.png' ); ?>" alt="" aria-hidden="true" width="90" height="64">
 					<p><strong><?php echo esc_html( $t->name ); ?> are on their way.</strong> Fisha is still drawing this collection — take a peek at the category page.</p>
 				</div>
 			<?php endif; ?>
@@ -235,7 +235,7 @@ $fisha_footer = do_blocks( '<!-- wp:template-part {"slug":"footer","tagName":"fo
 				<?php foreach ( $faq as $key => $g ) : ?><button type="button" class="fs-chip" data-faq="<?php echo esc_attr( $key ); ?>" aria-pressed="false"><?php echo esc_html( $g[0] ); ?></button><?php endforeach; ?>
 			</div>
 			<div class="fs-faq__help">
-				<img src="<?php echo esc_url( FISHA_DESIGN_URL . 'img/fisha-body.png' ); ?>" alt="" aria-hidden="true" width="70" height="50" loading="lazy">
+				<img src="<?php echo esc_url( FISHA_DESIGN_URL . 'img/fisha-logo.png' ); ?>" alt="" aria-hidden="true" width="70" height="50" loading="lazy">
 				<p><strong>Still wondering?</strong> We are happy to help.</p>
 				<a class="fisha-cta" href="<?php echo esc_url( $contact_url ); ?>">Contact us <span aria-hidden="true">→</span></a>
 			</div>

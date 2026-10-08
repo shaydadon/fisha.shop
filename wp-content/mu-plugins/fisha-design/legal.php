@@ -76,7 +76,7 @@ add_shortcode( 'fisha_legal', function ( $atts, $content = '' ) {
 			<?php endforeach; ?>
 
 			<aside class="fl-help">
-				<img src="<?php echo esc_url( FISHA_DESIGN_URL . 'img/fisha-body.png' ); ?>" alt="" aria-hidden="true" width="96" height="68">
+				<img src="<?php echo esc_url( FISHA_DESIGN_URL . 'img/fisha-logo.png' ); ?>" alt="" aria-hidden="true" width="96" height="68">
 				<div>
 					<p class="fl-help__title">Still have a question?</p>
 					<p>We’re happy to help with orders, returns and anything else.</p>

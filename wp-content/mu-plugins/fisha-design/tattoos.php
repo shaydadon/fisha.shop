@@ -114,7 +114,7 @@ add_shortcode( 'fisha_tattoos', function ( $atts ) {
 				<defs><path id="ft-circle" d="M60,60 m-44,0 a44,44 0 1,1 88,0 a44,44 0 1,1 -88,0"/></defs>
 				<circle cx="60" cy="60" r="58" />
 				<text textLength="272" lengthAdjust="spacingAndGlyphs"><textPath href="#ft-circle" textLength="272" lengthAdjust="spacingAndGlyphs">FISHA · TATTOOD · INK · FISHA · TATTOOD · INK · </textPath></text>
-				<image href="<?php echo esc_url( FISHA_DESIGN_URL . 'img/fisha-body.png' ); ?>" x="34" y="40" width="52" height="40" />
+				<image href="<?php echo esc_url( FISHA_DESIGN_URL . 'img/fisha-logo.png' ); ?>" x="34" y="40" width="52" height="40" />
 			</svg>
 		</div>
 		<?php endif; ?>

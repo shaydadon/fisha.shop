@@ -103,7 +103,7 @@ $fisha_footer = do_blocks( '<!-- wp:template-part {"slug":"footer","tagName":"fo
 					<?php echo wp_get_attachment_image( $id, 'large', false, array( 'loading' => 'eager', 'fetchpriority' => $k ? 'auto' : 'high', 'sizes' => '(max-width: 900px) 70vw, 420px', 'alt' => get_post_meta( $id, '_wp_attachment_image_alt', true ) ?: ( $term->name . ' by Fisha' ) ) ); ?>
 				</figure>
 			<?php endforeach; ?>
-			<img class="fs-hero__fish" src="<?php echo esc_url( FISHA_DESIGN_URL . 'img/fisha-body.png' ); ?>" alt="" aria-hidden="true" width="120" height="85">
+			<img class="fs-hero__fish" src="<?php echo esc_url( FISHA_DESIGN_URL . 'img/fisha-logo.png' ); ?>" alt="" aria-hidden="true" width="120" height="85">
 		</div>
 		<?php endif; ?>
 	</section>
@@ -156,6 +156,34 @@ $fisha_footer = do_blocks( '<!-- wp:template-part {"slug":"footer","tagName":"fo
 		</div>
 	<?php endif; ?>
 	</div>
+
+	<?php
+	$happy = array_filter( array_map( 'absint', explode( ',', (string) fisha_cat_meta( $term, 'fisha_happy_ids' ) ) ) );
+	if ( $happy ) : ?>
+	<section class="fs-happy" aria-labelledby="fs-happy-h">
+		<div class="fs-happy__head">
+			<p class="fs-eyebrow">Sold · now at home</p>
+			<h2 id="fs-happy-h">Happy clients</h2>
+			<p>Originals that already found their people. Every Fisha is one of a kind &mdash; when a piece is sold, it moves to this wall.</p>
+		</div>
+		<ul class="fs-happy__grid">
+			<?php foreach ( $happy as $k => $hid ) : $cap = wp_get_attachment_caption( $hid ); ?>
+			<li class="fs-happy__item fs-happy__item--<?php echo (int) $k % 3 + 1; ?>">
+				<figure>
+					<span class="fs-photo__tape" aria-hidden="true"></span>
+					<?php echo wp_get_attachment_image( $hid, 'large', false, array( 'loading' => 'lazy', 'sizes' => '(max-width: 700px) 80vw, 360px' ) ); ?>
+					<?php if ( $cap ) : ?><figcaption><?php echo esc_html( $cap ); ?></figcaption><?php endif; ?>
+					<span class="fs-happy__stamp" aria-hidden="true">Sold</span>
+				</figure>
+			</li>
+			<?php endforeach; ?>
+		</ul>
+		<div class="fs-happy__cta">
+			<p>Want a Fisha made just for you?</p>
+			<?php echo do_shortcode( '[fisha_cta text="Ask about a commission" url="/contact/?topic=Collab+or+commission"]' ); ?>
+		</div>
+	</section>
+	<?php endif; ?>
 
 	<?php if ( trim( (string) $term->description ) && fisha_cat_meta( $term, 'fisha_lead' ) ) : ?>
 	<section class="fs-about" aria-labelledby="fs-about-h">

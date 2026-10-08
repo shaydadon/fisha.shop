@@ -129,7 +129,7 @@ function fisha_product_card( $p, $i = 0 ) {
 			<span class="fs-card__body">
 				<h3 class="fs-card__title"><?php echo esc_html( $name ); ?></h3>
 				<?php if ( $colour ) : ?><span class="fs-card__meta"><?php echo esc_html( $colour ); ?></span><?php endif; ?>
-				<span class="fs-card__price"><?php echo wp_kses_post( $p->get_price_html() ); ?></span>
+				<span class="fs-card__price"><?php echo $p->get_price_html() ? wp_kses_post( $p->get_price_html() ) : '<span class="fs-card__ask">Price on request</span>'; ?></span>
 			</span>
 		</a>
 		<?php if ( $p->is_type( 'simple' ) && $p->is_purchasable() && $p->is_in_stock() ) : ?>
