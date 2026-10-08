@@ -154,7 +154,7 @@ body.single-product .woocommerce-breadcrumb a { padding: 0.6rem 0; min-height: 4
 .woocommerce .quantity .qty { min-height: 48px; width: 4.5rem; border-radius: 12px; text-align: center; font-weight: 800; }
 .woocommerce td.actions .coupon { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
 .woocommerce td.actions .coupon .input-text { width: 12rem !important; min-height: 52px; padding: 0 1rem !important; }
-.woocommerce button.button:disabled, .woocommerce button.button[disabled] { background: rgba(23, 35, 45, 0.35) !important; opacity: 1 !important; }
+.woocommerce button.button:disabled, .woocommerce button.button[disabled] { background: #ddd6ca !important; color: rgba(23, 35, 45, 0.8) !important; opacity: 1 !important; cursor: not-allowed; }
 .woocommerce .cart-collaterals .cart_totals, .woocommerce-checkout #order_review, .woocommerce-checkout .woocommerce-billing-fields, .woocommerce-checkout .woocommerce-additional-fields {
 	background: #fff; border-radius: 22px; padding: clamp(1.1rem, 2.5vw, 1.75rem); box-shadow: 0 18px 36px -28px rgba(23, 35, 45, 0.45);
 }

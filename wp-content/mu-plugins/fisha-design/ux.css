@@ -80,3 +80,6 @@ html { overflow-x: clip; }
 .fisha-shop .fs-faq__group h3 { font-size: 0.875rem; }
 .fisha-shop .fs-card__meta { font-size: 0.9375rem; }
 body.single-product .wp-block-woocommerce-product-meta a, body.single-product .wp-block-post-terms a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 0.15rem; }
+/* audit round 3 */
+.elementor p.elementor-heading-title { line-height: 1.6 !important; }
+body.single-product .wp-block-post-terms a { min-width: 24px; justify-content: center; padding: 0 0.35rem; }
