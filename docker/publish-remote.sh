@@ -1,15 +1,21 @@
 # Runs ON the Hostinger server (piped over SSH by docker/publish.sh).
-set -euo pipefail
+set -eo pipefail
+trap 'echo "      FAILED (line $LINENO): $BASH_COMMAND" >&2' ERR
 cd "$WP_PATH"
+command -v wp >/dev/null || { echo "      wp-cli not found on the server" >&2; exit 1; }
 W="wp --skip-plugins --skip-themes --quiet"
 STAMP=$(date +%Y%m%d-%H%M%S)
 
 echo "      backup: ~/fisha-sync/backup-$TARGET-$STAMP.sql"
-$W db export ~/fisha-sync/backup-$TARGET-$STAMP.sql
-ls -1t ~/fisha-sync/backup-$TARGET-*.sql 2>/dev/null | tail -n +6 | xargs -r rm -f   # keep the last 5
+if ! wp --skip-plugins --skip-themes db export ~/fisha-sync/backup-$TARGET-$STAMP.sql 2>&1; then
+  if [ "$TARGET" = live ]; then echo "      backup failed - stopping, live was NOT changed" >&2; exit 1; fi
+  echo "      (backup failed - continuing, this is only the dev site)"
+fi
+# keep the last 5 backups
+for f in $(ls -1t ~/fisha-sync/backup-$TARGET-*.sql 2>/dev/null | tail -n +6); do rm -f "$f"; done
 
 echo "      import"
-$W db import ~/fisha-sync/fisha-export.sql
+wp --skip-plugins --skip-themes db import ~/fisha-sync/fisha-export.sql 2>&1
 rm -f ~/fisha-sync/fisha-export.sql
 $W config set table_prefix "$PREFIX"
 
