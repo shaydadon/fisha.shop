@@ -19,6 +19,7 @@ require_once FISHA_DESIGN_DIR . 'shop.php';
 require_once FISHA_DESIGN_DIR . 'cart.php';
 require_once FISHA_DESIGN_DIR . 'legal.php';
 require_once FISHA_DESIGN_DIR . 'ux.php';
+require_once FISHA_DESIGN_DIR . 'perf.php';
 
 function fisha_asset_ver( $rel ) {
 	$f = FISHA_DESIGN_DIR . $rel;
@@ -30,7 +31,7 @@ function fisha_eyes_ready() {
 }
 
 add_action( 'wp_enqueue_scripts', function () {
-	wp_enqueue_style( 'fisha-nunito', 'https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,300..900;1,300..900&display=swap', array(), null );
+	wp_enqueue_style( 'fisha-nunito', 'https://fonts.googleapis.com/css2?family=Nunito:wght@300..900&display=swap', array(), null );
 	wp_enqueue_style( 'fisha-design', FISHA_DESIGN_URL . 'fisha-design.css', array( 'fisha-nunito' ), fisha_asset_ver( 'fisha-design.css' ) );
 	wp_enqueue_script( 'fisha-eyes', FISHA_DESIGN_URL . 'fisha-eyes.js', array(), fisha_asset_ver( 'fisha-eyes.js' ), array( 'in_footer' => true, 'strategy' => 'defer' ) );
 	wp_enqueue_script( 'fisha-layout', FISHA_DESIGN_URL . 'fisha-layout.js', array(), fisha_asset_ver( 'fisha-layout.js' ), array( 'in_footer' => true, 'strategy' => 'defer' ) );
@@ -38,11 +39,11 @@ add_action( 'wp_enqueue_scripts', function () {
 
 function fisha_eyes_markup() {
 	if ( ! fisha_eyes_ready() ) return '';
-	$body   = esc_url( FISHA_DESIGN_URL . 'img/fisha-body.png?v=' . fisha_asset_ver( 'img/fisha-body.png' ) );
-	$pupils = esc_url( FISHA_DESIGN_URL . 'img/fisha-pupils.png?v=' . fisha_asset_ver( 'img/fisha-pupils.png' ) );
+	$body   = esc_url( FISHA_DESIGN_URL . 'img/fisha-body-sm.png?v=' . fisha_asset_ver( 'img/fisha-body-sm.png' ) );
+	$pupils = esc_url( FISHA_DESIGN_URL . 'img/fisha-pupils-sm.png?v=' . fisha_asset_ver( 'img/fisha-pupils-sm.png' ) );
 	return '<span class="fisha-eyes" aria-hidden="true">'
-		. '<img class="fisha-eyes__body" src="' . $body . '" alt="" draggable="false">'
-		. '<span class="fisha-eyes__pupils-wrap"><img class="fisha-eyes__pupils" src="' . $pupils . '" alt="" draggable="false"></span>'
+		. '<img class="fisha-eyes__body" src="' . $body . '" width="160" height="113" alt="" draggable="false" decoding="async">'
+		. '<span class="fisha-eyes__pupils-wrap"><img class="fisha-eyes__pupils" src="' . $pupils . '" width="160" height="113" alt="" draggable="false" decoding="async"></span>'
 		. '</span>';
 }
 

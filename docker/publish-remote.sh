@@ -45,5 +45,21 @@ fi
 
 # Elementor keeps pre-built CSS files (with absolute image URLs) in uploads/elementor/css - rebuild them for this address
 wp elementor flush-css --quiet 2>/dev/null || rm -f wp-content/uploads/elementor/css/post-*.css
+# long browser caching for static files (all CSS/JS carry ?ver=, so updates still show up immediately)
+if ! grep -q 'BEGIN Fisha static cache' .htaccess 2>/dev/null; then
+  cat >> .htaccess <<'HT'
+
+# BEGIN Fisha static cache
+<IfModule mod_headers.c>
+<FilesMatch "\.(css|js|mjs|woff2?|ttf|otf)$">
+Header set Cache-Control "public, max-age=31536000, immutable"
+</FilesMatch>
+<FilesMatch "\.(svg|png|jpe?g|gif|webp|avif|ico)$">
+Header set Cache-Control "public, max-age=2592000"
+</FilesMatch>
+</IfModule>
+# END Fisha static cache
+HT
+fi
 (wp litespeed-purge all --quiet 2>/dev/null || $W cache flush) || true
 echo "      server done"
