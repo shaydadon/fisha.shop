@@ -23,6 +23,14 @@ add_filter( 'render_block_core/post-title', function ( $html, $block, $instance 
 	return $pid === get_queried_object_id() ? '' : $html;
 }, 10, 3 );
 
+/** Emails and phone numbers in legal text become links (input is already escaped). */
+function fisha_legal_linkify( $html ) {
+	$html = preg_replace( '/\b([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})\b/', '<a href="mailto:$1">$1</a>', $html );
+	return preg_replace_callback( '/(\+972[\d\s-]{8,14}\d)/', function ( $m ) {
+		return '<a href="tel:' . preg_replace( '/[^\d+]/', '', $m[1] ) . '" dir="ltr">' . $m[1] . '</a>';
+	}, $html );
+}
+
 add_shortcode( 'fisha_legal', function ( $atts, $content = '' ) {
 	$a = shortcode_atts( array(
 		'eyebrow' => 'Fisha Shop',
@@ -30,7 +38,15 @@ add_shortcode( 'fisha_legal', function ( $atts, $content = '' ) {
 		'intro'   => '',
 		'cta'     => 'Contact us',
 		'url'     => '/contact/',
+		'lang'    => '',          // e.g. "he" → right-to-left page
+		'alt_url' => '',          // link to the same page in another language
+		'alt_label' => '',
+		'updated_label' => 'Last updated',
+		'toc_label' => 'On this page',
+		'help_title' => 'Still have a question?',
+		'help_text'  => 'We’re happy to help with orders, returns and anything else.',
 	), $atts, 'fisha_legal' );
+	$rtl = in_array( $a['lang'], array( 'he', 'ar' ), true );
 
 	// parse "## Title" sections
 	$sections = array(); $cur = null;
@@ -42,20 +58,21 @@ add_shortcode( 'fisha_legal', function ( $atts, $content = '' ) {
 	}
 	if ( $cur ) $sections[] = $cur;
 
-	$updated = get_the_modified_date( 'j F Y' );
+	$updated = $rtl ? get_the_modified_date( 'd/m/Y' ) : get_the_modified_date( 'j F Y' );
 	ob_start(); ?>
-<div class="fisha-legal">
+<div class="fisha-legal"<?php if ( $a['lang'] ) echo ' lang="' . esc_attr( $a['lang'] ) . '"' . ( $rtl ? ' dir="rtl"' : '' ); ?>>
 	<header class="fl-hero">
 		<p class="fl-eyebrow"><?php echo esc_html( $a['eyebrow'] ); ?></p>
 		<h1 class="fl-title"><?php echo esc_html( $a['title'] ); ?></h1>
 		<?php if ( $a['intro'] ) : ?><p class="fl-intro"><?php echo esc_html( $a['intro'] ); ?></p><?php endif; ?>
-		<p class="fl-updated">Last updated <time datetime="<?php echo esc_attr( get_the_modified_date( 'Y-m-d' ) ); ?>"><?php echo esc_html( $updated ); ?></time></p>
+		<p class="fl-updated"><?php echo esc_html( $a['updated_label'] ); ?> <time datetime="<?php echo esc_attr( get_the_modified_date( 'Y-m-d' ) ); ?>"><?php echo esc_html( $updated ); ?></time></p>
+		<?php if ( $a['alt_url'] && $a['alt_label'] ) : ?><p class="fl-alt"><a href="<?php echo esc_url( home_url( $a['alt_url'] ) ); ?>" hreflang="<?php echo $rtl ? 'en' : 'he'; ?>"><?php echo esc_html( $a['alt_label'] ); ?></a></p><?php endif; ?>
 	</header>
 
 	<div class="fl-body">
 		<?php if ( count( $sections ) > 2 ) : ?>
-		<nav class="fl-toc" aria-label="On this page">
-			<p class="fl-toc__label">On this page</p>
+		<nav class="fl-toc" aria-label="<?php echo esc_attr( $a['toc_label'] ); ?>">
+			<p class="fl-toc__label"><?php echo esc_html( $a['toc_label'] ); ?></p>
 			<ol>
 				<?php foreach ( $sections as $i => $s ) : ?>
 					<li><a href="#fl-<?php echo (int) $i + 1; ?>"><?php echo esc_html( $s['q'] ); ?></a></li>
@@ -70,7 +87,7 @@ add_shortcode( 'fisha_legal', function ( $atts, $content = '' ) {
 				<span class="fl-num" aria-hidden="true"><?php echo esc_html( str_pad( (string) ( $i + 1 ), 2, '0', STR_PAD_LEFT ) ); ?></span>
 				<div>
 					<h2 id="fl-h-<?php echo (int) $i + 1; ?>"><?php echo esc_html( $s['q'] ); ?></h2>
-					<?php foreach ( $s['a'] as $p ) : ?><p><?php echo esc_html( $p ); ?></p><?php endforeach; ?>
+					<?php foreach ( $s['a'] as $p ) : ?><p><?php echo fisha_legal_linkify( esc_html( $p ) ); // phpcs:ignore ?></p><?php endforeach; ?>
 				</div>
 			</section>
 			<?php endforeach; ?>
@@ -78,8 +95,8 @@ add_shortcode( 'fisha_legal', function ( $atts, $content = '' ) {
 			<aside class="fl-help">
 				<img src="<?php echo esc_url( FISHA_DESIGN_URL . 'img/fisha-logo.png' ); ?>" alt="" aria-hidden="true" width="96" height="68">
 				<div>
-					<p class="fl-help__title">Still have a question?</p>
-					<p>We’re happy to help with orders, returns and anything else.</p>
+					<p class="fl-help__title"><?php echo esc_html( $a['help_title'] ); ?></p>
+					<p><?php echo esc_html( $a['help_text'] ); ?></p>
 				</div>
 				<?php echo do_shortcode( '[fisha_cta text="' . esc_attr( $a['cta'] ) . '" url="' . esc_attr( $a['url'] ) . '"]' ); ?>
 			</aside>

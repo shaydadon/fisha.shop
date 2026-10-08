@@ -71,3 +71,16 @@ body.fisha-legal-page .wp-block-post-content { padding-left: 0 !important; paddi
 	.fl-help { flex-direction: column; align-items: flex-start; }
 	.fl-help > div { flex: none; }
 }
+
+/* other-language link + RTL (Hebrew) version */
+.fl-alt { margin: 0.9rem 0 0; }
+.fl-alt a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 1rem; border: 1.5px solid rgba(23, 35, 45, 0.25); border-radius: 999px; font-weight: 700; color: var(--ink); text-decoration: none; }
+.fl-alt a:hover, .fl-alt a:focus-visible { border-color: var(--accent-ink); color: var(--accent-ink); }
+.fl-section a[href^="mailto"], .fl-section a[href^="tel"] { color: var(--accent-ink); font-weight: 700; text-decoration: underline; text-underline-offset: 3px; display: inline-block; padding: 0.35rem 0; }
+.fisha-legal[dir="rtl"] { text-align: right; }
+.fisha-legal[dir="rtl"] .fl-hero { text-align: center; }
+.fisha-legal[dir="rtl"] .fl-toc ol { border-left: 0; border-right: 2px solid rgba(23, 35, 45, 0.12); }
+.fisha-legal[dir="rtl"] .fl-toc a { padding: 0.45rem 1rem 0.45rem 0; margin-left: 0; margin-right: -2px; border-left: 0; border-right: 2px solid transparent; }
+.fisha-legal[dir="rtl"] .fl-toc a:hover, .fisha-legal[dir="rtl"] .fl-toc a:focus-visible { border-right-color: var(--accent); }
+.fisha-legal[dir="rtl"] .fl-help .fisha-cta-wrap { text-align: right !important; }
+.fisha-legal[dir="rtl"] .fisha-cta span[aria-hidden="true"] { display: inline-block; transform: scaleX(-1); }
