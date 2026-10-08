@@ -54,8 +54,8 @@ add_shortcode( 'fisha_tattoos', function ( $atts ) {
 		'text'       => 'Fisha has swum off the paper and onto skin. Tiny fine-line fish, playful pairs and full sleeves of lotus, river and colour — every tattoo begins as a drawing in the sketchbook and becomes a little story you carry with you.',
 		'hero_video' => 'img-7237',
 		'order'      => 'img-7232,img-7007,img-8512,img-7018,img-7011,img-1755,img-7239,img-3004,img-8514,img-7242,img-7244',
-		'cta'        => 'Ask about a Fisha tattoo',
-		'url'        => '/contact/?topic=Tattoo+enquiry',
+		'cta'        => 'Request a Fisha tattoo',
+		'url'        => '/request/?type=tattoo',
 	), $atts, 'fisha_tattoos' );
 
 	$d = fisha_river_dir( 'fisha-tattoos' );

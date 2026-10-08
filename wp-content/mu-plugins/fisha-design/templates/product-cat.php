@@ -158,6 +158,8 @@ $fisha_footer = do_blocks( '<!-- wp:template-part {"slug":"footer","tagName":"fo
 	<?php endif; ?>
 	</div>
 
+	<?php do_action( 'fisha_after_shelf', $term ); ?>
+
 	<?php
 	$happy = array_filter( array_map( 'absint', explode( ',', (string) fisha_cat_meta( $term, 'fisha_happy_ids' ) ) ) );
 	if ( $happy ) : ?>
@@ -181,7 +183,7 @@ $fisha_footer = do_blocks( '<!-- wp:template-part {"slug":"footer","tagName":"fo
 		</ul>
 		<div class="fs-happy__cta">
 			<p>Want a Fisha made just for you?</p>
-			<?php echo do_shortcode( '[fisha_cta text="Ask about a commission" url="/contact/?topic=Collab+or+commission"]' ); ?>
+			<?php echo do_shortcode( '[fisha_cta text="Ask for a commission" url="/request/?type=artwork"]' ); ?>
 		</div>
 	</section>
 	<?php endif; ?>
