@@ -5,9 +5,8 @@
  * One idea: your message goes into the river and Fisha carries it.
  *  - hero: the river drawing swims in once, then stays still
  *  - "What's it about?" cards; picking one opens the form (Tattoo / commission goes to /request/)
- *  - on send, the card folds into a note and Fisha swims off with it, then the thank-you appears
+ *  - on send, the card folds away, one of the hand-drawn loops (pebble or egg) plays, then the thank-you appears
  *  - direct ways to reach us (email, WhatsApp) + reply time
- *  - the hand-drawn stickers sit still in the margins and only drift as you scroll
  * Submissions go through the REST API (POST fisha/v1/contact) and are kept under "Fisha leads".
  * Stickers: wp-content/uploads/fisha-contact/ (built by tools/build-loops.py; we use the still frames).
  */
@@ -134,14 +133,6 @@ add_shortcode( 'fisha_contact', function ( $atts ) {
 	$wa     = 'https://wa.me/' . rawurlencode( $d['whatsapp'] ) . '?text=' . rawurlencode( 'Hi Fisha! ' );
 	ob_start(); ?>
 <div class="fisha-contact">
-	<?php // margin stickers: still drawings that drift a little as you scroll (wide screens only) ?>
-	<div class="fc-margins" aria-hidden="true">
-		<?php echo fisha_contact_img( $st, 'loop-jump', 'fc-stk fc-stk--a' );
-		echo fisha_contact_img( $st, 'loop-pebble', 'fc-stk fc-stk--b' );
-		echo fisha_contact_img( $st, 'loop-stone', 'fc-stk fc-stk--c' );
-		echo fisha_contact_img( $st, 'loop-egg', 'fc-stk fc-stk--d' ); ?>
-	</div>
-
 	<header class="fc-hero">
 		<p class="fc-eyebrow"><?php echo esc_html( $a['eyebrow'] ); ?></p>
 		<h1 class="fc-title"><?php echo esc_html( $a['title'] ); ?></h1>
@@ -191,14 +182,24 @@ add_shortcode( 'fisha_contact', function ( $atts ) {
 					</div>
 				</form>
 			</div>
-			<?php echo fisha_contact_img( $st, 'loop-fisha', 'fc-carrier' ); ?>
 		</div>
 
-		<div class="fc-thanks"<?php echo $ok ? '' : ' hidden'; ?> tabindex="-1">
-			<?php echo fisha_contact_img( $st, 'loop-stone', 'fc-thanks__img' ); ?>
+		<?php
+		$loops = array();
+		foreach ( array( 'loop-pebble', 'loop-egg' ) as $slug ) {
+			if ( empty( $st[ $slug ] ) ) continue;
+			$l = $st[ $slug ];
+			$loops[] = array( 'src' => str_replace( $l['still'], $l['file'], $l['src'] ), 'still' => $l['src'], 'w' => (int) $l['w'], 'h' => (int) $l['h'], 'ms' => (int) $l['ms'] );
+		}
+		?>
+		<div class="fc-thanks"<?php echo $ok ? '' : ' hidden'; ?> tabindex="-1" data-loops="<?php echo esc_attr( wp_json_encode( $loops, JSON_UNESCAPED_SLASHES ) ); ?>">
+			<div class="fc-thanks__art"><?php echo fisha_contact_img( $st, 'loop-egg', 'fc-thanks__img' ); ?></div>
+			<p class="fc-thanks__sending" aria-hidden="true">Swimming your message down the river…</p>
+			<div class="fc-thanks__done">
 			<h2 class="fc-thanks__title">Your message is in the river</h2>
 			<p class="fc-thanks__text"><span class="fc-thanks__who"></span><?php echo esc_html( $d['reply'] ); ?> Keep an eye on your inbox.</p>
 			<button type="button" class="fc-again">Send another message</button>
+			</div>
 		</div>
 	</section>
 

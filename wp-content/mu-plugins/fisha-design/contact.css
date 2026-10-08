@@ -37,24 +37,6 @@ body.fisha-contact-page .wp-block-post-content { padding-left: 0 !important; pad
 	100% { opacity: 1; transform: none; }
 }
 
-/* ---------- Margin stickers: still, drifting a little with the scroll ---------- */
-.fc-margins { position: absolute; inset: 0; z-index: 0; pointer-events: none; display: none; }
-.fc-stk { position: absolute; height: auto; mix-blend-mode: multiply; user-select: none; }
-.fc-stk--a { width: 230px; left: max(2vw, calc(50% - 640px)); top: 470px; --r: -6deg; }
-.fc-stk--b { width: 92px; left: max(6vw, calc(50% - 560px)); top: 900px; --r: 8deg; }
-.fc-stk--c { width: 200px; right: max(2vw, calc(50% - 650px)); top: 520px; --r: 4deg; }
-.fc-stk--d { width: 120px; right: max(5vw, calc(50% - 560px)); top: 930px; --r: -5deg; }
-.fc-stk { transform: rotate(var(--r)); }
-@media (min-width: 1180px) { .fc-margins { display: block; } }
-@supports (animation-timeline: view()) {
-	@media (min-width: 1180px) and (prefers-reduced-motion: no-preference) {
-		.fc-stk { animation: fc-drift linear both; animation-timeline: view(); animation-range: cover; }
-		.fc-stk--b, .fc-stk--d { animation-name: fc-drift-b; }
-	}
-}
-@keyframes fc-drift { from { transform: translateY(40px) rotate(var(--r)); } to { transform: translateY(-40px) rotate(calc(var(--r) * -0.5)); } }
-@keyframes fc-drift-b { from { transform: translateY(-30px) rotate(var(--r)); } to { transform: translateY(30px) rotate(calc(var(--r) * 1.6)); } }
-
 /* ---------- Stage / card ---------- */
 .fc-stage { position: relative; z-index: 1; max-width: 680px; margin: clamp(1.5rem, 4vw, 2.5rem) auto 0; padding: 0 var(--pad); }
 .fc-flight { position: relative; }
@@ -123,9 +105,6 @@ body.fisha-contact-page .wp-block-post-content { padding-left: 0 !important; pad
 .fisha-lead-msg.is-ok { color: #2f7a50; }
 .fisha-lead-msg.is-err { color: #b23c22; }
 
-/* the carrier fish (only appears during the send animation) */
-.fc-carrier { position: absolute; z-index: 3; width: 150px; height: auto; left: 0; top: 50%; opacity: 0; pointer-events: none; mix-blend-mode: multiply; }
-
 /* ---------- Thanks ---------- */
 .fc-thanks {
 	text-align: center; padding: clamp(2rem, 5vw, 3rem) 1.25rem; background: #fff;
@@ -133,7 +112,14 @@ body.fisha-contact-page .wp-block-post-content { padding-left: 0 !important; pad
 }
 .fc-thanks[hidden] { display: none; }
 .fc-thanks.is-in { animation: fc-open 0.6s cubic-bezier(.2, .8, .2, 1) both; }
-.fc-thanks__img { width: 180px; height: auto; mix-blend-mode: multiply; }
+.fc-thanks__art { display: grid; place-items: center; min-height: 200px; }
+.fc-thanks__img { width: auto; max-width: 200px; max-height: 240px; height: auto; mix-blend-mode: multiply; }
+.fc-thanks.is-in .fc-thanks__art { animation: fc-pop 0.55s cubic-bezier(.3, 1.4, .5, 1) both; }
+@keyframes fc-pop { from { opacity: 0; transform: scale(0.6) rotate(-6deg); } to { opacity: 1; transform: none; } }
+.fc-thanks__sending { margin: 0.75rem 0 0; font-size: 1rem; font-weight: 700; font-style: italic; color: var(--muted); }
+.fc-thanks:not(.is-waiting) .fc-thanks__sending { display: none; }
+.fc-thanks.is-waiting .fc-thanks__done { display: none; }
+.fc-thanks.is-done .fc-thanks__done { animation: fc-open 0.5s cubic-bezier(.2, .8, .2, 1) both; }
 .fisha-contact .fc-thanks__title { margin: 0.75rem 0 0; font-size: clamp(1.6rem, 3vw, 2.1rem); font-weight: 800; line-height: 1.2; color: var(--ink); }
 .fc-thanks__text { margin: 0.75rem auto 1.4rem; max-width: 30rem; font-size: 1.05rem; line-height: 1.65; color: var(--muted); }
 .fc-thanks__who { display: block; font-weight: 800; color: var(--ink); }
@@ -162,10 +148,9 @@ body.fisha-contact-page .wp-block-post-content { padding-left: 0 !important; pad
 	.fc-topic__box { min-height: 0; }
 	.fc-card, .fc-thanks { box-shadow: 5px 5px 0 var(--ink); border-radius: 18px; }
 	.fc-send { width: 100%; }
-	.fc-carrier { width: 110px; }
 }
 @media (prefers-reduced-motion: reduce) {
-	.fc-river__img, .fc-form.is-opening .fc-body, .fc-thanks.is-in { animation: none; }
+	.fc-river__img, .fc-form.is-opening .fc-body, .fc-thanks.is-in, .fc-thanks.is-in .fc-thanks__art, .fc-thanks.is-done .fc-thanks__done { animation: none; }
 	.fc-topic__box, .fc-send, .fc-direct__list a { transition: none; }
 	.fc-topic:hover .fc-topic__box, .fc-send:hover, .fc-direct__list a:hover { transform: none; }
 }

@@ -1,4 +1,4 @@
-/* Fisha contact — topic cards open the form; on send the card folds and Fisha swims off with it. */
+/* Fisha contact — topic cards open the form; on send the card folds away, a hand-drawn loop plays, then the thank-you. */
 (function () {
 	var form = document.querySelector('.fc-form');
 	if (!form) return;
@@ -6,10 +6,22 @@
 	var still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 	var flight = document.querySelector('.fc-flight');
 	var card = document.querySelector('.fc-card');
-	var fish = document.querySelector('.fc-carrier');
 	var thanks = document.querySelector('.fc-thanks');
 	var msg = form.querySelector('.fisha-lead-msg');
 	var orderField = form.querySelector('.fc-field--order');
+	var loops = [];
+	try { loops = JSON.parse(thanks.getAttribute('data-loops') || '[]'); } catch (e) {}
+	var pick = loops.length ? loops[Math.floor(Math.random() * loops.length)] : null;
+	var art = thanks.querySelector('.fc-thanks__img');
+
+	// Fetch the animated drawing only once someone starts writing.
+	var warmed = false;
+	form.addEventListener('focusin', function () {
+		if (warmed || !pick || still) return;
+		warmed = true;
+		var im = new Image();
+		im.src = pick.src;
+	});
 
 	form.querySelector('input[name="source"]').value = location.href.split('#')[0];
 	var nojs = form.querySelector('input[name="fisha_nojs"]');
@@ -54,53 +66,41 @@
 
 	function showThanks(first) {
 		thanks.querySelector('.fc-thanks__who').textContent = first ? 'Thanks, ' + first + '!' : 'Thanks!';
+		if (pick && art) {
+			art.src = still ? pick.still : pick.src;
+			art.width = pick.w;
+			art.height = pick.h;
+		}
 		flight.hidden = true;
 		thanks.hidden = false;
+		thanks.classList.remove('is-done');
 		thanks.classList.add('is-in');
-		thanks.focus({ preventScroll: true });
 		thanks.scrollIntoView({ behavior: still ? 'auto' : 'smooth', block: 'center' });
+		var done = function () {
+			thanks.classList.remove('is-waiting');
+			thanks.classList.add('is-done');
+			thanks.focus({ preventScroll: true });
+		};
+		if (still || !pick) { done(); return; }
+		thanks.classList.add('is-waiting');
+		setTimeout(done, Math.max(2400, Math.min(pick.ms * 2, 3200)));
 	}
 
-	// The card folds into a note, Fisha swims in, picks it up and swims off with it.
+	// The paper card folds up and slips away before the drawing appears.
 	function carryAway() {
 		if (still || !card.animate) return Promise.resolve();
-		var w = flight.getBoundingClientRect().width;
-		var vw = window.innerWidth;
-		fish.style.opacity = '1';
-		return anim(form, [{ opacity: 1 }, { opacity: 0 }], { duration: 220, easing: 'ease-out' })
+		return anim(form, [{ opacity: 1 }, { opacity: 0 }], { duration: 200, easing: 'ease-out' })
 			.then(function () {
-				return Promise.all([
-					anim(card, [
-						{ transform: 'none' },
-						{ transform: 'scale(0.42, 0.42) rotate(-4deg)', offset: 0.55 },
-						{ transform: 'scale(0.3, 0.16) rotate(-8deg)' }
-					], { duration: 650, easing: 'cubic-bezier(.5,0,.3,1)' }),
-					anim(fish, [
-						{ transform: 'translate(' + (-vw * 0.6) + 'px, -40%) scaleX(-1)' },
-						{ transform: 'translate(' + (w * 0.5 - 130) + 'px, -40%) scaleX(-1)' }
-					], { duration: 800, delay: 250, easing: 'cubic-bezier(.2,.8,.3,1)' })
-				]);
-			})
-			.then(function () {
-				var off = vw;
-				return Promise.all([
-					anim(card, [
-						{ transform: 'scale(0.3, 0.16) rotate(-8deg)' },
-						{ transform: 'translate(' + (off * 0.45) + 'px, -60px) scale(0.3, 0.16) rotate(4deg)', offset: 0.5 },
-						{ transform: 'translate(' + off + 'px, -20px) scale(0.3, 0.16) rotate(-4deg)' }
-					], { duration: 900, easing: 'cubic-bezier(.6,0,.4,1)' }),
-					anim(fish, [
-						{ transform: 'translate(' + (w * 0.5 - 130) + 'px, -40%) scaleX(-1)' },
-						{ transform: 'translate(' + (w * 0.5 - 130 + off * 0.45) + 'px, calc(-40% - 60px)) rotate(-6deg) scaleX(-1)', offset: 0.5 },
-						{ transform: 'translate(' + (w * 0.5 - 130 + off) + 'px, calc(-40% - 20px)) rotate(4deg) scaleX(-1)' }
-					], { duration: 900, easing: 'cubic-bezier(.6,0,.4,1)' })
-				]);
+				return anim(card, [
+					{ transform: 'none', opacity: 1 },
+					{ transform: 'scale(0.45) rotate(-5deg)', opacity: 1, offset: 0.6 },
+					{ transform: 'translateY(30px) scale(0.12) rotate(8deg)', opacity: 0 }
+				], { duration: 650, easing: 'cubic-bezier(.5,0,.3,1)' });
 			});
 	}
 
 	function resetCard() {
-		[form, card, fish].forEach(function (el) { if (el.getAnimations) el.getAnimations().forEach(function (a) { a.cancel(); }); });
-		fish.style.opacity = '0';
+		[form, card].forEach(function (el) { if (el.getAnimations) el.getAnimations().forEach(function (a) { a.cancel(); }); });
 		form.reset();
 		form.classList.add('is-closed');
 		msg.textContent = '';
@@ -144,7 +144,12 @@
 	if (again) again.addEventListener('click', function () {
 		resetCard();
 		thanks.hidden = true;
-		thanks.classList.remove('is-in');
+		thanks.classList.remove('is-in', 'is-done', 'is-waiting');
+		if (loops.length) {
+			if (art && pick) art.src = pick.still; // so the loop starts from the top next time
+			pick = loops[Math.floor(Math.random() * loops.length)];
+			warmed = false;
+		}
 		flight.hidden = false;
 		var first = form.querySelector('input[name="topic"]');
 		if (first) first.focus();
