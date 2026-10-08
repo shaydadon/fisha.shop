@@ -113,11 +113,28 @@ add_action( 'wp_head', function () {
 	if ( ! $set || ! $src ) return;
 	printf( '<link rel="preload" as="image" href="%s" imagesrcset="%s" imagesizes="(max-width: 781px) 94vw, 1100px" fetchpriority="high">' . "\n", esc_url( $src ), esc_attr( $set ) );
 }, 2 );
-// Elementor sometimes lazy-loads the first image; keep the hero eager
-add_filter( 'wp_img_tag_add_loading_optimization_attrs', function ( $attrs, $tag ) {
-	if ( strpos( $tag, 'wp-image-' . FISHA_HERO_ATTACHMENT ) !== false ) { $attrs['loading'] = 'eager'; $attrs['fetchpriority'] = 'high'; }
-	return $attrs;
-}, 10, 2 );
+// On the server the hero still came out lazy (twice) with default sizes, so fix
+// the finished widget HTML too, and opt it out of any optimiser's lazy-load.
+function fisha_fix_hero_tag( $html ) {
+	if ( strpos( $html, 'wp-image-' . FISHA_HERO_ATTACHMENT ) === false ) return $html;
+	return preg_replace_callback( '/<img\b[^>]*wp-image-' . FISHA_HERO_ATTACHMENT . '\b[^>]*>/', function ( $m ) {
+		$tag = preg_replace( '/\s(loading|fetchpriority|decoding|sizes|data-no-lazy)="[^"]*"/', '', $m[0] );
+		if ( strpos( $tag, 'skip-lazy' ) === false ) $tag = str_replace( 'class="', 'class="skip-lazy no-lazyload ', $tag );
+		return str_replace( '<img', '<img loading="eager" fetchpriority="high" decoding="async" data-no-lazy="1" sizes="(max-width: 781px) 94vw, 1100px"', $tag );
+	}, $html );
+}
+add_filter( 'elementor/widget/render_content', function ( $html, $widget ) {
+	return 'image' === $widget->get_name() ? fisha_fix_hero_tag( $html ) : $html;
+}, 99, 2 );
+// Later content filters add fetchpriority again; tidy the final block output.
+add_filter( 'render_block', function ( $html ) {
+	return fisha_fix_hero_tag( $html );
+}, 999 );
+add_filter( 'litespeed_media_lazy_img_excludes', function ( $list ) {
+	$list[] = 'fisha_pencil_hero';
+	return $list;
+} );
+
 
 // The Hostinger AI theme marks the page uncacheable on `woocommerce_cart_updated`,
 // which WooCommerce fires on every request that calculates totals, even with an
@@ -151,3 +168,8 @@ add_action( 'wp_head', function () {
 	elseif ( function_exists( 'fisha_is_shop_cat' ) && fisha_is_shop_cat() ) { $t = get_queried_object(); $url = $t ? get_term_link( $t ) : ''; }
 	if ( $url && ! is_wp_error( $url ) ) echo '<link rel="canonical" href="' . esc_url( $url ) . '">' . "\n";
 }, 3 );
+
+// Emoji polyfill: every browser we target renders emoji natively.
+remove_action( 'wp_head', 'print_emoji_detection_script', 7 );
+remove_action( 'wp_print_styles', 'print_emoji_styles' );
+add_filter( 'emoji_svg_url', '__return_false' );
