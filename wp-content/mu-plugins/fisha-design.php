@@ -10,6 +10,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 define( 'FISHA_DESIGN_DIR', __DIR__ . '/fisha-design/' );
 define( 'FISHA_DESIGN_URL', content_url( 'mu-plugins/fisha-design/' ) );
 
+require_once FISHA_DESIGN_DIR . 'devsite.php';
 require_once FISHA_DESIGN_DIR . 'river.php';
 require_once FISHA_DESIGN_DIR . 'mosaic.php';
 require_once FISHA_DESIGN_DIR . 'tattoos.php';

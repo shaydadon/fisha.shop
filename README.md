@@ -8,7 +8,7 @@ Custom code for [fisha.shop](https://fisha.shop) — WordPress + WooCommerce on 
 |---|---|
 | `wp-content/mu-plugins/fisha-design.php` + `fisha-design/` | All Fisha design code: home river, mosaic, tattoos, contact, shop & category pages, cart persistence, legal pages |
 | `docker/`, `docker-compose.yml` | Local development copy (see `docker/README.md`) |
-| `.github/workflows/deploy.yml` | Deploys the design code to Hostinger on every push to `main` |
+| `.github/workflows/deploy.yml` | Deploys the design code: `develop` → dev.fisha.shop, `main` → fisha.shop |
 
 **Not in git:** WordPress core, third-party plugins, themes, `uploads/`, `wp-config.php`,
 and database dumps (`docker/db/*.sql`). Content — pages, products, menus, forms, settings —
@@ -20,8 +20,21 @@ lives in the database and is edited in WP admin, not deployed from git.
 # edit locally, check on http://localhost:8484, then:
 git add -A
 git commit -m "Describe the change"
-git push            # -> GitHub Actions deploys to Hostinger (~30 s)
+git push            # on develop -> dev.fisha.shop, on main -> live (~30 s)
 ```
+
+Work on `develop`, check the result on **dev.fisha.shop**, then release to live:
+
+```
+git checkout main
+git merge develop
+git push            # deploys to fisha.shop
+git checkout develop
+```
+
+The dev site (any `dev.` / `staging.` host) is hidden from search engines, sends every
+email to the site admin instead of customers, and shows a "DEV SITE" badge
+(`fisha-design/devsite.php`).
 
 Watch the run under the repo's **Actions** tab. A PHP syntax error stops the deploy
 before anything is uploaded. You can also re-run a deploy manually: Actions →
@@ -44,9 +57,11 @@ before anything is uploaded. You can also re-run a deploy manually: Actions →
    | `SSH_HOST` | `153.92.xx.xx` |
    | `SSH_PORT` | `65002` |
    | `SSH_USER` | `u123456789` |
-   | `WP_PATH` | `/home/u123456789/domains/fisha.shop/public_html` |
+   | `WP_PATH` | `/home/u123456789/domains/fisha.shop/public_html` (live) |
+   | `DEV_WP_PATH` | `/home/u123456789/domains/dev.fisha.shop/public_html` (dev) |
 
-Until the secrets exist the workflow only lints and skips the upload.
+Until a target's secrets exist the workflow only lints and skips the upload. Live deploys
+are only allowed from `main`.
 
 The deploy only touches `mu-plugins/fisha-design.php` and `mu-plugins/fisha-design/`
 (minus `tools/`). Hostinger's own mu-plugins, plugins, themes and uploads on the server

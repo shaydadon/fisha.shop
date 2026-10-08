@@ -1,41 +1,58 @@
 name: Deploy to Hostinger
 
+# develop -> dev.fisha.shop   |   main -> fisha.shop (live)
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
     paths:
       - 'wp-content/mu-plugins/**'
       - '.github/workflows/deploy.yml'
   workflow_dispatch:
+    inputs:
+      target:
+        description: 'Where to deploy'
+        type: choice
+        options: [dev, live]
+        default: dev
 
 concurrency:
-  group: deploy-production
+  group: deploy-${{ github.ref_name }}
   cancel-in-progress: false
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     env:
+      TARGET: ${{ github.event_name == 'workflow_dispatch' && inputs.target || (github.ref_name == 'main' && 'live' || 'dev') }}
       SSH_HOST: ${{ secrets.SSH_HOST }}
       SSH_USER: ${{ secrets.SSH_USER }}
       SSH_PORT: ${{ secrets.SSH_PORT }}
-      WP_PATH: ${{ secrets.WP_PATH }}
       SSH_KEY: ${{ secrets.SSH_KEY }}
+      LIVE_PATH: ${{ secrets.WP_PATH }}
+      DEV_PATH: ${{ secrets.DEV_WP_PATH }}
     steps:
       - uses: actions/checkout@v4
 
       - name: Lint PHP
         run: find wp-content/mu-plugins -name '*.php' -print0 | xargs -0 -n1 php -l
 
-      - name: Check deploy secrets
+      - name: Pick target
         id: cfg
         run: |
-          if [ -z "$SSH_HOST" ] || [ -z "$SSH_USER" ] || [ -z "$WP_PATH" ] || [ -z "$SSH_KEY" ]; then
-            echo "::warning::Deploy secrets are not set yet (SSH_KEY, SSH_HOST, SSH_USER, SSH_PORT, WP_PATH) - skipping deploy."
+          if [ "$TARGET" = "live" ]; then
+            if [ "$GITHUB_REF_NAME" != "main" ]; then echo "::error::Live deploys only from main"; exit 1; fi
+            P="$LIVE_PATH"
+          else
+            P="$DEV_PATH"
+          fi
+          if [ -z "$SSH_HOST" ] || [ -z "$SSH_USER" ] || [ -z "$SSH_KEY" ] || [ -z "$P" ]; then
+            echo "::warning::Secrets for '$TARGET' are not set yet - skipping deploy."
             echo "ready=false" >> "$GITHUB_OUTPUT"
           else
             echo "ready=true" >> "$GITHUB_OUTPUT"
+            echo "path=$P" >> "$GITHUB_OUTPUT"
           fi
+          echo "### Target: $TARGET" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Set up SSH
         if: steps.cfg.outputs.ready == 'true'
@@ -51,7 +68,7 @@ jobs:
         if: steps.cfg.outputs.ready == 'true'
         run: |
           SSH="ssh -p ${SSH_PORT:-65002}"
-          DEST="$SSH_USER@$SSH_HOST:$WP_PATH/wp-content/mu-plugins"
+          DEST="$SSH_USER@$SSH_HOST:${{ steps.cfg.outputs.path }}/wp-content/mu-plugins"
           rsync -rlptz --delete --exclude 'tools/' -e "$SSH" \
             wp-content/mu-plugins/fisha-design/ "$DEST/fisha-design/"
           rsync -ptz -e "$SSH" wp-content/mu-plugins/fisha-design.php "$DEST/fisha-design.php"
@@ -61,4 +78,4 @@ jobs:
         continue-on-error: true
         run: |
           ssh -p "${SSH_PORT:-65002}" "$SSH_USER@$SSH_HOST" \
-            "cd '$WP_PATH' && (wp litespeed-purge all 2>/dev/null || wp cache flush)"
+            "cd '${{ steps.cfg.outputs.path }}' && (wp litespeed-purge all 2>/dev/null || wp cache flush)"
