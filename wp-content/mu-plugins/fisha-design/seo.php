@@ -104,8 +104,10 @@ add_filter( 'pre_get_document_title', function ( $title ) {
 	if ( fisha_seo_plugin_active() || ! is_front_page() ) {
 		return $title;
 	}
-	$custom = get_post_meta( get_queried_object_id(), 'hostinger_ai_post_meta_title', true );
-	return $custom ? $title : FISHA_HOME_TITLE;
+	// The theme stores an AI "SEO title" but never prints it, so WordPress falls
+	// back to the bare site name. Use it only if someone wrote a real one.
+	$custom = trim( (string) get_post_meta( get_queried_object_id(), 'hostinger_ai_post_meta_title', true ) );
+	return ( $custom && mb_strlen( $custom ) > 20 ) ? $custom : FISHA_HOME_TITLE;
 }, 25 );
 
 add_action( 'wp_head', function () {
