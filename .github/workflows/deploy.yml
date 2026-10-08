@@ -60,7 +60,11 @@ jobs:
           mkdir -p ~/.ssh
           printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -p "${SSH_PORT:-65002}" "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          for i in 1 2 3 4 5; do
+            ssh-keyscan -T 15 -p "${SSH_PORT:-65002}" "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null && [ -s ~/.ssh/known_hosts ] && break
+            echo "server not answering yet (try $i) - retrying in 10s"; sleep 10
+          done
+          [ -s ~/.ssh/known_hosts ] || { echo "::error::Could not reach $SSH_HOST:${SSH_PORT:-65002}"; exit 1; }
 
       # Only Fisha's own files are touched. Hostinger's own mu-plugins
       # (hostinger-*.php, elementor-safe-mode.php), uploads and plugins are never changed.
