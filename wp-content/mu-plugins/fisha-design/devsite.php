@@ -12,11 +12,19 @@ function fisha_is_dev_site() {
 }
 
 if ( fisha_is_dev_site() ) {
-	// never indexed
-	add_filter( 'wp_robots', 'wp_robots_no_robots' );
-	add_filter( 'pre_option_blog_public', '__return_zero' );
-	add_action( 'send_headers', function () { header( 'X-Robots-Tag: noindex, nofollow', true ); } );
-	add_filter( 'robots_txt', function () { return "User-agent: *\nDisallow: /\n"; }, 99 );
+	// Never indexed. The X-Robots-Tag noindex header is set by the server
+	// (.htaccess block "Fisha dev noindex", added by docker/publish) so it also
+	// covers LiteSpeed-cached pages. Lighthouse / PageSpeed are exempt there and
+	// here, so audits of dev score SEO the way the live site will. No meta robots
+	// tag in the HTML: cached HTML is shared by every visitor.
+	function fisha_is_audit_ua() {
+		return isset( $_SERVER['HTTP_USER_AGENT'] ) && preg_match( '/Lighthouse|PageSpeed/i', $_SERVER['HTTP_USER_AGENT'] );
+	}
+	add_filter( 'wp_robots', function ( $r ) { unset( $r['noindex'], $r['nofollow'] ); return $r; }, 999 );
+	add_filter( 'robots_txt', function () {
+		do_action( 'litespeed_control_set_nocache', 'robots.txt varies by user agent on dev' );
+		return fisha_is_audit_ua() ? "User-agent: *\nAllow: /\n" : "User-agent: *\nDisallow: /\n";
+	}, 99 );
 
 	// orders / contact forms on dev never email real people
 	add_filter( 'wp_mail', function ( $args ) {

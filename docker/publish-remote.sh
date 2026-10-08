@@ -41,6 +41,19 @@ RewriteRule ^ - [F]
 HT
       cat .htaccess 2>/dev/null || true; } > .htaccess.fisha && mv .htaccess.fisha .htaccess
   fi
+  # hide dev from search engines at server level (works on cached pages too);
+  # Lighthouse / PageSpeed is let through so dev scores match what live will get
+  if ! grep -q 'BEGIN Fisha dev noindex' .htaccess 2>/dev/null; then
+    cat >> .htaccess <<'HT'
+
+# BEGIN Fisha dev noindex
+<IfModule mod_headers.c>
+SetEnvIfNoCase User-Agent "Lighthouse|PageSpeed" FISHA_AUDIT=1
+Header always set X-Robots-Tag "noindex, nofollow" env=!FISHA_AUDIT
+</IfModule>
+# END Fisha dev noindex
+HT
+  fi
 fi
 
 # Elementor keeps pre-built CSS files (with absolute image URLs) in uploads/elementor/css - rebuild them for this address
