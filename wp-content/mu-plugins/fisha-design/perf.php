@@ -119,6 +119,30 @@ add_filter( 'wp_img_tag_add_loading_optimization_attrs', function ( $attrs, $tag
 	return $attrs;
 }, 10, 2 );
 
+// The Hostinger AI theme marks the page uncacheable on `woocommerce_cart_updated`,
+// which WooCommerce fires on every request that calculates totals, even with an
+// empty cart. So no page was ever page-cached. Keep the real cart actions
+// (add to cart, AJAX add) but only skip the cache for visitors who have a cart.
+add_action( 'init', function () {
+	global $wp_filter;
+	if ( empty( $wp_filter['woocommerce_cart_updated'] ) ) {
+		return;
+	}
+	foreach ( $wp_filter['woocommerce_cart_updated']->callbacks as $prio => $cbs ) {
+		foreach ( $cbs as $cb ) {
+			$fn = $cb['function'];
+			if ( is_array( $fn ) && is_object( $fn[0] ) && 'Hostinger\\AiTheme\\Compatibility\\LiteSpeedCache' === get_class( $fn[0] ) ) {
+				remove_action( 'woocommerce_cart_updated', $fn, $prio );
+				add_action( 'woocommerce_cart_updated', function () {
+					if ( function_exists( 'WC' ) && WC()->cart && ! WC()->cart->is_empty() ) {
+						do_action( 'litespeed_control_set_nocache', 'Fisha: visitor has a cart' );
+					}
+				} );
+			}
+		}
+	}
+}, 99 );
+
 // Diagnostics (dev host only, ?fisha_diag=1): who turned page caching off?
 if ( isset( $_GET['fisha_diag'] ) && function_exists( 'fisha_is_dev_site' ) && fisha_is_dev_site() ) {
 	$GLOBALS['fisha_nocache_by'] = array();
