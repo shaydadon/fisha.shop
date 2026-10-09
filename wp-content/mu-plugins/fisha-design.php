@@ -22,6 +22,7 @@ require_once FISHA_DESIGN_DIR . 'ux.php';
 require_once FISHA_DESIGN_DIR . 'perf.php';
 require_once FISHA_DESIGN_DIR . 'seo.php';
 require_once FISHA_DESIGN_DIR . 'leads.php';
+require_once FISHA_DESIGN_DIR . 'home.php';
 
 function fisha_asset_ver( $rel ) {
 	$f = FISHA_DESIGN_DIR . $rel;
