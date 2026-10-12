@@ -11,7 +11,10 @@
 	var originals = track ? Array.prototype.slice.call(track.querySelectorAll('.fisha-river__slide')) : [];
 	var SPEED = 22;          // px per second — slow river drift
 	var DIR = root.getAttribute('data-direction') === 'right' ? -1 : 1; // -1: paintings flow left → right
-	var FISH_WITH = root.getAttribute('data-fish') === 'with' || DIR < 0; // Fisha moves along with the paintings
+	// Fisha always swims right → left on the right-to-left river (against the paintings, as on the original page);
+	// on the left-flowing river data-fish="with" sends her left with the paintings, "against" sends her right.
+	var FISH_LEFT = DIR < 0 || root.getAttribute('data-fish') === 'with';
+	var FISH_INVERT = FISH_LEFT === (DIR > 0); // map scroll progress so she moves the chosen way
 	var RESUME_AFTER = 3500; // ms of calm before drifting again
 	var loopW = 0, pos = 0, last = null;
 	var hover = false, dragging = false, focusIn = false, userPaused = false, viewerOpen = false;
@@ -24,11 +27,11 @@
 	var waveSvg = stream && stream.querySelector('.fisha-river__water');
 	var wavePath = stream && stream.querySelector('.fisha-river__wave');
 	var VB_W = 2400, VB_H = 40, lastProg = null, lastMove = 0;
-	var facing = (FISH_WITH && DIR > 0) ? -1 : 1; // Fisha Foundation: mirrored, facing left from the first frame
+	var facing = FISH_LEFT ? -1 : 1; // facing her swimming direction from the first frame
 	function updateSwimmer(t) {
 		if (!swimmer || !wavePath || !loopW) return;
 		var prog = (((track.scrollLeft % loopW) + loopW) % loopW) / loopW;
-		if (FISH_WITH) prog = 1 - prog; // Fisha swims in the same direction the paintings flow
+		if (FISH_INVERT) prog = 1 - prog;
 		if (lastProg != null) {
 			var d = prog - lastProg;
 			if (Math.abs(d) > 0.5) { // the loop wrapped: fade out and reappear at the other end
@@ -105,6 +108,16 @@
 		requestAnimationFrame(tick);
 	}
 
+	// Right-to-left river (DIR < 0): slides are rendered newest-first, so painting 1 is the last original.
+	// Start with it resting at the right edge; the river then carries 2, 3, ... in from the left.
+	function startAtFirst() {
+		var first = originals[originals.length - 1];
+		var padEnd = parseFloat(getComputedStyle(track).paddingRight) || 0;
+		var x = first.offsetLeft + first.offsetWidth + padEnd - track.clientWidth;
+		while (x < 0) x += loopW;
+		track.scrollLeft = x; pos = track.scrollLeft;
+	}
+
 	function centerOf(el) { return el.offsetLeft + el.offsetWidth / 2 - track.clientWidth / 2; }
 	function step(dir) {
 		var slides = Array.prototype.slice.call(track.children);
@@ -121,7 +134,7 @@
 
 	if (track && originals.length) {
 		ensureLoop();
-		if (DIR < 0 && loopW) { track.scrollLeft = loopW; pos = loopW; }
+		if (DIR < 0 && loopW) startAtFirst();
 		window.addEventListener('resize', ensureLoop, { passive: true });
 		window.addEventListener('load', ensureLoop);
 
@@ -186,7 +199,9 @@
 	}
 
 	/* ------------------------------------------------------------------ zoom viewer */
-	var items = originals.map(function (s) {
+	var RTL = DIR < 0; // viewer arrows follow the river: left = next painting
+	var byIndex = originals.slice().sort(function (a, b) { return (+a.getAttribute('data-index')) - (+b.getAttribute('data-index')); });
+	var items = byIndex.map(function (s) {
 		var img = s.querySelector('img');
 		return { view: img.currentSrc || img.src, zoom: img.getAttribute('data-zoom'), dzi: img.getAttribute('data-dzi'), zw: +img.getAttribute('data-zw'), zh: +img.getAttribute('data-zh'), alt: img.alt };
 	});
@@ -216,11 +231,11 @@
 			'<div class="fisha-lightbox__hint">' + (window.matchMedia && window.matchMedia('(pointer: coarse)').matches ? 'Pinch or double-tap to zoom · drag to move' : 'Scroll or double-click to zoom · drag to move') + '</div>' +
 			'<button type="button" class="fisha-river__btn fisha-lightbox__close" aria-label="Close">' + icon('M6 6l12 12M18 6L6 18') + '</button>' +
 			'<div class="fisha-lightbox__bar">' +
-				'<button type="button" class="fisha-river__btn" data-lb="prev" aria-label="Previous artwork">' + icon('M15 5l-7 7 7 7') + '</button>' +
+				'<button type="button" class="fisha-river__btn" data-lb="prev" aria-label="' + (RTL ? 'Next artwork' : 'Previous artwork') + '">' + icon('M15 5l-7 7 7 7') + '</button>' +
 				'<button type="button" class="fisha-river__btn" data-lb="out" aria-label="Zoom out">' + icon('M6 12h12') + '</button>' +
 				'<span class="fisha-lightbox__count" aria-live="polite"></span>' +
 				'<button type="button" class="fisha-river__btn" data-lb="in" aria-label="Zoom in">' + icon('M12 6v12M6 12h12') + '</button>' +
-				'<button type="button" class="fisha-river__btn" data-lb="next" aria-label="Next artwork">' + icon('M9 5l7 7-7 7') + '</button>' +
+				'<button type="button" class="fisha-river__btn" data-lb="next" aria-label="' + (RTL ? 'Previous artwork' : 'Next artwork') + '">' + icon('M9 5l7 7-7 7') + '</button>' +
 			'</div>';
 		document.body.appendChild(box);
 		stage = box.querySelector('.fisha-lightbox__stage');
@@ -231,8 +246,8 @@
 		if (hd) box.classList.add('is-hd');
 
 		box.querySelector('.fisha-lightbox__close').addEventListener('click', closeViewer);
-		box.querySelector('[data-lb="prev"]').addEventListener('click', function () { show(cur - 1); });
-		box.querySelector('[data-lb="next"]').addEventListener('click', function () { show(cur + 1); });
+		box.querySelector('[data-lb="prev"]').addEventListener('click', function () { show(RTL ? cur + 1 : cur - 1); });
+		box.querySelector('[data-lb="next"]').addEventListener('click', function () { show(RTL ? cur - 1 : cur + 1); });
 		box.querySelector('[data-lb="in"]').addEventListener('click', function () { zoomBy(1.6); });
 		box.querySelector('[data-lb="out"]').addEventListener('click', function () { zoomBy(1 / 1.6); });
 		stage.addEventListener('wheel', function (e) {
@@ -250,8 +265,8 @@
 		document.addEventListener('keydown', function (e) {
 			if (!viewerOpen) return;
 			if (e.key === 'Escape') closeViewer();
-			else if (e.key === 'ArrowRight') show(cur + 1);
-			else if (e.key === 'ArrowLeft') show(cur - 1);
+			else if (e.key === 'ArrowRight') show(RTL ? cur - 1 : cur + 1);
+			else if (e.key === 'ArrowLeft') show(RTL ? cur + 1 : cur - 1);
 			else if (e.key === '+' || e.key === '=') zoomBy(1.6);
 			else if (e.key === '-') zoomBy(1 / 1.6);
 			else if (e.key === '0') { if (hd && osd) osd.viewport.goHome(); else zoomAt(1, 0, 0, true); }

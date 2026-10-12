@@ -42,37 +42,41 @@ add_filter( 'body_class', function ( $c ) {
 } );
 
 add_shortcode( 'fisha_river', function ( $atts, $content = '' ) {
-	$atts = shortcode_atts( array( 'version' => '', 'direction' => 'left', 'fish' => '', 'music' => '' ), $atts, 'fisha_river' );
+	$atts = shortcode_atts( array( 'version' => '', 'direction' => 'right', 'fish' => '', 'music' => '' ), $atts, 'fisha_river' );
 	$hd   = ( 'hd' === $atts['version'] );
+	$rtl  = ( 'left' !== $atts['direction'] ); // flows left -> right: painting 1 on the right, 2 to its left, ...
 	$m    = fisha_river_manifest( $hd ? 'manifest-hd.json' : 'manifest.json' );
 	$capf = fisha_river_dir()['path'] . 'captions.json';
 	$caps = file_exists( $capf ) ? (array) json_decode( file_get_contents( $capf ), true ) : array();
+	$titles = (array) json_decode( (string) @file_get_contents( FISHA_DESIGN_DIR . 'river-titles.json' ), true ); // one title per painting, in order
 	$d = fisha_river_dir();
 	$v = '?v=' . $m['ver'];
 	ob_start(); ?>
-<section class="fisha-river<?php echo $hd ? ' fisha-river--hd' : ''; ?>" aria-label="River — Fisha sketchbook" data-direction="<?php echo 'right' === $atts['direction'] ? 'right' : 'left'; ?>" data-fish="<?php echo 'with' === $atts['fish'] ? 'with' : 'against'; ?>"<?php if ( 'always' === $atts['music'] ) echo ' data-music="always"'; ?><?php if ( $hd ) echo ' data-osd="' . esc_url( FISHA_DESIGN_URL . 'vendor/openseadragon.min.js?v=4.1.0' ) . '"'; ?>>
+<section class="fisha-river<?php echo $hd ? ' fisha-river--hd' : ''; ?>" aria-label="River — Fisha sketchbook" data-direction="<?php echo $rtl ? 'right' : 'left'; ?>" data-fish="<?php echo 'with' === $atts['fish'] ? 'with' : 'against'; ?>"<?php if ( 'always' === $atts['music'] ) echo ' data-music="always"'; ?><?php if ( $hd ) echo ' data-osd="' . esc_url( FISHA_DESIGN_URL . 'vendor/openseadragon.min.js?v=4.1.0' ) . '"'; ?>>
 	<?php if ( trim( (string) $content ) ) : ?>
-	<div class="fisha-river__intro" dir="rtl" lang="he"><?php echo wpautop( wp_kses_post( trim( $content ) ) ); ?></div>
+	<?php $he = preg_match( '/\p{Hebrew}/u', (string) $content ); // intro may be Hebrew or English ?>
+	<div class="fisha-river__intro" dir="<?php echo $he ? 'rtl' : 'ltr'; ?>" lang="<?php echo $he ? 'he' : 'en'; ?>"><?php echo wpautop( wp_kses_post( trim( $content ) ) ); ?></div>
 	<?php endif; ?>
 
 	<?php if ( $m['images'] ) : ?>
 	<div class="fisha-river__stage">
 		<div class="fisha-river__track" tabindex="0" role="region" aria-roledescription="carousel" aria-label="Artwork — drag, swipe or use the arrows; hover to pause">
-			<?php foreach ( $m['images'] as $i => $img ) : ?>
-			<?php $cap = $caps[ preg_replace( '/-(view|hd)\.jpg$/', '', $img['view'] ) ] ?? null; ?>
+			<?php foreach ( $rtl ? array_reverse( $m['images'], true ) : $m['images'] as $i => $img ) : ?>
+			<?php
+			$cap   = $caps[ preg_replace( '/-(view|hd)\.jpg$/', '', $img['view'] ) ] ?? null;
+			$title = trim( (string) ( $titles[ $i ] ?? ( $cap['title'] ?? '' ) ) );
+			$alt   = '' !== $title ? $title : $img['alt'];
+			?>
 			<figure class="fisha-river__slide" data-index="<?php echo (int) $i; ?>">
 				<div class="fisha-river__frame">
-				<img src="<?php echo esc_url( $d['url'] . $img['view'] . $v ); ?>" width="<?php echo (int) $img['w']; ?>" height="<?php echo (int) $img['h']; ?>" alt="<?php echo esc_attr( $img['alt'] ); ?>" loading="<?php echo $i < 3 ? 'eager' : 'lazy'; ?>" decoding="async" draggable="false"
+				<img src="<?php echo esc_url( $d['url'] . $img['view'] . $v ); ?>" width="<?php echo (int) $img['w']; ?>" height="<?php echo (int) $img['h']; ?>" alt="<?php echo esc_attr( $alt ); ?>" loading="<?php echo $i < 3 ? 'eager' : 'lazy'; ?>" decoding="async" draggable="false"
 					<?php if ( $hd ) : ?>data-dzi="<?php echo esc_url( $d['url'] . $img['dzi'] . $v ); ?>"<?php else : ?>data-zoom="<?php echo esc_url( $d['url'] . $img['zoom'] . $v ); ?>"<?php endif; ?> data-zw="<?php echo (int) $img['zw']; ?>" data-zh="<?php echo (int) $img['zh']; ?>">
-				<button type="button" class="fisha-river__zoom" aria-label="<?php echo esc_attr( 'Zoom in: ' . $img['alt'] ); ?>">
+				<button type="button" class="fisha-river__zoom" aria-label="<?php echo esc_attr( 'Zoom in: ' . $alt ); ?>">
 					<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6"/><path d="M15 15l5 5M10.5 8v5M8 10.5h5"/></svg>
 				</button>
 				</div>
-				<?php if ( $cap && ( ! empty( $cap['title'] ) || ! empty( $cap['text'] ) ) ) : ?>
-				<figcaption class="fisha-river__caption">
-					<?php if ( ! empty( $cap['title'] ) ) : ?><strong class="fisha-river__caption-title"><?php echo esc_html( $cap['title'] ); ?></strong><?php endif; ?>
-					<?php if ( ! empty( $cap['text'] ) ) : ?><span class="fisha-river__caption-text"><?php echo esc_html( $cap['text'] ); ?></span><?php endif; ?>
-				</figcaption>
+				<?php if ( '' !== $title ) : ?>
+				<figcaption class="fisha-river__caption"><strong class="fisha-river__caption-title"><?php echo esc_html( $title ); ?></strong></figcaption>
 				<?php endif; ?>
 			</figure>
 			<?php endforeach; ?>
@@ -82,9 +86,9 @@ add_shortcode( 'fisha_river', function ( $atts, $content = '' ) {
 			<img class="fisha-river__swimmer" src="<?php echo esc_url( FISHA_DESIGN_URL . 'img/fisha-swimmer.png?v=' . fisha_asset_ver( 'img/fisha-swimmer.png' ) ); ?>" alt="" width="200" height="128" draggable="false">
 		</div>
 		<div class="fisha-river__controls">
-			<button type="button" class="fisha-river__btn" data-river="prev" aria-label="Previous artwork"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+			<button type="button" class="fisha-river__btn" data-river="prev" aria-label="<?php echo $rtl ? 'Next artwork' : 'Previous artwork'; ?>"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
 			<button type="button" class="fisha-river__btn" data-river="play" aria-label="Pause the river" aria-pressed="false"><svg class="i-pause" viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><rect x="7" y="5" width="3.2" height="14" rx="1"/><rect x="13.8" y="5" width="3.2" height="14" rx="1"/></svg><svg class="i-play" viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13a.8.8 0 0 0 1.2.7l10.4-6.5a.8.8 0 0 0 0-1.4L9.2 4.8A.8.8 0 0 0 8 5.5z"/></svg></button>
-			<button type="button" class="fisha-river__btn" data-river="next" aria-label="Next artwork"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+			<button type="button" class="fisha-river__btn" data-river="next" aria-label="<?php echo $rtl ? 'Previous artwork' : 'Next artwork'; ?>"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
 		</div>
 	</div>
 	<?php else : ?>
