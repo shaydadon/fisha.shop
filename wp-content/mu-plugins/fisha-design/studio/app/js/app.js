@@ -4,6 +4,7 @@
 import { h } from './ui.js';
 import { config } from './api.js';
 import { productsList } from './views/products-list.js';
+import { productEditor } from './views/product-editor.js';
 
 const root = document.getElementById( 'fs-app' );
 const main = h( 'main.fs-main', { id: 'fs-main', tabindex: '-1' } );
@@ -24,6 +25,7 @@ window.addEventListener( 'fs:online', ( e ) => { offline.hidden = e.detail; } );
 
 const routes = [
 	[ /^#\/products$/, () => productsList( main ) ],
+	[ /^#\/products\/(\d+)$/, ( m ) => productEditor( main, Number( m[ 1 ] ) ) ],
 ];
 
 let view = null;
