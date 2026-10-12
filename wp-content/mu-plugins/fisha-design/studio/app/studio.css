@@ -220,3 +220,13 @@ textarea.fs-input { resize: vertical; }
 	.fs-ed-actions { position: fixed; left: 0; right: 0; bottom: 0; z-index: 25; padding: .6rem 16px; background: var(--fs-card); border-top: 1px solid var(--fs-line); }
 	.fs-ed-actions .fs-btn { flex: 1; }
 }
+
+/* Touch targets: 44px on touch screens and phones, compact sizes stay on desktop */
+@media (pointer: coarse), (max-width: 760px) {
+	.fs-btn--small, .fs-btn--tiny, .fs-inline, .fs-seg, .fs-rt__btn, .fs-check, .fs-radio { min-height: 44px; }
+	.fs-chip button { min-width: 44px; min-height: 44px; }
+	.fs-swatch { width: 44px; height: 44px; }
+	.fs-link { display: inline-flex; align-items: center; min-height: 44px; }
+	.fs-nav { align-items: center; }
+	.fs-nav__item { min-height: 44px; display: flex; align-items: center; }
+}
