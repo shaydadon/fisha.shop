@@ -8,6 +8,7 @@ import { api } from '../api.js';
 import { textField, selectField, toggleField, categoriesField, tagsField, colorField } from '../fields.js';
 import { richText } from '../richtext.js';
 import { imagesField } from '../images.js';
+import { previewPane } from '../preview.js';
 
 const TABS = [ [ 'basics', 'Basics' ], [ 'price', 'Price' ], [ 'inventory', 'Inventory' ], [ 'images', 'Photos' ], [ 'design', 'Fisha design' ], [ 'seo', 'SEO' ], [ 'shipping', 'Shipping & tax' ] ];
 const TAB_OF = {
@@ -444,7 +445,19 @@ export function productEditor( main, id ) {
 		}
 	} )();
 
-	// Preview pane: wired in by Task 15 through ed.hooks.
+	let pane = null;
+	ed.hooks.loaded.push( ( d ) => {
+		pane = previewPane( d.previews );
+		pane.el.querySelector( '.fs-preview__bar' ).prepend( h( 'button.fs-btn.fs-btn--small.fs-preview-close', { type: 'button', onclick: () => editor.classList.remove( 'is-previewing' ) }, 'Back to editing' ) );
+		side.append( pane.el );
+	} );
+	const refreshPreview = ( d ) => {
+		if ( ! pane ) return;
+		pane.setTargets( d.previews );
+		pane.reload();
+	};
+	ed.hooks.saved.push( refreshPreview );
+	ed.hooks.published.push( refreshPreview );
 
 	return {
 		destroy() {
