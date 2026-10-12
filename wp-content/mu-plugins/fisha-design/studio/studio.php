@@ -103,3 +103,5 @@ require_once FISHA_STUDIO_DIR . 'studio-fields.php';
 require_once FISHA_STUDIO_DIR . 'studio-audit.php';
 require_once FISHA_STUDIO_DIR . 'studio-drafts.php';
 require_once FISHA_STUDIO_DIR . 'studio-publish.php';
+
+require_once FISHA_STUDIO_DIR . 'studio-preview.php';
