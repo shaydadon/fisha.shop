@@ -19,3 +19,5 @@ function fisha_studio_route_for_path( string $path ): ?string {
 	$rest = trim( substr( $path, 7 ), '/' );
 	return in_array( $rest, array( 'login', 'logout' ), true ) ? $rest : 'app';
 }
+
+require_once FISHA_STUDIO_DIR . 'studio-role.php';
