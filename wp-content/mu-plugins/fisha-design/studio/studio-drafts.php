@@ -1,0 +1,115 @@
+<?php
+/**
+ * Fisha Studio drafts. Edits to a live product are kept in one post meta ({fields, base, user, updated}) until
+ * Publish; "base" remembers the live value of each edited field at the moment editing started, so a change made
+ * on the site meanwhile (an order lowering stock) is noticed. A product created in the Studio is a normal
+ * WooCommerce draft: its edits apply directly and customers cannot see it.
+ */
+if ( ! defined( 'ABSPATH' ) ) exit;
+
+define( 'FISHA_STUDIO_DRAFT_META', '_fisha_studio_draft' );
+
+function fisha_studio_is_new( WC_Product $p ): bool {
+	return in_array( get_post_status( $p->get_id() ), array( 'draft', 'auto-draft', 'pending' ), true );
+}
+
+function fisha_studio_draft_get( int $id ): array {
+	$d = get_post_meta( $id, FISHA_STUDIO_DRAFT_META, true );
+	$empty = array( 'fields' => array(), 'base' => array(), 'user' => 0, 'updated' => 0 );
+	return ( is_array( $d ) && isset( $d['fields'] ) && is_array( $d['fields'] ) ) ? array_merge( $empty, $d ) : $empty;
+}
+
+function fisha_studio_draft_save( WC_Product $p, array $values ): array {
+	$id   = $p->get_id();
+	$d    = fisha_studio_draft_get( $id );
+	$live = fisha_studio_product_read( $p );
+	foreach ( $values as $k => $v ) {
+		if ( ! array_key_exists( $k, $live ) ) continue;
+		if ( ! array_key_exists( $k, $d['base'] ) ) $d['base'][ $k ] = $live[ $k ];
+		$d['fields'][ $k ] = $v;
+		if ( fisha_studio_same( $v, $live[ $k ] ) && fisha_studio_same( $d['base'][ $k ], $live[ $k ] ) ) {
+			unset( $d['fields'][ $k ], $d['base'][ $k ] );
+		}
+	}
+	if ( ! $d['fields'] ) {
+		delete_post_meta( $id, FISHA_STUDIO_DRAFT_META );
+		return fisha_studio_draft_get( $id );
+	}
+	$d['user']    = get_current_user_id();
+	$d['updated'] = time();
+	update_post_meta( $id, FISHA_STUDIO_DRAFT_META, wp_slash( $d ) );
+	return $d;
+}
+
+function fisha_studio_draft_discard( int $id ): void {
+	delete_post_meta( $id, FISHA_STUDIO_DRAFT_META );
+}
+
+function fisha_studio_conflicts( WC_Product $p, array $draft ): array {
+	$live   = fisha_studio_product_read( $p );
+	$schema = fisha_studio_product_fields();
+	$out    = array();
+	foreach ( $draft['fields'] as $k => $mine ) {
+		if ( ! array_key_exists( $k, $draft['base'] ) || ! array_key_exists( $k, $live ) ) continue;
+		if ( fisha_studio_same( $draft['base'][ $k ], $live[ $k ] ) || fisha_studio_same( $mine, $live[ $k ] ) ) continue;
+		$out[] = array( 'field' => $k, 'label' => $schema[ $k ]['label'] ?? $k, 'base' => $draft['base'][ $k ], 'live' => $live[ $k ], 'mine' => $mine );
+	}
+	return $out;
+}
+
+function fisha_studio_target_status( WC_Product $p ): string {
+	$s = get_post_meta( $p->get_id(), '_fisha_studio_target_status', true );
+	return in_array( $s, array( 'publish', 'private' ), true ) ? $s : 'publish';
+}
+
+/** The most used card colour among products of these categories, or the template's own default. */
+function fisha_studio_default_card_bg( array $cat_ids ): string {
+	global $wpdb;
+	$ids = implode( ',', array_filter( array_map( 'absint', $cat_ids ) ) );
+	if ( ! $ids ) return '#efe8dc';
+	$bg = $wpdb->get_var( "SELECT m.meta_value FROM {$wpdb->postmeta} m
+		JOIN {$wpdb->term_relationships} r ON r.object_id = m.post_id
+		JOIN {$wpdb->term_taxonomy} t ON t.term_taxonomy_id = r.term_taxonomy_id
+		WHERE m.meta_key = '_fisha_card_bg' AND t.taxonomy = 'product_cat' AND t.term_id IN ($ids)
+		GROUP BY m.meta_value ORDER BY COUNT(*) DESC LIMIT 1" );
+	$bg = $bg ? sanitize_hex_color( $bg ) : '';
+	return $bg ? strtolower( $bg ) : '#efe8dc';
+}
+
+function fisha_studio_product_create( string $name ): WC_Product_Simple {
+	$p = new WC_Product_Simple();
+	$p->set_name( $name );
+	$p->set_status( 'draft' );
+	$p->set_slug( fisha_studio_slug_from_name( $name ) );
+	$p->set_catalog_visibility( 'visible' );
+	$p->set_reviews_allowed( false );
+	$p->save();
+	return $p;
+}
+
+/** The one entry point for an edit coming from the Studio. $values must already be cleaned. */
+function fisha_studio_product_edit( WC_Product $p, array $values ): void {
+	if ( ! fisha_studio_is_new( $p ) ) {
+		fisha_studio_draft_save( $p, $values );
+		return;
+	}
+	$id = $p->get_id();
+	if ( array_key_exists( 'status', $values ) ) {
+		update_post_meta( $id, '_fisha_studio_target_status', 'private' === $values['status'] ? 'private' : 'publish' );
+		unset( $values['status'] );
+	}
+	if ( array_key_exists( 'slug', $values ) ) {
+		$manual = '' !== $values['slug'];
+		update_post_meta( $id, '_fisha_studio_slug_manual', $manual ? '1' : '' );
+		if ( ! $manual ) $values['slug'] = fisha_studio_slug_from_name( $values['name'] ?? $p->get_name( 'edit' ) );
+	}
+	if ( isset( $values['name'] ) && ! get_post_meta( $id, '_fisha_studio_slug_manual', true ) && ! array_key_exists( 'slug', $values ) ) {
+		$values['slug'] = fisha_studio_slug_from_name( $values['name'] );
+	}
+	fisha_studio_product_apply( $p, $values );
+	if ( '' === (string) $p->get_meta( '_fisha_card_bg', true, 'edit' ) && $p->get_category_ids( 'edit' ) ) {
+		$p->update_meta_data( '_fisha_card_bg', fisha_studio_default_card_bg( $p->get_category_ids( 'edit' ) ) );
+	}
+	if ( '' === (string) $p->get_meta( '_fisha_card_bg', true, 'edit' ) ) $p->update_meta_data( '_fisha_card_bg', '#efe8dc' );
+	$p->save();
+}
