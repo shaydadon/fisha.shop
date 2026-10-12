@@ -38,7 +38,6 @@ add_shortcode( 'fisha_mosaic', function ( $atts, $content = '' ) {
 	$m = file_exists( $f ) ? json_decode( file_get_contents( $f ), true ) : array( 'images' => array() );
 	$v = '?v=' . ( file_exists( $f ) ? filemtime( $f ) : 0 );
 	$tilts = array( -1.6, 1.2, -0.7, 1.8, -1.2, 0.6, 1.4, -1.9, 0.9, -0.4 );
-	$tapes = array( 'orange', 'blue', 'beige' );
 	ob_start(); ?>
 <section class="fisha-mosaic" aria-label="River — Fisha sketches">
 	<header class="fisha-mosaic__hero">
@@ -54,13 +53,9 @@ add_shortcode( 'fisha_mosaic', function ( $atts, $content = '' ) {
 		<div class="fisha-mosaic__grid">
 			<?php foreach ( $m['images'] as $i => $img ) :
 				$tilt = $tilts[ $i % count( $tilts ) ];
-				$tape = $tapes[ ( $i * 7 ) % 3 ];
-				$tx   = ( ( $i * 37 ) % 40 ) - 20; // tape offset from centre, %
-				$ta   = ( ( $i * 53 ) % 14 ) - 7;  // tape angle
 			?>
-			<figure class="fisha-mosaic__item" data-index="<?php echo (int) $i; ?>" style="--tilt:<?php echo $tilt; ?>deg;--tape-x:<?php echo $tx; ?>%;--tape-a:<?php echo $ta; ?>deg">
+			<figure class="fisha-mosaic__item" data-index="<?php echo (int) $i; ?>" style="--tilt:<?php echo $tilt; ?>deg">
 				<button type="button" class="fisha-mosaic__open" data-full="<?php echo esc_url( $d['url'] . $img['full'] . $v ); ?>" data-fw="<?php echo (int) $img['fw']; ?>" data-fh="<?php echo (int) $img['fh']; ?>" aria-label="<?php echo esc_attr( sprintf( 'Open sketch %d', $i + 1 ) ); ?>">
-					<span class="fisha-mosaic__tape fisha-mosaic__tape--<?php echo esc_attr( $tape ); ?>" aria-hidden="true"></span>
 					<img src="<?php echo esc_url( $d['url'] . $img['tile'] . $v ); ?>" width="<?php echo (int) $img['w']; ?>" height="<?php echo (int) $img['h']; ?>" alt="" loading="<?php echo $i < 8 ? 'eager' : 'lazy'; ?>" decoding="async" draggable="false">
 				</button>
 			</figure>
@@ -101,7 +96,6 @@ add_shortcode( 'fisha_river_teaser', function ( $atts ) {
 	$v = '?v=' . filemtime( $f );
 	$url = esc_url( home_url( $atts['url'] ) );
 	$tilts = array( -1.8, 1.4, -0.8, 1.9, -1.3, 0.9 );
-	$tapes = array( 'orange', 'blue', 'beige' );
 	ob_start(); ?>
 <section class="fisha-teaser" aria-labelledby="fisha-teaser-title">
 	<?php if ( $atts['eyebrow'] ) : ?><p class="fisha-teaser__eyebrow"><?php echo esc_html( $atts['eyebrow'] ); ?></p><?php endif; ?>
@@ -114,14 +108,13 @@ add_shortcode( 'fisha_river_teaser', function ( $atts ) {
 				$img = $by[ $slug ]; ?>
 			<li class="fisha-teaser__item" style="--tilt:<?php echo $tilts[ $i % 6 ]; ?>deg">
 				<a class="fisha-teaser__card" href="<?php echo $url; ?>">
-					<span class="fisha-teaser__tape fisha-mosaic__tape--<?php echo $tapes[ $i % 3 ]; ?>" aria-hidden="true"></span>
 					<img src="<?php echo esc_url( $d['url'] . $img['tile'] . $v ); ?>" width="<?php echo (int) $img['w']; ?>" height="<?php echo (int) $img['h']; ?>" alt="<?php echo esc_attr( $alts[ $slug ] ?? 'Original Fisha sketch' ); ?>" loading="lazy" decoding="async">
 				</a>
 			</li>
 			<?php $i++; endforeach; ?>
 		</ul>
+		<a class="fisha-teaser__cta" href="<?php echo $url; ?>"><?php echo esc_html( $atts['cta'] ); ?> <span aria-hidden="true">→</span></a>
 	</div>
-	<a class="fisha-teaser__cta" href="<?php echo $url; ?>"><?php echo esc_html( $atts['cta'] ); ?> <span aria-hidden="true">→</span></a>
 </section>
 <?php
 	return ob_get_clean();

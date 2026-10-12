@@ -10,10 +10,7 @@
 	max-width: 1200px;
 	margin: clamp(2.5rem, 6vw, 4.5rem) auto 0;
 	padding: clamp(2.2rem, 5vw, 3.8rem) clamp(1rem, 4vw, 3rem) clamp(2rem, 4vw, 3rem);
-	border-radius: 28px;
-	background:
-		radial-gradient(rgba(23, 35, 45, 0.09) 1px, transparent 1.2px) 0 0 / 22px 22px,
-		var(--paper);
+	background: #fff; /* white: the home page alternates grey and white section by section */
 	color: var(--ink);
 	font-family: "Nunito", sans-serif;
 }

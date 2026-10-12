@@ -2,7 +2,7 @@
 .fisha-mosaic {
 	--river-paper: #f6f1e7;
 	--river-ink: rgb(23, 35, 45);
-	--board: #ebe4d6;
+	--board: var(--river-paper); /* same bright paper as the intro above */
 	--gap: clamp(16px, 2.2vw, 34px);
 	color: var(--river-ink);
 }
@@ -15,7 +15,7 @@
 	margin-inline-start: calc(50% - 50vw);
 	padding: clamp(2rem, 5vw, 4.5rem) clamp(1rem, 4vw, 3.5rem) clamp(3rem, 7vw, 6rem);
 	background-color: var(--board);
-	background-image: radial-gradient(rgba(23, 35, 45, 0.13) 1px, transparent 1.2px);
+	background-image: radial-gradient(rgba(23, 35, 45, 0.09) 1px, transparent 1.2px);
 	background-size: 22px 22px;
 	overflow: hidden;
 }
@@ -78,30 +78,8 @@
 }
 .fisha-mosaic__open:focus-visible { box-shadow: 0 0 0 3px #e28838, 0 28px 44px -18px rgba(23, 35, 45, 0.5); }
 
-/* Paper tape */
-.fisha-mosaic__tape {
-	position: absolute;
-	top: -12px;
-	left: calc(50% + var(--tape-x) - 42px);
-	width: 84px;
-	height: 26px;
-	transform: rotate(var(--tape-a));
-	z-index: 1;
-	opacity: 0.9;
-	box-shadow: 0 1px 2px rgba(23, 35, 45, 0.08);
-	mask-image: linear-gradient(90deg, transparent 0 3px, #000 3px calc(100% - 3px), transparent calc(100% - 3px)),
-	            repeating-linear-gradient(0deg, #000 0 3px, transparent 3px 5px);
-	-webkit-mask-image: linear-gradient(90deg, transparent 0 3px, #000 3px calc(100% - 3px), transparent calc(100% - 3px)),
-	            repeating-linear-gradient(0deg, #000 0 3px, transparent 3px 5px);
-	-webkit-mask-composite: source-over;
-}
-.fisha-mosaic__tape--orange { background: rgba(232, 156, 86, 0.62); }
-.fisha-mosaic__tape--blue   { background: rgba(116, 150, 176, 0.5); }
-.fisha-mosaic__tape--beige  { background: rgba(214, 199, 160, 0.75); }
-
 @media (max-width: 781px) {
 	.fisha-mosaic { --gap: 14px; }
-	.fisha-mosaic__tape { width: 60px; height: 20px; left: calc(50% + var(--tape-x) - 30px); top: -9px; }
 }
 @media (prefers-reduced-motion: reduce) {
 	.fisha-mosaic__item, .fisha-mosaic__item.is-in { transition: none; opacity: 1; transform: rotate(var(--tilt)); }

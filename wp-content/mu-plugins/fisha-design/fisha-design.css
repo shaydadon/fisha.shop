@@ -131,9 +131,13 @@ header .wp-block-woocommerce-customer-account { display: none !important; }
 	--ink: rgb(23, 35, 45);
 	--accent: #E48734;
 	--accent-ink: #E48734; /* brand orange, also for text and hovers (2.6:1 on white) */
-	margin: clamp(3rem, 7vw, 6rem) auto 0;
+	margin: 0 auto; /* a full band: no outer gap, spacing lives in the padding */
+	padding-block: clamp(3.5rem, 7vw, 6rem);
 	text-align: center;
 	color: var(--ink);
+	background-color: var(--fisha-hero-bg);
+	/* full-width band in the hero's grey, painted edge to edge without widening the box (no sideways scroll) */
+	border-image: linear-gradient(var(--fisha-hero-bg) 0 0) fill 0 / 0 / 0 100vw;
 }
 .fisha-teaser__eyebrow {
 	margin: 0 0 0.5rem;
@@ -154,17 +158,12 @@ header .wp-block-woocommerce-customer-account { display: none !important; }
 .fisha-teaser__text {
 	max-width: 46ch;
 	margin: 1rem auto 0;
-	font-size: clamp(1rem, 1.6vw, 1.2rem);
-	line-height: 1.7;
+	font-size: var(--fisha-desc-size);
+	line-height: var(--fisha-desc-lh);
 	font-weight: 400;
 }
 .fisha-teaser__board {
 	margin-top: clamp(1.75rem, 4vw, 3rem);
-	padding: clamp(2rem, 4.5vw, 3.75rem) clamp(1.25rem, 4vw, 3.5rem);
-	border-radius: 24px;
-	background-color: #ebe4d6;
-	background-image: radial-gradient(rgba(23, 35, 45, 0.13) 1px, transparent 1.2px);
-	background-size: 22px 22px;
 }
 .fisha-teaser__grid {
 	display: grid;
@@ -197,17 +196,6 @@ header .wp-block-woocommerce-customer-account { display: none !important; }
 	outline: none;
 }
 .fisha-teaser__card:focus-visible { box-shadow: 0 0 0 3px var(--accent), 0 28px 44px -18px rgba(23, 35, 45, 0.5); }
-.fisha-teaser__tape {
-	position: absolute;
-	top: -12px;
-	left: calc(50% - 42px);
-	width: 84px;
-	height: 26px;
-	z-index: 1;
-	opacity: 0.9;
-	transform: rotate(-3deg);
-}
-.fisha-teaser__item:nth-child(even) .fisha-teaser__tape { transform: rotate(4deg); left: calc(50% - 30px); }
 .fisha-teaser__cta {
 	display: inline-flex;
 	align-items: center;
@@ -228,14 +216,10 @@ header .wp-block-woocommerce-customer-account { display: none !important; }
 .fisha-teaser__cta:hover span { transform: translateX(4px); }
 @media (max-width: 781px) {
 	.fisha-teaser__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-	.fisha-teaser__tape { width: 60px; height: 20px; top: -9px; left: calc(50% - 30px); }
 }
 @media (prefers-reduced-motion: reduce) {
 	.fisha-teaser__card, .fisha-teaser__cta, .fisha-teaser__cta span { transition: none; }
 }
-.fisha-teaser .fisha-mosaic__tape--orange { background: rgba(232, 156, 86, 0.62); }
-.fisha-teaser .fisha-mosaic__tape--blue   { background: rgba(116, 150, 176, 0.5); }
-.fisha-teaser .fisha-mosaic__tape--beige  { background: rgba(214, 199, 160, 0.75); }
 
 /* ---------- Header menu: "Shop" in the accent colour ---------- */
 .hostinger-ai-menu .wp-block-navigation-item a[href*="/shop-2/"],
@@ -370,7 +354,7 @@ header .wp-block-woocommerce-customer-account { display: none !important; }
 /* ---------- Footer ---------- */
 .fisha-footer {
 	--ink: rgb(23, 35, 45);
-	background: #e9eaea; /* same tint as the homepage hero */
+	background: var(--fisha-hero-bg); /* same grey as the homepage hero */
 	color: var(--ink);
 	padding: clamp(3rem, 6vw, 4.5rem) var(--wp--style--root--padding-right, 1.5rem) 1.5rem var(--wp--style--root--padding-left, 1.5rem);
 	font-size: 1rem;
@@ -427,3 +411,14 @@ html body .hostinger-ai-site-navigation a:hover {
 .fisha-footer .current-menu-item > .wp-block-navigation-item__content { color: #E48734 !important; }
 .fisha-footer__legal a { font-weight: 400; }
 .fisha-footer__legal .sep { margin: 0 0.5em; opacity: 0.5; }
+
+/* ---------- Home: one size for every section's description text (Fisha Story, River teaser) ---------- */
+:root {
+	--fisha-hero-bg: color-mix(in srgb, #0d141a 9%, #fff); /* the home hero's grey (its 9% ink overlay on white), for full-width bands */
+	--fisha-desc-size: clamp(1.0625rem, 0.95rem + 0.5vw, 1.3125rem); /* 17px on phones -> 21px on desktop */
+	--fisha-desc-lh: 1.65;
+}
+.elementor .elementor-element.elementor-element-66e0de0 .elementor-heading-title {
+	font-size: var(--fisha-desc-size) !important;
+	line-height: var(--fisha-desc-lh) !important;
+}
