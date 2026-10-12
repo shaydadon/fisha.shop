@@ -23,6 +23,14 @@ fs_test( 'media: heic rejected with a clear message', function () {
 fs_test( 'media: a script pretending to be a jpg is rejected', function () {
 	$r = fisha_studio_store_image( fs_tmp_file( 'evil.jpg', '<?php echo "pwned";' ) );
 	fs_true( is_wp_error( $r ) );
+	fs_eq( 'fisha_studio_upload', $r->get_error_code() );
+} );
+
+fs_test( 'media: a gif renamed to .png is rejected', function () {
+	$gif = "GIF89a\x01\0\x01\0\x80\0\0\0\0\0\xff\xff\xff!\xf9\x04\x01\0\0\0\0,\0\0\0\0\x01\0\x01\0\0\x02\x02D\x01\0;";
+	$r   = fisha_studio_store_image( fs_tmp_file( 'x.png', $gif ) );
+	fs_true( is_wp_error( $r ), 'rejected' );
+	fs_eq( 'fisha_studio_upload', $r->get_error_code() );
 } );
 
 fs_test( 'media: files over 15 MB are rejected before anything is stored', function () {

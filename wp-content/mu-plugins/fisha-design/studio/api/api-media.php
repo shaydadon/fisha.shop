@@ -34,6 +34,11 @@ function fisha_studio_store_image( array $file ) {
 	if ( empty( $check['type'] ) || ! in_array( $check['type'], fisha_studio_image_mimes(), true ) ) {
 		return new WP_Error( 'fisha_studio_upload', 'Only JPG, PNG or WebP photos can be uploaded. On an iPhone, set Settings > Camera > Formats to "Most Compatible", or share the photo as JPG.', array( 'status' => 422 ) );
 	}
+	// Explicit content check: the file must really be a JPG, PNG or WebP image, whatever its name says.
+	$real = wp_get_image_mime( $file['tmp_name'] );
+	if ( ! $real || ! in_array( $real, array_values( fisha_studio_image_mimes() ), true ) ) {
+		return new WP_Error( 'fisha_studio_upload', 'Only JPG, PNG or WebP photos can be uploaded. On an iPhone, set Settings > Camera > Formats to "Most Compatible", or share the photo as JPG.', array( 'status' => 422 ) );
+	}
 	require_once ABSPATH . 'wp-admin/includes/image.php';
 	require_once ABSPATH . 'wp-admin/includes/file.php';
 	require_once ABSPATH . 'wp-admin/includes/media.php';
