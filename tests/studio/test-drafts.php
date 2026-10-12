@@ -83,3 +83,23 @@ fs_test( 'drafts: conflicts only when the live value moved under an edited field
 	fs_eq( 2, $c[0]['live'] );
 	fs_eq( 5, $c[0]['mine'] );
 } );
+
+fs_test( 'drafts: card colour follows the category picked after the name', function () {
+	$cat = fs_term( 'drafts-late-colour' );
+	foreach ( array( 1, 2 ) as $i ) {
+		$q = fs_product( array( 'category_ids' => array( $cat->term_id ) ) );
+		$q->update_meta_data( '_fisha_card_bg', '#e3ecef' );
+		$q->save();
+	}
+	$other = fs_term( 'drafts-late-empty' );
+	$p     = fisha_studio_product_create( 'zz-test Late Category' );
+	fs_on_cleanup( function () use ( $p ) { wp_delete_post( $p->get_id(), true ); } );
+	fisha_studio_product_edit( $p, array( 'name' => 'zz-test Late Category Two' ) );
+	fs_eq( '', (string) wc_get_product( $p->get_id() )->get_meta( '_fisha_card_bg' ), 'no colour stored yet' );
+	fisha_studio_product_edit( wc_get_product( $p->get_id() ), array( 'category_ids' => array( $cat->term_id ) ) );
+	fs_eq( '#e3ecef', wc_get_product( $p->get_id() )->get_meta( '_fisha_card_bg' ), 'taken from the category' );
+	fisha_studio_product_edit( wc_get_product( $p->get_id() ), array( 'card_bg' => '#123456' ) );
+	fs_eq( '#123456', wc_get_product( $p->get_id() )->get_meta( '_fisha_card_bg' ), 'owner colour' );
+	fisha_studio_product_edit( wc_get_product( $p->get_id() ), array( 'category_ids' => array( $other->term_id ) ) );
+	fs_eq( '#123456', wc_get_product( $p->get_id() )->get_meta( '_fisha_card_bg' ), 'owner colour kept' );
+} );

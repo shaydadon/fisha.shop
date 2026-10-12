@@ -106,10 +106,10 @@ function fisha_studio_product_edit( WC_Product $p, array $values ): void {
 	if ( isset( $values['name'] ) && ! get_post_meta( $id, '_fisha_studio_slug_manual', true ) && ! array_key_exists( 'slug', $values ) ) {
 		$values['slug'] = fisha_studio_slug_from_name( $values['name'] );
 	}
+	if ( array_key_exists( 'card_bg', $values ) ) update_post_meta( $id, '_fisha_studio_bg_manual', '1' );
 	fisha_studio_product_apply( $p, $values );
-	if ( '' === (string) $p->get_meta( '_fisha_card_bg', true, 'edit' ) && $p->get_category_ids( 'edit' ) ) {
-		$p->update_meta_data( '_fisha_card_bg', fisha_studio_default_card_bg( $p->get_category_ids( 'edit' ) ) );
+	if ( ! array_key_exists( 'card_bg', $values ) && array_key_exists( 'category_ids', $values ) && ! get_post_meta( $id, '_fisha_studio_bg_manual', true ) ) {
+		$p->update_meta_data( '_fisha_card_bg', fisha_studio_default_card_bg( (array) $values['category_ids'] ) );
 	}
-	if ( '' === (string) $p->get_meta( '_fisha_card_bg', true, 'edit' ) ) $p->update_meta_data( '_fisha_card_bg', '#efe8dc' );
 	$p->save();
 }
