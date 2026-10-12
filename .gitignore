@@ -5,6 +5,8 @@
 !/.gitattributes
 !/.github/
 !/README.md
+!/docs/
+!/tests/
 !/docker/
 !/docker-compose.yml
 !/wp-content/
