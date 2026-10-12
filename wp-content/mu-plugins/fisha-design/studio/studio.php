@@ -21,3 +21,4 @@ function fisha_studio_route_for_path( string $path ): ?string {
 }
 
 require_once FISHA_STUDIO_DIR . 'studio-role.php';
+require_once FISHA_STUDIO_DIR . 'studio-gates.php';
