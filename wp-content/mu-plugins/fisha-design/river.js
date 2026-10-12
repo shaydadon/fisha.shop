@@ -16,7 +16,10 @@
 	var FISH_LEFT = DIR < 0 || root.getAttribute('data-fish') === 'with';
 	var FISH_INVERT = FISH_LEFT === (DIR > 0); // map scroll progress so she moves the chosen way
 	var RESUME_AFTER = 3500; // ms of calm before drifting again
-	var loopW = 0, pos = 0, last = null;
+	// The river has an end: it flows from painting 1 to the last one, stops there, and play starts it again from painting 1.
+	// data-loop="yes" brings back the endless loop.
+	var LOOP = root.getAttribute('data-loop') === 'yes';
+	var loopW = 0, span = 0, pos = 0, last = null;
 	var hover = false, dragging = false, focusIn = false, userPaused = false, viewerOpen = false;
 	var holdUntil = 0, anim = null;
 	var playBtn = root.querySelector('[data-river="play"]');
@@ -29,8 +32,9 @@
 	var VB_W = 2400, VB_H = 40, lastProg = null, lastMove = 0;
 	var facing = FISH_LEFT ? -1 : 1; // facing her swimming direction from the first frame
 	function updateSwimmer(t) {
-		if (!swimmer || !wavePath || !loopW) return;
-		var prog = (((track.scrollLeft % loopW) + loopW) % loopW) / loopW;
+		var range = LOOP ? loopW : span;
+		if (!swimmer || !wavePath || !range) return;
+		var prog = LOOP ? (((track.scrollLeft % range) + range) % range) / range : Math.min(1, Math.max(0, track.scrollLeft / range));
 		if (FISH_INVERT) prog = 1 - prog;
 		if (lastProg != null) {
 			var d = prog - lastProg;
@@ -72,6 +76,7 @@
 		loopW = firstClone ? firstClone.offsetLeft - first.offsetLeft : 0;
 	}
 	function ensureLoop() {
+		if (!LOOP) { span = Math.max(0, track.scrollWidth - track.clientWidth); return; }
 		if (originals.length < 2) return;
 		if (track.children.length === originals.length) addCloneSet();
 		var sets = track.children.length / originals.length;
@@ -100,6 +105,7 @@
 			if (Math.abs(track.scrollLeft - pos) > 2) pos = track.scrollLeft; // moved by something else (swipe, keyboard…)
 			pos += DIR * SPEED * dt / 1000;
 			track.scrollLeft = pos;
+			if (!LOOP && atEnd()) setPaused(true); // reached the last painting: rest there until play
 		} else {
 			pos = track.scrollLeft;
 		}
@@ -110,7 +116,31 @@
 
 	// Right-to-left river (DIR < 0): slides are rendered newest-first, so painting 1 is the last original.
 	// Start with it resting at the right edge; the river then carries 2, 3, ... in from the left.
+	function startPos() { return DIR < 0 ? span : 0; }
+	function atEnd() { return DIR < 0 ? track.scrollLeft <= 1 : track.scrollLeft >= span - 1; }
+	function setPaused(p) {
+		userPaused = p;
+		if (!playBtn) return;
+		playBtn.setAttribute('aria-pressed', String(p));
+		playBtn.setAttribute('aria-label', p ? 'Let the river flow' : 'Pause the river');
+	}
+	// Play at the end of the river: back to the starting preset - painting 1 resting at the right edge and Fisha at
+	// the right end of the stream - with a quick fade instead of a visible jump, then the river flows again.
+	function restartFromPreset() {
+		var done = function () {
+			ensureLoop();
+			startAtFirst();
+			lastProg = null; // Fisha reappears at the right without swimming across
+			holdUntil = 0;
+			track.classList.remove('is-resetting');
+		};
+		if (reduceMotion) return done();
+		track.classList.add('is-resetting');
+		hold(400);
+		setTimeout(done, 320);
+	}
 	function startAtFirst() {
+		if (!LOOP) { track.scrollLeft = startPos(); pos = track.scrollLeft; return; }
 		var first = originals[originals.length - 1];
 		var padEnd = parseFloat(getComputedStyle(track).paddingRight) || 0;
 		var x = first.offsetLeft + first.offsetWidth + padEnd - track.clientWidth;
@@ -134,7 +164,7 @@
 
 	if (track && originals.length) {
 		ensureLoop();
-		if (DIR < 0 && loopW) startAtFirst();
+		if (DIR < 0 && (loopW || !LOOP)) startAtFirst();
 		window.addEventListener('resize', ensureLoop, { passive: true });
 		window.addEventListener('load', ensureLoop);
 
@@ -172,6 +202,36 @@
 		track.addEventListener('pointercancel', endDrag);
 		track.addEventListener('click', function (e) { if (moved) { e.preventDefault(); e.stopPropagation(); moved = false; } }, true);
 
+		// Drag Fisha along the stream: where she is on the stream is where you are in the river
+		if (swimmer && stream) {
+			var fishDrag = false;
+			var scrubTo = function (clientX) {
+				var range = LOOP ? loopW : span;
+				if (!range) return;
+				var sr = stream.getBoundingClientRect(), fw = swimmer.offsetWidth;
+				var prog = Math.min(1, Math.max(0, (clientX - sr.left - fw / 2) / Math.max(1, sr.width - fw)));
+				if (FISH_INVERT) prog = 1 - prog;
+				track.scrollLeft = prog * range;
+				pos = track.scrollLeft;
+			};
+			swimmer.addEventListener('pointerdown', function (e) {
+				if (e.button !== 0) return;
+				e.preventDefault();
+				fishDrag = true; dragging = true; anim = null;
+				swimmer.setPointerCapture(e.pointerId);
+				swimmer.classList.add('is-dragging');
+			});
+			swimmer.addEventListener('pointermove', function (e) { if (fishDrag) scrubTo(e.clientX); });
+			var endFish = function () {
+				if (!fishDrag) return;
+				fishDrag = false; dragging = false;
+				swimmer.classList.remove('is-dragging');
+				hold(2500);
+			};
+			swimmer.addEventListener('pointerup', endFish);
+			swimmer.addEventListener('pointercancel', endFish);
+		}
+
 		// Arrows, keyboard, pause
 		root.querySelector('[data-river="prev"]').addEventListener('click', function () { step(-1); });
 		root.querySelector('[data-river="next"]').addEventListener('click', function () { step(1); });
@@ -180,9 +240,8 @@
 			if (e.key === 'ArrowLeft') { e.preventDefault(); step(-1); }
 		});
 		playBtn.addEventListener('click', function () {
-			userPaused = !userPaused;
-			playBtn.setAttribute('aria-pressed', String(userPaused));
-			playBtn.setAttribute('aria-label', userPaused ? 'Let the river flow' : 'Pause the river');
+			setPaused(!userPaused);
+			if (!userPaused && !LOOP && atEnd()) restartFromPreset(); // at the end: start again from the opening preset
 		});
 		if (reduceMotion) { userPaused = true; playBtn.setAttribute('aria-pressed', 'true'); playBtn.setAttribute('aria-label', 'Let the river flow'); }
 
@@ -196,6 +255,26 @@
 		});
 
 		requestAnimationFrame(tick);
+
+		// Paintings fade in once loaded; until then the frame shows a paper tone (river.css).
+		root.classList.add('js-fade');
+		track.querySelectorAll('.fisha-river__frame img').forEach(function (img) {
+			if (img.complete && img.naturalWidth) img.classList.add('is-loaded');
+			else img.addEventListener('load', function () { img.classList.add('is-loaded'); }, { once: true });
+		});
+		// After the page has loaded, fetch the rest one by one in the order the river shows them.
+		window.addEventListener('load', function () {
+			var queue = originals.slice().sort(function (a, b) { return (+a.getAttribute('data-index')) - (+b.getAttribute('data-index')); })
+				.map(function (s) { return s.querySelector('img'); });
+			(function next() {
+				var img = queue.shift();
+				if (!img) return;
+				if (img.complete && img.naturalWidth) return next();
+				img.loading = 'eager';
+				var done = function () { img.removeEventListener('load', done); img.removeEventListener('error', done); next(); };
+				img.addEventListener('load', done); img.addEventListener('error', done);
+			})();
+		});
 	}
 
 	/* ------------------------------------------------------------------ zoom viewer */

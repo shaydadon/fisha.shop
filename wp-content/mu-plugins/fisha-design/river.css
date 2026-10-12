@@ -123,7 +123,7 @@ body.fisha-river-page { overflow-x: clip; }
 	height: 100%;
 	width: auto;
 	max-width: none;
-	background: #fff;
+	background: #e9e2d4; /* paper tone while a painting is still loading (was a white box) */
 	box-shadow: 0 1px 2px rgba(23, 35, 45, 0.08), 0 10px 28px -12px rgba(23, 35, 45, 0.28);
 	user-select: none;
 	-webkit-user-drag: none;
@@ -293,3 +293,16 @@ body.fisha-river-page { overflow-x: clip; }
 .fisha-river__sound.is-waiting { animation: fisha-invite 1.8s ease-in-out infinite; }
 @keyframes fisha-invite { 0%, 100% { box-shadow: 0 4px 16px rgba(23, 35, 45, 0.12), 0 0 0 0 rgba(226, 136, 56, 0.45); } 50% { box-shadow: 0 4px 16px rgba(23, 35, 45, 0.12), 0 0 0 10px rgba(226, 136, 56, 0); } }
 @media (prefers-reduced-motion: reduce) { .fisha-river__sound.is-waiting { animation: none; } }
+
+/* Paintings fade in when loaded (class added by river.js, so without JS they simply show) */
+.fisha-river.js-fade .fisha-river__frame img { transition: opacity 0.5s ease; }
+.fisha-river.js-fade .fisha-river__frame img:not(.is-loaded) { opacity: 0.001; }
+.fisha-river.js-fade .fisha-river__frame { background: #e9e2d4; }
+@media (prefers-reduced-motion: reduce) { .fisha-river.js-fade .fisha-river__frame img { transition: none; } }
+
+/* Fisha can be dragged along the stream to scrub through the river (river.js) */
+.fisha-river__swimmer { pointer-events: auto; cursor: grab; touch-action: none; user-select: none; -webkit-user-drag: none; }
+.fisha-river__swimmer.is-dragging { cursor: grabbing; }
+/* Play at the end: a quick fade while the river returns to its starting preset */
+.fisha-river__track { transition: opacity 0.3s ease; }
+.fisha-river__track.is-resetting { opacity: 0; }
