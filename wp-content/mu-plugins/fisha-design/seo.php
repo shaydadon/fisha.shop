@@ -39,6 +39,11 @@ function fisha_seo_description() {
 		if ( get_post_meta( $id, 'hostinger_ai_post_meta_description', true ) ) {
 			return ''; // the theme prints it
 		}
+		// Products: the SEO description written in Fisha Studio wins over everything below.
+		if ( 'product' === get_post_type( $id ) ) {
+			$custom = trim( (string) get_post_meta( $id, 'fisha_seo_desc', true ) );
+			if ( '' !== $custom ) return fisha_seo_trim( $custom );
+		}
 		$post = get_post( $id );
 		$key  = $post->post_type . ':' . $post->post_name;
 		if ( isset( $known[ $key ] ) ) {
@@ -108,6 +113,15 @@ add_filter( 'pre_get_document_title', function ( $title ) {
 	// back to the bare site name. Use it only if someone wrote a real one.
 	$custom = trim( (string) get_post_meta( get_queried_object_id(), 'hostinger_ai_post_meta_title', true ) );
 	return ( $custom && mb_strlen( $custom ) > 20 ) ? $custom : FISHA_HOME_TITLE;
+}, 25 );
+
+// Products: the SEO title written in Fisha Studio, when there is one.
+add_filter( 'pre_get_document_title', function ( $title ) {
+	if ( fisha_seo_plugin_active() || ! is_singular( 'product' ) ) {
+		return $title;
+	}
+	$custom = trim( (string) get_post_meta( get_queried_object_id(), 'fisha_seo_title', true ) );
+	return '' !== $custom ? $custom . ' | ' . get_bloginfo( 'name' ) : $title;
 }, 25 );
 
 add_action( 'wp_head', function () {
