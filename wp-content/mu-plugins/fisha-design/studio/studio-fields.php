@@ -89,11 +89,13 @@ function fisha_studio_clean( array $def, $v ): array {
 			return array( $v, null );
 
 		case 'html':
-			$allowed = array(
-				'p' => array(), 'br' => array(), 'b' => array(), 'strong' => array(), 'i' => array(), 'em' => array(),
-				'ul' => array(), 'ol' => array(), 'li' => array(), 'h2' => array(), 'h3' => array(),
-				'a' => array( 'href' => true, 'target' => true, 'rel' => true ),
-			);
+			static $allowed = null;
+			if ( null === $allowed ) {
+				$allowed = wp_kses_allowed_html( 'post' );
+				foreach ( $allowed as $tag => $attrs ) {
+					if ( is_array( $attrs ) ) unset( $allowed[ $tag ]['style'], $allowed[ $tag ]['class'], $allowed[ $tag ]['id'] );
+				}
+			}
 			return array( trim( wp_kses( (string) $v, $allowed ) ), null );
 
 		case 'slug':

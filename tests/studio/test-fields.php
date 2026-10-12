@@ -19,6 +19,10 @@ fs_test( 'fields: html is cleaned', function () {
 	fs_false( strpos( $v, 'style=' ), 'no inline styles' );
 	fs_false( strpos( $v, 'MsoNormal' ), 'no Word classes' );
 	fs_true( false !== strpos( $v, '<b>there</b>' ), 'bold kept' );
+	list( $r ) = fisha_studio_clean( fs_field( 'description' ), '<img src="https://example.com/a.jpg" alt="x"><table><tr><td>cell</td></tr></table><a href="javascript:alert(1)">x</a>' );
+	fs_true( false !== strpos( $r, '<img' ), 'img kept' );
+	fs_true( false !== strpos( $r, '<table>' ) && false !== strpos( $r, '<td>cell</td>' ), 'table kept' );
+	fs_true( false === strpos( $r, 'javascript:' ), 'javascript href dropped' );
 } );
 
 fs_test( 'fields: other types', function () {
