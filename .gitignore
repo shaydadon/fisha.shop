@@ -25,3 +25,5 @@
 *.log
 .DS_Store
 Thumbs.db
+# local-only Studio test owner (see tests/studio/README.md)
+/tests/studio/local-owner.txt
