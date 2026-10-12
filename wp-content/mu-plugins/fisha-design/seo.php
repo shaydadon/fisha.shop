@@ -15,7 +15,7 @@ function fisha_seo_plugin_active() {
 	return defined( 'WPSEO_VERSION' ) || class_exists( 'RankMath' ) || defined( 'AIOSEO_VERSION' ) || defined( 'SEOPRESS_VERSION' );
 }
 
-define( 'FISHA_HOME_TITLE', 'Fisha — Hand-Drawn Fish Art, Wearables & Collectibles from Tel Aviv' );
+define( 'FISHA_HOME_TITLE', 'Fisha | Hand-Drawn Fish Art, Wearables & Collectibles from Tel Aviv' );
 
 /** Hand-written descriptions for pages and categories that have none. */
 function fisha_seo_known() {
@@ -50,7 +50,7 @@ function fisha_seo_description() {
 			$text = $p ? ( $p->get_short_description() ?: $p->get_description() ) : '';
 			if ( ! trim( wp_strip_all_tags( $text ) ) && $p ) {
 				$cats = wp_get_post_terms( $id, 'product_cat', array( 'fields' => 'names' ) );
-				$text = sprintf( '%s by Fisha%s. Hand-drawn in Tel Aviv, shipped with care.', $p->get_name(), $cats ? ' — ' . implode( ', ', $cats ) : '' );
+				$text = sprintf( '%s by Fisha%s. Hand-drawn in Tel Aviv, shipped with care.', $p->get_name(), $cats ? ' in ' . implode( ', ', $cats ) : '' );
 			}
 		}
 		if ( ! $text ) {
@@ -65,7 +65,7 @@ function fisha_seo_description() {
 			return ''; // shop.php prints the category's own text
 		}
 		$key = 'product_cat:' . $t->slug;
-		return isset( $known[ $key ] ) ? $known[ $key ] : fisha_seo_trim( $t->description ?: $t->name . ' by Fisha — hand-drawn in Tel Aviv.' );
+		return isset( $known[ $key ] ) ? $known[ $key ] : fisha_seo_trim( $t->description ?: $t->name . ' by Fisha, hand-drawn in Tel Aviv.' );
 	}
 
 	return '';
@@ -118,3 +118,10 @@ add_action( 'wp_head', function () {
 	echo '<meta property="og:site_name" content="' . esc_attr( get_bloginfo( 'name' ) ) . '">' . "\n";
 	echo '<meta property="og:url" content="' . esc_url( home_url( '/' ) ) . '">' . "\n";
 }, 3 );
+
+// Page titles read "River | Fisha" (WordPress puts an en dash between page and site name by default)
+add_filter( 'document_title_separator', function () { return '|'; } );
+
+// No automatic typography: WordPress would turn " - " into an en dash (and "--" into a dash) in titles, prices and text.
+// The site's copy already uses real curly quotes, so nothing else changes.
+add_filter( 'run_wptexturize', '__return_false' );

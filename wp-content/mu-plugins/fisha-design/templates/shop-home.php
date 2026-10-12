@@ -56,7 +56,7 @@ $contact_url = home_url( '/contact/' );
 $terms_url   = get_permalink( 85 );
 $faq = apply_filters( 'fisha_shop_faq', array(
 	'orders' => array( 'Orders', array(
-		array( 'How do I place an order?', 'Pick a piece, choose your size or shoe size where there is one, and add it to your bag. When you are ready, open the bag and check out — you will get an order confirmation by email straight away.' ),
+		array( 'How do I place an order?', 'Pick a piece, choose your size or shoe size where there is one, and add it to your bag. When you are ready, open the bag and check out. You will get an order confirmation by email straight away.' ),
 		array( 'When is my order confirmed?', 'Your order is confirmed once the payment is approved. If anything about stock, sizing or delivery needs a check, we will contact you by email before it ships.' ),
 		array( 'Can I change or cancel my order?', 'Yes, as long as it has not shipped yet. <a href="' . esc_url( $contact_url . '?topic=Order' ) . '">Write to us</a> with your order number as soon as you can and we will update it.' ),
 		array( 'Will my bag be saved if I leave the site?', 'Yes. Your bag stays saved on this device for up to two weeks, so you can keep browsing and come back to check out later.' ),
@@ -76,7 +76,7 @@ $faq = apply_filters( 'fisha_shop_faq', array(
 	) ),
 	'returns' => array( 'Returns', array(
 		array( 'Can I return or exchange an item?', 'Yes. Unused, undamaged items in their original condition can be returned or exchanged within the period stated in our <a href="' . esc_url( $terms_url ) . '">Terms &amp; Conditions</a>.' ),
-		array( 'The size is not right — what now?', 'No problem. <a href="' . esc_url( $contact_url . '?topic=Return' ) . '">Write to us</a> with your order number and the size you need, and we will arrange an exchange while stock lasts.' ),
+		array( 'The size is not right. What now?', 'No problem. <a href="' . esc_url( $contact_url . '?topic=Return' ) . '">Write to us</a> with your order number and the size you need, and we will arrange an exchange while stock lasts.' ),
 		array( 'My item arrived damaged.', 'We are sorry! Send us a photo of the item and the packaging within a few days of delivery and we will replace or refund it.' ),
 		array( 'Are original artworks and custom pieces returnable?', 'One-of-a-kind originals and pieces made especially for you cannot always be returned. Check the details on the product page or ask us before you order.' ),
 	) ),
@@ -118,7 +118,7 @@ $fisha_footer = do_blocks( '<!-- wp:template-part {"slug":"footer","tagName":"fo
 		<div class="fs-hero__text">
 			<p class="fs-eyebrow">fisha.shop</p>
 			<h1 id="fs-title" class="fs-title">The Fisha <span>Shop</span></h1>
-			<p class="fs-lead">Hand-drawn Fisha on things you wear, keep and hang on the wall — T-shirts, hoodies, caps and socks, collectibles and original artworks.</p>
+			<p class="fs-lead">Hand-drawn Fisha on things you wear, keep and hang on the wall: T-shirts, hoodies, caps and socks, collectibles and original artworks.</p>
 			<ul class="fs-cats">
 				<?php foreach ( $shelves as $s ) : ?>
 				<li><a href="<?php echo esc_url( get_term_link( $s['term'] ) ); ?>">
@@ -170,7 +170,7 @@ $fisha_footer = do_blocks( '<!-- wp:template-part {"slug":"footer","tagName":"fo
 					<select data-filter="price">
 						<option value="">Any price</option>
 						<option value="0-100">Under ₪100</option>
-						<option value="100-200">₪100 – ₪200</option>
+						<option value="100-200">₪100-₪200</option>
 						<option value="200-">Over ₪200</option>
 					</select>
 				</label>
@@ -205,7 +205,7 @@ $fisha_footer = do_blocks( '<!-- wp:template-part {"slug":"footer","tagName":"fo
 			<?php else : ?>
 				<div class="fs-soon">
 					<img src="<?php echo esc_url( FISHA_DESIGN_URL . 'img/fisha-logo.png' ); ?>" alt="" aria-hidden="true" width="90" height="64">
-					<p><strong><?php echo esc_html( $t->name ); ?> are on their way.</strong> Fisha is still drawing this collection — take a peek at the category page.</p>
+					<p><strong><?php echo esc_html( $t->name ); ?> are on their way.</strong> Fisha is still drawing this collection. Take a peek at the category page.</p>
 				</div>
 			<?php endif; ?>
 		</section>
@@ -229,7 +229,7 @@ $fisha_footer = do_blocks( '<!-- wp:template-part {"slug":"footer","tagName":"fo
 		<div class="fs-faq__intro">
 			<p class="fs-eyebrow">Questions</p>
 			<h2 id="fs-faq-h">Good to know</h2>
-			<p>Orders, tattoos, shipping and returns — the things people ask us most.</p>
+			<p>Orders, tattoos, shipping and returns: the things people ask us most.</p>
 			<div class="fs-faq__tabs" role="group" aria-label="FAQ topic">
 				<button type="button" class="fs-chip is-active" data-faq="" aria-pressed="true">All</button>
 				<?php foreach ( $faq as $key => $g ) : ?><button type="button" class="fs-chip" data-faq="<?php echo esc_attr( $key ); ?>" aria-pressed="false"><?php echo esc_html( $g[0] ); ?></button><?php endforeach; ?>

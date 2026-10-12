@@ -167,7 +167,7 @@ $fisha_footer = do_blocks( '<!-- wp:template-part {"slug":"footer","tagName":"fo
 		<div class="fs-happy__head">
 			<p class="fs-eyebrow">Sold · now at home</p>
 			<h2 id="fs-happy-h">Happy clients</h2>
-			<p>Originals that already found their people. Every Fisha is one of a kind &mdash; when a piece is sold, it moves to this wall.</p>
+			<p>Originals that already found their people. Every Fisha is one of a kind. When a piece is sold, it moves to this wall.</p>
 		</div>
 		<ul class="fs-happy__grid">
 			<?php foreach ( $happy as $k => $hid ) : $cap = wp_get_attachment_caption( $hid ); ?>

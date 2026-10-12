@@ -39,7 +39,7 @@ add_shortcode( 'fisha_mosaic', function ( $atts, $content = '' ) {
 	$v = '?v=' . ( file_exists( $f ) ? filemtime( $f ) : 0 );
 	$tilts = array( -1.6, 1.2, -0.7, 1.8, -1.2, 0.6, 1.4, -1.9, 0.9, -0.4 );
 	ob_start(); ?>
-<section class="fisha-mosaic" aria-label="River — Fisha sketches">
+<section class="fisha-mosaic" aria-label="River: Fisha sketches">
 	<header class="fisha-mosaic__hero">
 		<p class="fisha-mosaic__eyebrow">From the sketchbook</p>
 		<h1 class="fisha-mosaic__title"><?php echo esc_html( get_the_title() ); ?></h1>
@@ -74,7 +74,7 @@ add_shortcode( 'fisha_mosaic', function ( $atts, $content = '' ) {
 add_shortcode( 'fisha_river_teaser', function ( $atts ) {
 	$atts = shortcode_atts( array(
 		'eyebrow' => 'From the sketchbook',
-		'title'   => 'River — Original Sketches & Illustrations',
+		'title'   => 'River: Original Sketches & Illustrations',
 		'text'    => 'A flowing collection of sketches, drawings and illustrations. Wander through the creative process and watch ideas take shape.',
 		'cta'     => 'Explore the River',
 		'url'     => '/river/',

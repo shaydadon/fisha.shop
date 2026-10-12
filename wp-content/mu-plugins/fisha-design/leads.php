@@ -26,7 +26,7 @@ function fisha_request_types() {
 	);
 }
 function fisha_request_budgets() {
-	return array( '' => 'Not sure yet', 'u500' => 'Under ₪500', '500-1500' => '₪500 – ₪1,500', '1500-3000' => '₪1,500 – ₪3,000', '3000+' => '₪3,000 +' );
+	return array( '' => 'Not sure yet', 'u500' => 'Under ₪500', '500-1500' => '₪500-₪1,500', '1500-3000' => '₪1,500-₪3,000', '3000+' => '₪3,000 +' );
 }
 function fisha_request_page_url( $type = '' ) {
 	$p   = get_page_by_path( 'request' );
@@ -66,7 +66,7 @@ function fisha_lead_gate( WP_REST_Request $r, $kind ) {
 	if ( $ms && $ms < 2500 ) return 'spam';
 	$key = 'fisha_rl_' . $kind . '_' . md5( fisha_client_ip() );
 	$n   = (int) get_transient( $key );
-	if ( $n >= ( 'drop' === $kind ? 6 : 4 ) ) return 'Too many tries in a short time — please wait a few minutes and try again.';
+	if ( $n >= ( 'drop' === $kind ? 6 : 4 ) ) return 'Too many tries in a short time. Please wait a few minutes and try again.';
 	set_transient( $key, $n + 1, 10 * MINUTE_IN_SECONDS );
 	return '';
 }
@@ -120,7 +120,7 @@ function fisha_drop_add( $email, $interest, $source = '' ) {
 		'post_type' => 'fisha_lead', 'post_status' => 'private', 'numberposts' => 1, 'fields' => 'ids',
 		'meta_query' => array( array( 'key' => '_kind', 'value' => 'drop' ), array( 'key' => '_email', 'value' => $email ), array( 'key' => '_interest', 'value' => $interest ) ),
 	) );
-	if ( $found ) return 'You’re already on the list — we’ll let you know.';
+	if ( $found ) return 'You’re already on the list. We’ll let you know.';
 	$label = fisha_drop_interest_label( $interest );
 	fisha_lead_save( 'drop', $email . ' · ' . $label, array(
 		'email' => $email, 'interest' => $interest, 'source' => $source,
@@ -142,7 +142,7 @@ add_shortcode( 'fisha_drop_signup', function ( $atts ) {
 		'interest' => 'all',
 		'eyebrow'  => 'One of a kind',
 		'title'    => 'Hear about the next drop',
-		'text'     => 'Every Fisha original and Clipper is made once. Leave your email and you’ll hear first when new pieces swim in — nothing else, and you can unsubscribe any time.',
+		'text'     => 'Every Fisha original and Clipper is made once. Leave your email and you’ll hear first when new pieces swim in. Nothing else, and you can unsubscribe any time.',
 		'compact'  => '',
 	), $atts, 'fisha_drop_signup' );
 	$id   = 'fisha-drop' . ( $n > 1 ? '-' . $n : '' );
@@ -218,7 +218,7 @@ add_action( 'woocommerce_single_product_summary', function () {
 function fisha_rest_request( WP_REST_Request $r ) {
 	$anchor = 'fisha-request';
 	if ( $err = fisha_lead_gate( $r, 'request' ) ) {
-		return 'spam' === $err ? fisha_lead_reply( $r, true, 'Thanks — your request is in.', $anchor ) : fisha_lead_reply( $r, false, $err, $anchor );
+		return 'spam' === $err ? fisha_lead_reply( $r, true, 'Thanks, your request is in.', $anchor ) : fisha_lead_reply( $r, false, $err, $anchor );
 	}
 	$types   = fisha_request_types();
 	$budgets = fisha_request_budgets();
@@ -271,9 +271,9 @@ function fisha_rest_request( WP_REST_Request $r ) {
 	if ( $id ) $body .= "\nIn wp-admin: " . admin_url( 'post.php?post=' . $id . '&action=edit' ) . "\n";
 	wp_mail( get_option( 'admin_email' ), '[Fisha] New request: ' . $types[ $f['type'] ] . ' from ' . $f['name'], $body, array( 'Reply-To: ' . $f['name'] . ' <' . $f['email'] . '>' ) );
 	wp_mail( $f['email'], 'We got your Fisha request',
-		"Hi {$f['name']},\n\nThanks for your request — it’s safely in the river. Fisha reads every one personally and usually replies within a few days.\n\nWhat you sent:\n\n$body\n— Fisha\n" . home_url( '/' ) );
+		"Hi {$f['name']},\n\nThanks for your request, it’s safely in the river. Fisha reads every one personally and usually replies within a few days.\n\nWhat you sent:\n\n$body\nFisha\n" . home_url( '/' ) );
 
-	return fisha_lead_reply( $r, true, 'Thanks, ' . $f['name'] . '! Your request is in. Fisha reads every one personally and usually replies within a few days — we’ve emailed you a copy.', $anchor );
+	return fisha_lead_reply( $r, true, 'Thanks, ' . $f['name'] . '! Your request is in. Fisha reads every one personally and usually replies within a few days. We’ve emailed you a copy.', $anchor );
 }
 
 /** Validates and stores up to 3 images. Returns a list of URLs, or an error string. */
@@ -295,7 +295,7 @@ function fisha_request_files( $params ) {
 	$urls = array();
 	foreach ( $up['name'] as $i => $name ) {
 		if ( '' === $name ) continue;
-		if ( UPLOAD_ERR_OK !== (int) $up['error'][ $i ] ) { $urls = 'One of the images didn’t upload — please try again.'; break; }
+		if ( UPLOAD_ERR_OK !== (int) $up['error'][ $i ] ) { $urls = 'One of the images didn’t upload. Please try again.'; break; }
 		if ( $up['size'][ $i ] > FISHA_LEAD_MAX_MB * MB_IN_BYTES ) { $urls = 'Each image can be up to ' . FISHA_LEAD_MAX_MB . ' MB.'; break; }
 		$file = array( 'name' => wp_generate_password( 12, false ) . '-' . sanitize_file_name( $name ), 'type' => $up['type'][ $i ], 'tmp_name' => $up['tmp_name'][ $i ], 'error' => 0, 'size' => $up['size'][ $i ] );
 		$res  = wp_handle_upload( $file, array( 'test_form' => false, 'mimes' => $mimes ) );
@@ -316,7 +316,7 @@ add_shortcode( 'fisha_request_form', function ( $atts ) {
 	$a = shortcode_atts( array(
 		'eyebrow' => 'Commissions & tattoos',
 		'title'   => 'Ask for a Fisha made for you',
-		'text'    => 'A Fisha on your skin, a painting for your wall or a Clipper in your colours — tell us the idea and we’ll take it from there. Every request is read personally.',
+		'text'    => 'A Fisha on your skin, a painting for your wall or a Clipper in your colours? Tell us the idea and we’ll take it from there. Every request is read personally.',
 	), $atts, 'fisha_request_form' );
 	$types = fisha_request_types();
 	$sel   = isset( $_GET['type'] ) && isset( $types[ $_GET['type'] ] ) ? sanitize_key( $_GET['type'] ) : '';
@@ -376,7 +376,7 @@ add_shortcode( 'fisha_request_form', function ( $atts ) {
 				<div class="fr-field fr-field--full fr-files">
 					<label for="fr-refs"><span>Reference images <em>(optional, up to <?php echo (int) FISHA_LEAD_MAX_FILES; ?>, <?php echo (int) FISHA_LEAD_MAX_MB; ?> MB each)</em></span></label>
 					<input id="fr-refs" type="file" name="refs[]" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic" multiple>
-					<p class="fr-hint">A photo of the spot, a sketch, a colour you love — anything that helps.</p>
+					<p class="fr-hint">A photo of the spot, a sketch, a colour you love: anything that helps.</p>
 				</div>
 			</div>
 
@@ -388,7 +388,7 @@ add_shortcode( 'fisha_request_form', function ( $atts ) {
 			<div class="fr-submit">
 				<button type="submit" class="fd-submit">Send my request</button>
 				<p class="fisha-lead-msg<?php echo $ok ? ' is-ok' : ( $err ? ' is-err' : '' ); ?>" role="status" aria-live="polite"><?php
-					echo $ok ? 'Thanks! Your request is in — we’ve emailed you a copy.' : esc_html( $err ); ?></p>
+					echo $ok ? 'Thanks! Your request is in. We’ve emailed you a copy.' : esc_html( $err ); ?></p>
 			</div>
 		</form>
 	</section>

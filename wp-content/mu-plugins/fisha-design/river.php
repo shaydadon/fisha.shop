@@ -52,7 +52,7 @@ add_shortcode( 'fisha_river', function ( $atts, $content = '' ) {
 	$d = fisha_river_dir();
 	$v = '?v=' . $m['ver'];
 	ob_start(); ?>
-<section class="fisha-river<?php echo $hd ? ' fisha-river--hd' : ''; ?>" aria-label="River — Fisha sketchbook" data-direction="<?php echo $rtl ? 'right' : 'left'; ?>" data-fish="<?php echo 'with' === $atts['fish'] ? 'with' : 'against'; ?>"<?php if ( 'always' === $atts['music'] ) echo ' data-music="always"'; ?><?php if ( $hd ) echo ' data-osd="' . esc_url( FISHA_DESIGN_URL . 'vendor/openseadragon.min.js?v=4.1.0' ) . '"'; ?>>
+<section class="fisha-river<?php echo $hd ? ' fisha-river--hd' : ''; ?>" aria-label="River: Fisha sketchbook" data-direction="<?php echo $rtl ? 'right' : 'left'; ?>" data-fish="<?php echo 'with' === $atts['fish'] ? 'with' : 'against'; ?>"<?php if ( 'always' === $atts['music'] ) echo ' data-music="always"'; ?><?php if ( $hd ) echo ' data-osd="' . esc_url( FISHA_DESIGN_URL . 'vendor/openseadragon.min.js?v=4.1.0' ) . '"'; ?>>
 	<?php if ( trim( (string) $content ) ) : ?>
 	<?php $he = preg_match( '/\p{Hebrew}/u', (string) $content ); // intro may be Hebrew or English ?>
 	<div class="fisha-river__intro" dir="<?php echo $he ? 'rtl' : 'ltr'; ?>" lang="<?php echo $he ? 'he' : 'en'; ?>"><?php echo wpautop( wp_kses_post( trim( $content ) ) ); ?></div>
@@ -60,7 +60,7 @@ add_shortcode( 'fisha_river', function ( $atts, $content = '' ) {
 
 	<?php if ( $m['images'] ) : ?>
 	<div class="fisha-river__stage">
-		<div class="fisha-river__track" tabindex="0" role="region" aria-roledescription="carousel" aria-label="Artwork — drag, swipe or use the arrows; hover to pause">
+		<div class="fisha-river__track" tabindex="0" role="region" aria-roledescription="carousel" aria-label="Artwork: drag, swipe or use the arrows; hover to pause">
 			<?php foreach ( $rtl ? array_reverse( $m['images'], true ) : $m['images'] as $i => $img ) : ?>
 			<?php
 			$cap   = $caps[ preg_replace( '/-(view|hd)\.jpg$/', '', $img['view'] ) ] ?? null;

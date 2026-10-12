@@ -51,7 +51,7 @@ add_shortcode( 'fisha_tattoos', function ( $atts ) {
 	$a = shortcode_atts( array(
 		'title'      => 'Fisha Tattoos',
 		'eyebrow'    => 'Fisha on skin',
-		'text'       => 'Fisha has swum off the paper and onto skin. Tiny fine-line fish, playful pairs and full sleeves of lotus, river and colour — every tattoo begins as a drawing in the sketchbook and becomes a little story you carry with you.',
+		'text'       => 'Fisha has swum off the paper and onto skin. Tiny fine-line fish, playful pairs and full sleeves of lotus, river and colour. Every tattoo begins as a drawing in the sketchbook and becomes a little story you carry with you.',
 		'hero_video' => 'img-7237',
 		'order'      => 'img-7232,img-7007,img-8512,img-7018,img-7011,img-1755,img-7239,img-3004,img-8514,img-7242,img-7244',
 		'cta'        => 'Book your tattoo',
@@ -153,7 +153,7 @@ add_shortcode( 'fisha_tattoos', function ( $atts ) {
 
 	<section class="ft-outro" aria-labelledby="ft-outro-title">
 		<h2 id="ft-outro-title">Want a Fisha of your own?</h2>
-		<p>Every Fisha tattoo is drawn for the person wearing it. Send a message with the idea, the spot and the size — and let’s draw it together.</p>
+		<p>Every Fisha tattoo is drawn for the person wearing it. Send a message with the idea, the spot and the size, and let’s draw it together.</p>
 		<?php echo do_shortcode( '[fisha_cta text="' . esc_attr( $a['cta'] ) . '" url="' . esc_attr( $a['url'] ) . '"]' ); ?>
 	</section>
 

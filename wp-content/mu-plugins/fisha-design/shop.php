@@ -36,8 +36,8 @@ add_filter( 'body_class', function ( $c ) {
 } );
 
 // Main shop page: SEO title + description (skipped when an SEO plugin is active)
-define( 'FISHA_SHOP_SEO_TITLE', 'Fisha Shop — Hand-Drawn Wearables, Collectibles & Original Art' );
-define( 'FISHA_SHOP_SEO_DESC', 'Shop Fisha: T-shirts, hoodies, caps and socks carrying the hand-drawn fish, plus collectibles and original artworks — a little light, in every form.' );
+define( 'FISHA_SHOP_SEO_TITLE', 'Fisha Shop | Hand-Drawn Wearables, Collectibles & Original Art' );
+define( 'FISHA_SHOP_SEO_DESC', 'Shop Fisha: T-shirts, hoodies, caps and socks carrying the hand-drawn fish, plus collectibles and original artworks. A little light, in every form.' );
 add_filter( 'pre_get_document_title', function ( $title ) {
 	return fisha_is_shop_home() ? FISHA_SHOP_SEO_TITLE . ' | ' . get_bloginfo( 'name' ) : $title;
 }, 20 );
@@ -179,3 +179,8 @@ function fisha_series_picker() {
 }
 add_action( 'woocommerce_single_product_summary', 'fisha_series_picker', 25 );
 add_shortcode( 'fisha_series_picker', function () { ob_start(); fisha_series_picker(); return ob_get_clean(); } );
+
+// Price ranges as "40.00 ₪ - 70.00 ₪" (WooCommerce uses an en dash)
+add_filter( 'woocommerce_format_price_range', function ( $price, $from, $to ) {
+	return ( is_numeric( $from ) ? wc_price( $from ) : $from ) . ' - ' . ( is_numeric( $to ) ? wc_price( $to ) : $to );
+}, 10, 3 );

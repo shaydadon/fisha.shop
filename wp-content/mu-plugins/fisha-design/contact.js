@@ -141,13 +141,13 @@
 			.then(function (j) {
 				btn.disabled = false;
 				btn.textContent = label;
-				if (!j.ok) { say(j.message || 'Something went wrong — please try again.', false); return; }
+				if (!j.ok) { say(j.message || 'Something went wrong. Please try again.', false); return; }
 				return carryAway().then(function () { showThanks(first); });
 			})
 			.catch(function () {
 				btn.disabled = false;
 				btn.textContent = label;
-				say('Couldn’t reach the river — check your connection and try again.', false);
+				say('Couldn’t reach the river. Check your connection and try again.', false);
 			});
 	});
 

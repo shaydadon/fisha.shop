@@ -82,7 +82,7 @@ add_action( 'rest_api_init', function () {
 function fisha_rest_contact( WP_REST_Request $r ) {
 	$anchor = 'fisha-contact-form';
 	if ( $err = fisha_lead_gate( $r, 'contact' ) ) {
-		return 'spam' === $err ? fisha_lead_reply( $r, true, 'Thanks — your message is in the river.', $anchor ) : fisha_lead_reply( $r, false, $err, $anchor );
+		return 'spam' === $err ? fisha_lead_reply( $r, true, 'Thanks, your message is in the river.', $anchor ) : fisha_lead_reply( $r, false, $err, $anchor );
 	}
 	$topics = fisha_contact_topics();
 	$f = array(
@@ -107,7 +107,7 @@ function fisha_rest_contact( WP_REST_Request $r ) {
 	) );
 	$body = "Topic: $label\nName: {$f['name']}\nEmail: {$f['email']}\n" . ( $f['order'] ? "Order: {$f['order']}\n" : '' ) . "\n{$f['message']}\n";
 	if ( $id ) $body .= "\nIn wp-admin: " . admin_url( 'post.php?post=' . $id . '&action=edit' ) . "\n";
-	wp_mail( get_option( 'admin_email' ), '[Fisha] ' . $label . ' — message from ' . $f['name'], $body, array( 'Reply-To: ' . $f['name'] . ' <' . $f['email'] . '>' ) );
+	wp_mail( get_option( 'admin_email' ), '[Fisha] ' . $label . ': message from ' . $f['name'], $body, array( 'Reply-To: ' . $f['name'] . ' <' . $f['email'] . '>' ) );
 
 	$first = strtok( $f['name'], ' ' );
 	return fisha_lead_reply( $r, true, 'Thanks, ' . $first . '! Your message is in the river.', $anchor );

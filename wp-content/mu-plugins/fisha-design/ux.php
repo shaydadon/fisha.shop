@@ -78,7 +78,7 @@ add_filter( 'render_block_woocommerce/product-collection', function ( $html, $bl
 
 // Card titles are h3: give single-collection category grids an (invisible) h2 so headings don't skip a level.
 add_action( 'fisha_before_grid', function ( $term ) {
-	echo '<h2 class="screen-reader-text">' . esc_html( $term->name ) . ' — all pieces</h2>';
+	echo '<h2 class="screen-reader-text">' . esc_html( $term->name ) . ': all pieces</h2>';
 } );
 
 // Checkout: Woo's section titles are h3 — add an h2 so the outline doesn't skip a level.

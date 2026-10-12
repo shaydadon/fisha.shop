@@ -68,16 +68,16 @@
 			say(form, '', true);
 
 			fetch(form.action, { method: 'POST', body: new FormData(form), credentials: 'omit', headers: { Accept: 'application/json' } })
-				.then(function (r) { return r.json().catch(function () { return { ok: false, message: 'Something went wrong — please try again.' }; }); })
+				.then(function (r) { return r.json().catch(function () { return { ok: false, message: 'Something went wrong. Please try again.' }; }); })
 				.then(function (j) {
-					say(form, j.message || (j.ok ? 'Thanks!' : 'Something went wrong — please try again.'), !!j.ok);
+					say(form, j.message || (j.ok ? 'Thanks!' : 'Something went wrong. Please try again.'), !!j.ok);
 					if (j.ok) {
 						form.classList.add('is-sent');
 						form.reset();
 						syncPlacement(form);
 					}
 				})
-				.catch(function () { say(form, 'Couldn’t reach the server — check your connection and try again.', false); })
+				.catch(function () { say(form, 'Couldn’t reach the server. Check your connection and try again.', false); })
 				.then(function () { btn.disabled = false; btn.textContent = label; });
 		});
 	});
