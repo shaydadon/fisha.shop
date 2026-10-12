@@ -1,5 +1,5 @@
 /* ===== WooCommerce pages in the Fisha style: product · cart · checkout · account ===== */
-body.woocommerce-page, body.woocommerce-cart, body.woocommerce-checkout, body.woocommerce-account { --ink: rgb(23, 35, 45); --accent: #E48734; --accent-ink: #9E4F0E; --paper: #f4efe6; --line: rgba(23, 35, 45, 0.14); }
+body.woocommerce-page, body.woocommerce-cart, body.woocommerce-checkout, body.woocommerce-account { --ink: rgb(23, 35, 45); --accent: #E48734; --accent-ink: #E48734; --paper: #f4efe6; --line: rgba(23, 35, 45, 0.14); }
 body.single-product main, body.woocommerce-cart main, body.woocommerce-checkout main, body.woocommerce-account main {
 	background: radial-gradient(rgba(23, 35, 45, 0.07) 1px, transparent 1.2px) 0 0 / 22px 22px, var(--paper);
 	color: var(--ink); font-family: "Nunito", sans-serif;

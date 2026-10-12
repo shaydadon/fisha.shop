@@ -2,7 +2,7 @@
 :root {
 	--fisha-ink: rgb(23, 35, 45);
 	--fisha-accent: #E48734;      /* decoration, fills, tape, icons */
-	--fisha-accent-ink: #9E4F0E;  /* orange TEXT: 5.1:1 on paper, 5.9:1 on white, 4.9:1 on the grey footer */
+	--fisha-accent-ink: #E48734;  /* brand orange for text and hovers (2.6:1 on white) */
 	--fisha-paper: #f4efe6;
 }
 

@@ -116,7 +116,7 @@
 	background: radial-gradient(rgba(23, 35, 45, 0.09) 1px, transparent 1.2px) 0 0 / 22px 22px, var(--river-paper);
 	text-align: center;
 }
-.fisha-mosaic__eyebrow { margin: 0 0 0.75rem; font-family: "Nunito", sans-serif; font-size: 0.875rem; font-weight: 800; letter-spacing: 0.16em; text-transform: uppercase; color: #9E4F0E; }
+.fisha-mosaic__eyebrow { margin: 0 0 0.75rem; font-family: "Nunito", sans-serif; font-size: 0.875rem; font-weight: 800; letter-spacing: 0.16em; text-transform: uppercase; color: #E48734; }
 .fisha-mosaic__title { margin: 0 0 1rem; font-family: "Nunito", sans-serif; font-size: clamp(2.8rem, 7vw, 5rem); font-weight: 800; line-height: 0.98; letter-spacing: -0.02em; color: var(--river-ink); }
 .fisha-mosaic__hero .fisha-river__intro { margin-bottom: 0.75rem; max-width: 34rem; font-size: clamp(1.05rem, 1.5vw, 1.2rem); text-align: center; }
 .fisha-mosaic__hint { margin: 0; font-size: 0.9375rem; font-weight: 700; opacity: 0.7; }

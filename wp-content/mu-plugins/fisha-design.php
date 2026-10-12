@@ -44,9 +44,13 @@ function fisha_eyes_markup() {
 	if ( ! fisha_eyes_ready() ) return '';
 	$body   = esc_url( FISHA_DESIGN_URL . 'img/fisha-body-sm.png?v=' . fisha_asset_ver( 'img/fisha-body-sm.png' ) );
 	$pupils = esc_url( FISHA_DESIGN_URL . 'img/fisha-pupils-sm.png?v=' . fisha_asset_ver( 'img/fisha-pupils-sm.png' ) );
+	// full-size art for the larger desktop fish and sharp screens (same canvas, so body and pupils stay aligned)
+	$body_l   = esc_url( FISHA_DESIGN_URL . 'img/fisha-body.png?v=' . fisha_asset_ver( 'img/fisha-body.png' ) );
+	$pupils_l = esc_url( FISHA_DESIGN_URL . 'img/fisha-pupils.png?v=' . fisha_asset_ver( 'img/fisha-pupils.png' ) );
+	$sizes    = '(min-width: 1024px) 92px, (min-width: 782px) 64px, 48px';
 	return '<span class="fisha-eyes" aria-hidden="true">'
-		. '<img class="fisha-eyes__body" src="' . $body . '" width="160" height="113" alt="" draggable="false" decoding="async">'
-		. '<span class="fisha-eyes__pupils-wrap"><img class="fisha-eyes__pupils" src="' . $pupils . '" width="160" height="113" alt="" draggable="false" decoding="async"></span>'
+		. '<img class="fisha-eyes__body" src="' . $body . '" srcset="' . $body . ' 160w, ' . $body_l . ' 480w" sizes="' . $sizes . '" width="160" height="113" alt="" draggable="false" decoding="async">'
+		. '<span class="fisha-eyes__pupils-wrap"><img class="fisha-eyes__pupils" src="' . $pupils . '" srcset="' . $pupils . ' 160w, ' . $pupils_l . ' 480w" sizes="' . $sizes . '" width="160" height="113" alt="" draggable="false" decoding="async"></span>'
 		. '</span>';
 }
 

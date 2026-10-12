@@ -8,7 +8,7 @@ body.fisha-tattoos-page .wp-block-post-content { padding-left: 0 !important; pad
 .fisha-tattoos {
 	--ink: rgb(23, 35, 45);
 	--accent: #E48734;
-	--accent-ink: #9E4F0E; /* text-safe orange: 5.1:1 on paper */
+	--accent-ink: #E48734; /* brand orange, also for text and hovers (2.6:1 on white) */
 	--paper: #f4efe6;
 	--pad: clamp(1.25rem, 5vw, 4rem);
 	color: var(--ink);

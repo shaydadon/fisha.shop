@@ -53,6 +53,19 @@ h1, h2, h3, h4, h5, h6,
 @media (max-width: 781px) {
 	.fisha-eyes { --fisha-size: 48px; --fisha-gap: 0.5rem; }
 }
+/* Elementor pages (the home page) round every image's corners, which shaved off the fish's tail - keep header art square */
+header .fisha-eyes img,
+header .wp-block-site-logo img { border-radius: 0 !important; }
+
+/* No account icon in the header */
+header .wp-block-woocommerce-customer-account { display: none !important; }
+
+/* Desktop: both Fisha logos larger */
+@media (min-width: 1024px) {
+	.fisha-eyes { --fisha-size: 92px; }
+	header .wp-block-site-logo img { width: 140px !important; height: auto !important; }
+	.hostinger-ai-menu-wrapper { --fisha-logo-ink-inset: 23px !important; } /* scales with the logo (13px at 80px wide) */
+}
 @media (prefers-reduced-motion: reduce) {
 	.fisha-eyes__pupils { transition: none; }
 }
@@ -107,7 +120,7 @@ h1, h2, h3, h4, h5, h6,
 /* ---------- Home "Fisha Story": links in the accent colour, same weight as the text ---------- */
 .elementor .elementor-element-66e0de0 .elementor-heading-title a,
 .elementor .elementor-element-66e0de0 .elementor-heading-title a:visited {
-	color: #9E4F0E !important;
+	color: #E48734 !important;
 	font-weight: inherit !important;
 	transition: opacity 0.2s ease;
 }
@@ -117,7 +130,7 @@ h1, h2, h3, h4, h5, h6,
 .fisha-teaser {
 	--ink: rgb(23, 35, 45);
 	--accent: #E48734;
-	--accent-ink: #9E4F0E; /* text-safe orange: 5.1:1 on paper */
+	--accent-ink: #E48734; /* brand orange, also for text and hovers (2.6:1 on white) */
 	margin: clamp(3rem, 7vw, 6rem) auto 0;
 	text-align: center;
 	color: var(--ink);
@@ -227,7 +240,7 @@ h1, h2, h3, h4, h5, h6,
 /* ---------- Header menu: "Shop" in the accent colour ---------- */
 .hostinger-ai-menu .wp-block-navigation-item a[href*="/shop-2/"],
 .hostinger-ai-menu .wp-block-navigation-item a[href*="/shop-2/"]:visited {
-	color: #9E4F0E !important;
+	color: #E48734 !important;
 }
 .hostinger-ai-menu .wp-block-navigation-item a[href*="/shop-2/"]:hover { opacity: 0.8; }
 
@@ -348,7 +361,7 @@ h1, h2, h3, h4, h5, h6,
 	transition: background 0.2s ease, transform 0.2s ease;
 }
 .fisha-cta:hover,
-.fisha-cta:focus-visible { background: #9E4F0E; transform: translateY(-2px); outline: none; }
+.fisha-cta:focus-visible { background: #E48734; transform: translateY(-2px); outline: none; }
 .fisha-cta span { transition: transform 0.2s ease; }
 .fisha-cta:hover span { transform: translateX(4px); }
 @media (prefers-reduced-motion: reduce) { .fisha-cta, .fisha-cta span { transition: none; } }
@@ -363,7 +376,7 @@ h1, h2, h3, h4, h5, h6,
 	font-size: 1rem;
 }
 .fisha-footer a { color: inherit; text-decoration: none !important; transition: color 0.2s ease; }
-.fisha-footer a:hover, .fisha-footer a:focus-visible { color: #9E4F0E; }
+.fisha-footer a:hover, .fisha-footer a:focus-visible { color: #E48734; }
 .fisha-footer .fisha-footer__cols { gap: clamp(2rem, 5vw, 4rem); margin-bottom: 0; }
 .fisha-footer .wp-block-site-logo img { width: 96px; height: auto; }
 .fisha-footer__about { max-width: 36ch; margin-top: 1rem; line-height: 1.7; color: rgba(23, 35, 45, 0.8); }
@@ -373,14 +386,14 @@ h1, h2, h3, h4, h5, h6,
 	font-weight: 700;
 	letter-spacing: 0.14em;
 	text-transform: uppercase;
-	color: #9E4F0E;
+	color: #E48734;
 }
 .fisha-footer__nav .wp-block-navigation__container { gap: 0.65rem !important; }
 .fisha-footer__nav .wp-block-navigation-item__content { padding: 0 !important; color: var(--ink); }
 .fisha-footer__social { gap: 0.9rem !important; }
 .fisha-footer__social .wp-social-link { color: var(--ink) !important; background: none !important; }
 .fisha-footer__social .wp-social-link svg { width: 24px; height: 24px; fill: currentColor; }
-.fisha-footer__social .wp-social-link:hover { color: #9E4F0E !important; transform: none; }
+.fisha-footer__social .wp-social-link:hover { color: #E48734 !important; transform: none; }
 .fisha-footer__bottom {
 	gap: 0.3rem !important;
 	margin-top: clamp(2.5rem, 5vw, 3.5rem) !important;
@@ -411,6 +424,6 @@ html body .hostinger-ai-site-navigation a:hover {
 	text-decoration: none !important;
 }
 /* footer: current page shown in the accent colour instead */
-.fisha-footer .current-menu-item > .wp-block-navigation-item__content { color: #9E4F0E !important; }
+.fisha-footer .current-menu-item > .wp-block-navigation-item__content { color: #E48734 !important; }
 .fisha-footer__legal a { font-weight: 400; }
 .fisha-footer__legal .sep { margin: 0 0.5em; opacity: 0.5; }

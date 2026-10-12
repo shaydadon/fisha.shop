@@ -8,7 +8,7 @@ body.fisha-contact-page .wp-block-post-content { padding-left: 0 !important; pad
 	--ink: rgb(23, 35, 45);
 	--muted: rgba(23, 35, 45, 0.72);
 	--accent: #E48734;
-	--accent-ink: #9E4F0E; /* text-safe orange: 5.1:1 on paper */
+	--accent-ink: #E48734; /* brand orange, also for text and hovers (2.6:1 on white) */
 	--paper: #f4efe6;
 	--line: rgba(23, 35, 45, 0.22);
 	--pad: clamp(1rem, 5vw, 4rem);
