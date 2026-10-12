@@ -22,7 +22,7 @@ const TAB_OF = {
 let lookups = null;
 
 export function productEditor( main, id ) {
-	const ed = { data: null, pending: {}, saving: null, alive: true, changeUrl: false, widgets: {}, hooks: { loaded: [], saved: [], published: [] } };
+	const ed = { data: null, pending: {}, saving: null, publishing: false, alive: true, changeUrl: false, widgets: {}, hooks: { loaded: [], saved: [], published: [] } };
 	let tab = sessionStorage.getItem( 'fs-tab' ) || 'basics';
 
 	const status = h( 'span.fs-save-state', { role: 'status', 'aria-live': 'polite' } );
@@ -35,7 +35,7 @@ export function productEditor( main, id ) {
 	main.append( editor );
 	main.append( h( 'p.fs-empty', { id: 'fs-ed-loading' }, 'Loading product…' ) );
 
-	const autosave = debounce( () => flush(), 600 );
+	const autosave = debounce( () => { if ( ! ed.publishing ) flush(); }, 600 );
 
 	function change( key, value ) {
 		ed.pending[ key ] = value;
@@ -45,40 +45,48 @@ export function productEditor( main, id ) {
 		status.textContent = 'Saving…';
 		// A live product's Publish button is disabled until something changes; enable it at once so a quick click is not lost (publish() waits for the save).
 		const pub = head.querySelector( '.fs-publish' );
-		if ( pub && ed.data.editable ) pub.disabled = false;
+		if ( pub && ed.data.editable && ! ed.publishing ) pub.disabled = false;
 		autosave();
 		refreshDerived();
 	}
 
-	/** Saves pending edits. Resolves true when everything on screen is saved. */
+	/** Saves pending edits, waiting for any save already in flight. Resolves true only when everything on screen is saved. */
 	async function flush() {
 		autosave.cancel();
-		if ( ed.saving ) await ed.saving;
-		if ( ! Object.keys( ed.pending ).length ) return true;
+		let ok = true;
+		for ( ;; ) {
+			while ( ed.saving ) {
+				if ( ! ( await ed.saving ) ) ok = false;
+			}
+			if ( ! Object.keys( ed.pending ).length ) return ok;
+			if ( ! ok ) return false;
+			ed.saving = saveOnce();
+			if ( ! ( await ed.saving ) ) ok = false;
+		}
+	}
+
+	/** One draft save of everything pending. Resolves to whether it fully succeeded. */
+	async function saveOnce() {
 		const fields = ed.pending;
 		ed.pending = {};
 		let ok = true;
-		ed.saving = ( async () => {
-			try {
-				const d = await api( 'PUT', `products/${ id }/draft`, { fields } );
-				if ( ! ed.alive ) return;
-				apply( d );
-				const errs = d.field_errors || {};
-				for ( const [ k, msg ] of Object.entries( errs ) ) setError( k, msg );
-				if ( Object.keys( errs ).length ) ok = false;
-				status.textContent = Object.keys( errs ).length ? 'Some fields need a look' : ( d.state === 'new' ? 'Saved (not on the site yet)' : 'Saved as draft' );
-				ed.hooks.saved.forEach( ( f ) => f( d ) );
-			} catch ( e ) {
-				ok = false;
-				ed.pending = { ...fields, ...ed.pending };
-				status.textContent = 'Not saved yet';
-				toast( e.message, 'error' );
-			} finally {
-				ed.saving = null;
-			}
-		} )();
-		await ed.saving;
-		if ( ok && Object.keys( ed.pending ).length ) return flush();
+		try {
+			const d = await api( 'PUT', `products/${ id }/draft`, { fields } );
+			if ( ! ed.alive ) return ok;
+			apply( d );
+			const errs = d.field_errors || {};
+			for ( const [ k, msg ] of Object.entries( errs ) ) setError( k, msg );
+			if ( Object.keys( errs ).length ) ok = false;
+			status.textContent = Object.keys( errs ).length ? 'Some fields need a look' : ( d.state === 'new' ? 'Saved (not on the site yet)' : 'Saved as draft' );
+			ed.hooks.saved.forEach( ( f ) => f( d ) );
+		} catch ( e ) {
+			ok = false;
+			ed.pending = { ...fields, ...ed.pending };
+			status.textContent = 'Not saved yet';
+			toast( e.message, 'error' );
+		} finally {
+			ed.saving = null;
+		}
 		return ok;
 	}
 
@@ -140,47 +148,66 @@ export function productEditor( main, id ) {
 	}
 
 	async function publish( resolutions = {} ) {
+		if ( ed.publishing ) return;
+		ed.publishing = true;
 		const btn = head.querySelector( '.fs-publish' );
 		if ( btn ) btn.disabled = true;
 		status.textContent = 'Publishing…';
 		try {
-			if ( ! ( await flush() ) ) {
-				status.textContent = 'Fix the highlighted fields, then publish';
-				return;
-			}
-			const d = await api( 'POST', `products/${ id }/publish`, { resolutions, change_url: ed.changeUrl } );
-			ed.changeUrl = false;
-			clearErrors();
-			apply( d );
-			status.textContent = 'Published';
-			toast( d.values.status === 'private' ? 'Saved. It is hidden from the shop.' : 'Published. It is on the site now.', 'ok', { href: d.published_url, label: 'View on site' } );
-			ed.hooks.published.forEach( ( f ) => f( d ) );
-		} catch ( e ) {
-			if ( e.code === 'fisha_studio_conflict' ) {
-				const chosen = await resolveConflicts( e.data.conflicts );
-				if ( chosen ) return publish( { ...resolutions, ...chosen } );
-				status.textContent = 'Not published';
-				return;
-			}
-			if ( e.code === 'fisha_studio_nothing' ) {
-				// Everything left was resolved as "keep the site's value": the draft has nothing more to publish, so drop it.
+			for ( ;; ) {
 				try {
-					const d = await api( 'DELETE', `products/${ id }/draft` );
+					if ( ! ( await flush() ) ) {
+						status.textContent = 'Fix the highlighted fields, then publish';
+						return;
+					}
+					const d = await api( 'POST', `products/${ id }/publish`, { resolutions, change_url: ed.changeUrl } );
+					ed.changeUrl = false;
 					clearErrors();
 					apply( d );
-					status.textContent = 'Up to date';
-					toast( 'Nothing to publish. The site keeps its current values.' );
-					ed.hooks.saved.forEach( ( f ) => f( d ) );
+					status.textContent = 'Published';
+					toast( d.values.status === 'private' ? 'Saved. It is hidden from the shop.' : 'Published. It is on the site now.', 'ok', { href: d.published_url, label: 'View on site' } );
+					ed.hooks.published.forEach( ( f ) => f( d ) );
 					return;
-				} catch ( e2 ) {
-					e = e2;
+				} catch ( e ) {
+					if ( e.code === 'fisha_studio_conflict' ) {
+						const chosen = await resolveConflicts( e.data.conflicts );
+						if ( chosen ) {
+							resolutions = { ...resolutions, ...chosen };
+							continue;
+						}
+						status.textContent = 'Not published';
+						return;
+					}
+					if ( e.code === 'fisha_studio_nothing' ) {
+						// Everything left was resolved as "keep the site's value". Drop the draft only if nothing newer is waiting.
+						if ( ! Object.keys( ed.pending ).length && ! ed.saving ) {
+							try {
+								const d = await api( 'DELETE', `products/${ id }/draft` );
+								clearErrors();
+								apply( d );
+								status.textContent = 'Up to date';
+								toast( 'Nothing to publish. The site keeps its current values.' );
+								ed.hooks.saved.forEach( ( f ) => f( d ) );
+								return;
+							} catch ( e2 ) {
+								e = e2;
+							}
+						} else {
+							status.textContent = 'Not published';
+							toast( 'Nothing to publish. The site keeps its current values.' );
+							return;
+						}
+					}
+					status.textContent = 'Not published';
+					showErrors( e );
+					return;
 				}
 			}
-			status.textContent = 'Not published';
-			showErrors( e );
 		} finally {
-			const b = head.querySelector( '.fs-publish' );
-			if ( b ) b.disabled = ed.data.state === 'live' && ! Object.keys( ed.pending ).length;
+			ed.publishing = false;
+			const b2 = head.querySelector( '.fs-publish' );
+			if ( b2 ) b2.disabled = ed.data.state === 'live' && ! Object.keys( ed.pending ).length;
+			if ( Object.keys( ed.pending ).length ) autosave();
 		}
 	}
 
@@ -424,8 +451,9 @@ export function productEditor( main, id ) {
 			ed.alive = false;
 			autosave.cancel();
 		},
-		dirty: () => Object.keys( ed.pending ).length > 0 || !! ed.saving,
+		dirty: () => Object.keys( ed.pending ).length > 0 || !! ed.saving || ed.publishing,
 		async canLeave() {
+			if ( ed.publishing ) return false;
 			if ( ! ed.data || ( ! Object.keys( ed.pending ).length && ! ed.saving ) ) return true;
 			if ( await flush() ) return true;
 			return confirmDialog( 'Leave without saving?', 'Some changes could not be saved yet.', 'Leave', 'danger' );
