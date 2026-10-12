@@ -21,3 +21,4 @@ function fisha_studio_body( WP_REST_Request $r ): array {
 require_once __DIR__ . '/api-session.php';
 require_once __DIR__ . '/api-lookups.php';
 require_once __DIR__ . '/api-media.php';
+require_once __DIR__ . '/api-products.php';
