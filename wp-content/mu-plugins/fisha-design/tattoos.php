@@ -1,6 +1,6 @@
 <?php
 /**
- * Fisha Tattood — tattoo gallery page.
+ * Fisha Tattoos — tattoo gallery page.
  * Usage in a page:  [fisha_tattoos]
  * Media: wp-content/uploads/fisha-tattoos/manifest.json (built from /tattoos by tools/build-tattoos.py).
  */
@@ -49,12 +49,12 @@ function fisha_tattoos_alts() {
 
 add_shortcode( 'fisha_tattoos', function ( $atts ) {
 	$a = shortcode_atts( array(
-		'title'      => 'Fisha Tattood',
+		'title'      => 'Fisha Tattoos',
 		'eyebrow'    => 'Fisha on skin',
 		'text'       => 'Fisha has swum off the paper and onto skin. Tiny fine-line fish, playful pairs and full sleeves of lotus, river and colour — every tattoo begins as a drawing in the sketchbook and becomes a little story you carry with you.',
 		'hero_video' => 'img-7237',
 		'order'      => 'img-7232,img-7007,img-8512,img-7018,img-7011,img-1755,img-7239,img-3004,img-8514,img-7242,img-7244',
-		'cta'        => 'Request a Fisha tattoo',
+		'cta'        => 'Book your tattoo',
 		'url'        => '/request/?type=tattoo',
 	), $atts, 'fisha_tattoos' );
 
@@ -96,9 +96,6 @@ add_shortcode( 'fisha_tattoos', function ( $atts ) {
 				echo esc_html( $parts[0] ) . ( isset( $parts[1] ) ? ' <span>' . esc_html( $parts[1] ) . '</span>' : '' );
 			?></h1>
 			<p class="ft-lead"><?php echo esc_html( $a['text'] ); ?></p>
-			<ul class="ft-tags" aria-label="Styles">
-				<li>Fine line</li><li>Blackwork</li><li>Colour</li>
-			</ul>
 			<div class="fisha-cta-wrap" style="text-align:left"><a class="fisha-cta" href="<?php echo esc_url( home_url( $a['url'] ) ); ?>"><?php echo esc_html( $a['cta'] ); ?> <span aria-hidden="true">→</span></a></div>
 		</div>
 		<?php if ( $hero ) : ?>
@@ -113,7 +110,7 @@ add_shortcode( 'fisha_tattoos', function ( $atts ) {
 			<svg class="ft-badge" viewBox="0 0 120 120" aria-hidden="true">
 				<defs><path id="ft-circle" d="M60,60 m-44,0 a44,44 0 1,1 88,0 a44,44 0 1,1 -88,0"/></defs>
 				<circle cx="60" cy="60" r="58" />
-				<text textLength="272" lengthAdjust="spacingAndGlyphs"><textPath href="#ft-circle" textLength="272" lengthAdjust="spacingAndGlyphs">FISHA · TATTOOD · INK · FISHA · TATTOOD · INK · </textPath></text>
+				<text textLength="272" lengthAdjust="spacingAndGlyphs"><textPath href="#ft-circle" textLength="272" lengthAdjust="spacingAndGlyphs">FISHA · TATTOOS · INK · FISHA · TATTOOS · INK · </textPath></text>
 				<image href="<?php echo esc_url( FISHA_DESIGN_URL . 'img/fisha-logo.png' ); ?>" x="34" y="40" width="52" height="40" />
 			</svg>
 		</div>

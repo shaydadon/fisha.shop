@@ -1,4 +1,4 @@
-/* Fisha Tattood — reveal, inline videos, hero sound, lightbox */
+/* Fisha Tattoos — reveal, inline videos, hero sound, lightbox */
 (function () {
 	var root = document.querySelector('.fisha-tattoos');
 	if (!root) return;

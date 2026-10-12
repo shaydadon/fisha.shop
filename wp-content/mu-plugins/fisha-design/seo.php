@@ -22,7 +22,7 @@ function fisha_seo_known() {
 	return apply_filters( 'fisha_seo_descriptions', array(
 		'page:river'             => 'The Fisha River: hundreds of sketchbook fish drawn by hand, swimming together in one stream. Tap any sketch to see it up close.',
 		'page:fisha-foundation'  => 'The Fisha Foundation: the story behind the little fish, why it swims, and the good it carries with it.',
-		'page:tattoos'           => 'Fisha Tattood: people who carry the little fish on their skin. See the tattoos and find out how to get your own Fisha.',
+		'page:tattoos'           => 'Fisha Tattoos: people who carry the little fish on their skin. See the tattoos and find out how to get your own Fisha.',
 		'page:my-account-2'      => 'Sign in to your Fisha account to see your orders, addresses and details.',
 		'product_cat:collectibles' => 'Fisha collectibles: one-of-a-kind hand-painted Clipper lighters and small objects carrying the hand-drawn fish.',
 		'product_cat:clippers'   => 'Hand-painted Fisha Clipper lighters. Every one is a single piece, painted by hand with the little fish.',
