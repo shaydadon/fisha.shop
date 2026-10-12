@@ -95,7 +95,18 @@ function fisha_studio_rest_products_list( WP_REST_Request $r ): array {
 	if ( '' !== $search ) $args['s'] = $search;
 	if ( $r['category'] ) $args['tax_query'] = array( array( 'taxonomy' => 'product_cat', 'terms' => (int) $r['category'], 'include_children' => true ) );
 	$ids = ( new WP_Query( $args ) )->posts;
-	if ( '' !== $search && ( $by_sku = wc_get_product_id_by_sku( $search ) ) && ! in_array( $by_sku, $ids, true ) ) array_unshift( $ids, $by_sku );
+	if ( '' !== $search && ( $by_sku = (int) wc_get_product_id_by_sku( $search ) ) ) {
+		if ( 'product_variation' === get_post_type( $by_sku ) ) $by_sku = (int) wp_get_post_parent_id( $by_sku );
+		$ok = $by_sku && 'product' === get_post_type( $by_sku ) && in_array( get_post_status( $by_sku ), array( 'publish', 'private', 'draft' ), true ) && ! in_array( $by_sku, $ids, true );
+		if ( $ok && $r['category'] ) {
+			$want = (int) $r['category'];
+			$ok   = false;
+			foreach ( (array) wp_get_post_terms( $by_sku, 'product_cat', array( 'fields' => 'ids' ) ) as $cid ) {
+				if ( (int) $cid === $want || in_array( $want, array_map( 'intval', get_ancestors( $cid, 'product_cat', 'taxonomy' ) ), true ) ) { $ok = true; break; }
+			}
+		}
+		if ( $ok ) array_unshift( $ids, $by_sku );
+	}
 
 	$state = (string) ( $r['state'] ?: 'all' );
 	$stock = (string) ( $r['stock'] ?: 'all' );

@@ -104,3 +104,27 @@ fs_test( 'api products: variable products are read-only for now', function () {
 	list( $s ) = fs_api( 'PUT', "/products/$id/draft", array( 'fields' => array( 'name' => 'x' ) ) );
 	fs_eq( 400, $s );
 } );
+
+fs_test( 'api products: sku search finds the parent of a variation and respects the category filter', function () {
+	$a = fs_term( 'api-var-a' )->term_id;
+	$b = fs_term( 'api-var-b' )->term_id;
+	$v = new WC_Product_Variable();
+	$v->set_name( 'zz-test api sku parent' );
+	$v->set_status( 'publish' );
+	$v->set_category_ids( array( $a ) );
+	$pid = $v->save();
+	fs_on_cleanup( function () use ( $pid ) { wp_delete_post( $pid, true ); } );
+	$sku = 'ZZ-TEST-VAR-' . wp_rand( 1000, 9999 );
+	$c   = new WC_Product_Variation();
+	$c->set_parent_id( $pid );
+	$c->set_sku( $sku );
+	$vid = $c->save();
+	fs_on_cleanup( function () use ( $vid ) { wp_delete_post( $vid, true ); } );
+	fs_as( FISHA_STUDIO_ROLE );
+	list( , $d ) = fs_api( 'GET', '/products', array( 'search' => $sku ) );
+	$ids = wp_list_pluck( $d['items'], 'id' );
+	fs_true( in_array( $pid, $ids, true ), 'parent found' );
+	fs_false( in_array( $vid, $ids, true ), 'no variation row' );
+	list( , $d ) = fs_api( 'GET', '/products', array( 'search' => $sku, 'category' => $b ) );
+	fs_false( in_array( $pid, wp_list_pluck( $d['items'], 'id' ), true ), 'category filter respected' );
+} );
