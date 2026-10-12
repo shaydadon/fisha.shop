@@ -105,3 +105,5 @@ require_once FISHA_STUDIO_DIR . 'studio-drafts.php';
 require_once FISHA_STUDIO_DIR . 'studio-publish.php';
 
 require_once FISHA_STUDIO_DIR . 'studio-preview.php';
+
+require_once FISHA_STUDIO_DIR . 'api/api.php';
