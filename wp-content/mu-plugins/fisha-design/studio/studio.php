@@ -99,3 +99,5 @@ add_action( 'parse_request', function ( $wp ) {
 }, 0 );
 require_once FISHA_STUDIO_DIR . 'studio-urls.php';
 require_once FISHA_STUDIO_DIR . 'studio-fields.php';
+
+require_once FISHA_STUDIO_DIR . 'studio-audit.php';
