@@ -7,6 +7,7 @@ import { api } from '../api.js';
 
 export function optionsView( main ) {
 	let alive = true;
+	let busy = false;
 	const box = h( 'div.fs-opts' );
 	main.append(
 		h( 'div.fs-page-head', {}, h( 'h1', {}, 'Size lists' ), h( 'button.fs-btn.fs-btn--primary', { type: 'button', onclick: addOption }, '+ New list' ) ),
@@ -22,6 +23,22 @@ export function optionsView( main ) {
 		}
 	}
 
+	// One write at a time: further clicks and Enter presses are ignored until the change is saved and the lists are reloaded.
+	async function save( fn ) {
+		if ( busy ) return;
+		busy = true;
+		box.setAttribute( 'aria-busy', 'true' );
+		try {
+			await fn();
+			await load();
+		} catch ( e ) {
+			toast( e.message, 'error' );
+		} finally {
+			busy = false;
+			box.removeAttribute( 'aria-busy' );
+		}
+	}
+
 	async function ask( title, label, value = '', max = 40 ) {
 		return modal( {
 			title,
@@ -33,10 +50,7 @@ export function optionsView( main ) {
 	async function addOption() {
 		const label = await ask( 'New list', 'Name, for example Ring size', '', 28 );
 		if ( ! label ) return;
-		try {
-			await api( 'POST', 'attributes', { label } );
-			load();
-		} catch ( e ) { toast( e.message, 'error' ); }
+		await save( () => api( 'POST', 'attributes', { label } ) );
 	}
 
 	function card( a ) {
@@ -46,20 +60,14 @@ export function optionsView( main ) {
 			e.preventDefault();
 			const name = add.value.trim();
 			if ( ! name ) return;
-			try {
-				await api( 'POST', `attributes/${ a.id }/terms`, { name } );
-				load();
-			} catch ( err ) { toast( err.message, 'error' ); }
+			await save( () => api( 'POST', `attributes/${ a.id }/terms`, { name } ) );
 		} );
 		const move = async ( i, by ) => {
 			const ids = a.terms.map( ( t ) => t.id );
 			const j = i + by;
 			if ( j < 0 || j >= ids.length ) return;
 			[ ids[ i ], ids[ j ] ] = [ ids[ j ], ids[ i ] ];
-			try {
-				await api( 'POST', `attributes/${ a.id }/order`, { term_ids: ids } );
-				load();
-			} catch ( err ) { toast( err.message, 'error' ); }
+			await save( () => api( 'POST', `attributes/${ a.id }/order`, { term_ids: ids } ) );
 		};
 		const rows = a.terms.map( ( t, i ) => h( 'li.fs-opts__value', {},
 			h( 'strong', {}, t.name ),
@@ -70,11 +78,11 @@ export function optionsView( main ) {
 				h( 'button.fs-btn.fs-btn--tiny', { type: 'button', onclick: async () => {
 					const name = await ask( `Rename ${ t.name }`, 'Name', t.name );
 					if ( ! name || name === t.name ) return;
-					try { await api( 'PUT', `attributes/terms/${ t.id }`, { name } ); load(); } catch ( err ) { toast( err.message, 'error' ); }
+					await save( () => api( 'PUT', `attributes/terms/${ t.id }`, { name } ) );
 				} }, 'Rename' ),
 				h( 'button.fs-btn.fs-btn--tiny.fs-btn--danger', { type: 'button', onclick: async () => {
 					if ( ! ( await confirmDialog( `Delete ${ t.name }?`, 'It is removed from this list. Values that products use cannot be deleted.', 'Delete', 'danger' ) ) ) return;
-					try { await api( 'DELETE', `attributes/terms/${ t.id }` ); load(); } catch ( err ) { toast( err.message, 'error' ); }
+					await save( () => api( 'DELETE', `attributes/terms/${ t.id }` ) );
 				} }, 'Delete' ) ) ) );
 		return h( 'section.fs-opts__card', {},
 			h( 'div.fs-vars__attr-head', {},
@@ -82,7 +90,7 @@ export function optionsView( main ) {
 				h( 'button.fs-btn.fs-btn--small', { type: 'button', onclick: async () => {
 					const label = await ask( `Rename ${ a.label }`, 'Name', a.label, 28 );
 					if ( ! label || label === a.label ) return;
-					try { await api( 'PUT', `attributes/${ a.id }`, { label } ); load(); } catch ( err ) { toast( err.message, 'error' ); }
+					await save( () => api( 'PUT', `attributes/${ a.id }`, { label } ) );
 				} }, 'Rename list' ) ),
 			h( 'ul.fs-opts__values', {}, rows ),
 			add );
