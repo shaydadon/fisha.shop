@@ -36,6 +36,8 @@ function fisha_studio_preview_uninstall(): void {
 	foreach ( $GLOBALS['fisha_studio_preview_hooks'] ?? array() as $h ) remove_filter( $h[0], $h[1], $h[2] );
 	$GLOBALS['fisha_studio_preview_hooks'] = array();
 	unset( $GLOBALS['fisha_studio_preview'] );
+	unset( $GLOBALS['fisha_studio_preview_term'] );
+	if ( function_exists( 'fisha_cat_cache_reset' ) ) fisha_cat_cache_reset();
 }
 
 /** The stock status WooCommerce will store for these values (it derives it when stock is tracked). */
@@ -166,8 +168,9 @@ function fisha_studio_preview_install_product( int $id, array $fields ): void {
 add_action( 'init', function () {
 	if ( empty( $_GET['fisha_preview'] ) || is_admin() || wp_doing_ajax() ) return;
 	$item = fisha_studio_preview_verify( sanitize_text_field( wp_unslash( $_GET['fisha_preview'] ) ) );
-	if ( ! $item || 'product' !== $item['type'] ) return;
-	fisha_studio_preview_install_product( $item['id'], fisha_studio_draft_get( $item['id'] )['fields'] );
+	if ( ! $item ) return;
+	if ( 'product' === $item['type'] ) fisha_studio_preview_install_product( $item['id'], fisha_studio_draft_get( $item['id'] )['fields'] );
+	else fisha_studio_preview_install_category( $item['id'], fisha_studio_draft_get( $item['id'], 'term' )['fields'] );
 }, 20 );
 
 add_action( 'send_headers', function () {
@@ -272,4 +275,52 @@ function fisha_studio_preview_install_sizes( WC_Product $p, array $merged, array
 			return ( $obj instanceof WC_Product && $obj->get_id() === $id ) ? $objs : $a;
 		} );
 	}
+}
+
+/**
+ * Lays a category's draft over the live data for this request: name, parent, intro, hero photos, Show on site, and the
+ * automatic design fields exactly as Publish would write them. A never-published category is visible in its own preview.
+ */
+function fisha_studio_preview_install_category( int $id, array $fields ): void {
+	fisha_studio_preview_uninstall();
+	$t = fisha_studio_category( $id );
+	if ( ! $t ) return;
+	$live = fisha_studio_category_values( $t );
+	$v    = array_merge( $live, $fields );
+	$prev = fisha_cat_is_unpublished( $t ) ? null : fisha_studio_category_auto( $live );
+	$meta = array(
+		'fisha_lead'          => (string) $v['lead'],
+		'fisha_hero_ids'      => implode( ',', array_map( 'intval', (array) $v['hero_ids'] ) ),
+		FISHA_CAT_SHOWN       => $v['shown'] ? '1' : '0',
+		FISHA_CAT_UNPUBLISHED => '',
+	);
+	foreach ( fisha_studio_category_auto( $v ) as $key => $val ) {
+		if ( null === $prev || (string) get_term_meta( $id, $key, true ) === $prev[ $key ] ) $meta[ $key ] = $val;
+	}
+	$GLOBALS['fisha_studio_preview']      = true;
+	$GLOBALS['fisha_studio_preview_term'] = $id;
+	fisha_studio_preview_add( 'get_term_metadata', function ( $value, $object_id, $key ) use ( $id, $meta ) {
+		if ( (int) $object_id !== $id || ! is_string( $key ) || ! array_key_exists( $key, $meta ) ) return $value;
+		return array( $meta[ $key ] );
+	}, 99, 3 );
+	fisha_studio_preview_add( 'get_term', function ( $term ) use ( $id, $v ) {
+		if ( ! $term instanceof WP_Term || (int) $term->term_id !== $id ) return $term;
+		$term         = clone $term;
+		$term->name   = (string) $v['name'];
+		$term->parent = (int) $v['parent'];
+		return $term;
+	}, 99, 1 );
+	fisha_cat_cache_reset();
+}
+
+/** Pages the editor can preview this category on, each with a fresh token. */
+function fisha_studio_category_preview_targets( WP_Term $t ): array {
+	$token   = fisha_studio_preview_token( get_current_user_id(), 'category', (int) $t->term_id );
+	$targets = array( array( 'key' => 'item', 'label' => 'Category page', 'url' => get_term_link( $t ) ) );
+	$parent  = $t->parent ? fisha_studio_category( (int) $t->parent ) : null;
+	if ( $parent ) $targets[] = array( 'key' => 'parent', 'label' => fisha_studio_plain( $parent->name ) . ' page', 'url' => get_term_link( $parent ) );
+	$targets[] = array( 'key' => 'shop', 'label' => 'Shop', 'url' => get_permalink( wc_get_page_id( 'shop' ) ) );
+	$targets[] = array( 'key' => 'home', 'label' => 'Home', 'url' => home_url( '/' ) );
+	foreach ( $targets as &$x ) $x['url'] = add_query_arg( 'fisha_preview', $token, $x['url'] );
+	return $targets;
 }
