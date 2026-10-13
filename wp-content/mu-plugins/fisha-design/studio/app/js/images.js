@@ -9,7 +9,7 @@ import { api } from './api.js';
 const OK_TYPES = /^image\/(jpeg|png|webp)$/;
 const MAX = 15 * 1024 * 1024;
 
-export function imagesField( values, images, onChange ) {
+export function imagesField( values, images, onChange, opts = {} ) {
 	const known = { ...images };
 	let main = values.image_id || 0;
 	let gallery = [ ...( values.gallery_image_ids || [] ) ];
@@ -19,13 +19,13 @@ export function imagesField( values, images, onChange ) {
 	const err = h( 'p.fs-field__error', { role: 'alert', hidden: true } );
 	const fileInput = h( 'input', { type: 'file', accept: 'image/jpeg,image/png,image/webp', multiple: true, hidden: true, onchange: ( e ) => upload( [ ...e.target.files ] ) } );
 	const el = h( 'div.fs-field.fs-images', {},
-		h( 'p.fs-field__label', {}, 'Photos' ),
+		h( 'p.fs-field__label', {}, opts.label || 'Photos' ),
 		list,
 		h( 'div.fs-images__actions', {},
 			h( 'button.fs-btn', { type: 'button', onclick: () => fileInput.click() }, 'Upload photos' ),
 			h( 'button.fs-btn', { type: 'button', onclick: pick }, 'Choose from uploaded' ),
 			fileInput ),
-		h( 'p.fs-field__help', {}, 'JPG, PNG or WebP, up to 15 MB. Square photos look best on cards.' ),
+		h( 'p.fs-field__help', {}, opts.help || 'JPG, PNG or WebP, up to 15 MB. Square photos look best on cards.' ),
 		err );
 
 	const emit = () => {
@@ -60,7 +60,7 @@ export function imagesField( values, images, onChange ) {
 					emit();
 				} }, 'Remove' ) ),
 			img ? h( 'input.fs-input', { value: img.alt, placeholder: 'Describe the photo', 'aria-label': 'Photo description', onchange: ( e ) => saveAlt( id, e.target.value ) } ) : null,
-			! isMain && index === 0 ? h( 'p.fs-img__note', {}, 'Shown when shoppers hover the card' ) : null );
+			opts.hoverNote !== false && ! isMain && index === 0 ? h( 'p.fs-img__note', {}, 'Shown when shoppers hover the card' ) : null );
 		if ( ! isMain ) {
 			li.addEventListener( 'dragstart', () => { dragFrom = index; li.classList.add( 'is-dragging' ); } );
 			li.addEventListener( 'dragend', () => li.classList.remove( 'is-dragging' ) );
@@ -84,6 +84,11 @@ export function imagesField( values, images, onChange ) {
 	}
 
 	function add( img ) {
+		const count = ( main ? 1 : 0 ) + gallery.length;
+		if ( opts.max && count >= opts.max && img.id !== main && ! gallery.includes( img.id ) ) {
+			toast( opts.max === 1 ? 'You can use one photo here.' : `You can use up to ${ opts.max } photos here.`, 'error' );
+			return;
+		}
 		known[ img.id ] = img;
 		if ( ! main ) main = img.id;
 		else if ( img.id !== main && ! gallery.includes( img.id ) ) gallery.push( img.id );

@@ -10,6 +10,7 @@ import { variationsPanel } from './product-variations.js';
 import { richText } from '../richtext.js';
 import { imagesField } from '../images.js';
 import { previewPane } from '../preview.js';
+import { resolveConflicts } from '../conflicts.js';
 
 // The owner asked for the SEO and Fisha design tabs to be removed; the server keeps filling those fields with defaults.
 const TABS = [ [ 'basics', 'Basics' ], [ 'price', 'Price' ], [ 'inventory', 'Inventory' ], [ 'images', 'Photos' ], [ 'shipping', 'Shipping & tax' ] ];
@@ -188,6 +189,7 @@ export function productEditor( main, id ) {
 					apply( d );
 					status.textContent = 'Published';
 					toast( d.values.status === 'private' ? 'Saved. It is hidden from the shop.' : 'Published. It is on the site now.', 'ok', { href: d.published_url, label: 'View on site' } );
+					( d.warnings || [] ).forEach( ( w ) => toast( w, 'warn' ) );
 					ed.hooks.published.forEach( ( f ) => f( d ) );
 					return;
 				} catch ( e ) {
@@ -231,26 +233,6 @@ export function productEditor( main, id ) {
 			if ( b2 ) b2.disabled = ed.data.state === 'live' && ! Object.keys( ed.pending ).length;
 			if ( Object.keys( ed.pending ).length ) autosave();
 		}
-	}
-
-	function show( c, v ) {
-		if ( Array.isArray( v ) ) return v.length ? v.join( ', ' ) : 'none';
-		if ( v === '' || v === null || v === undefined ) return /(^|:)stock_quantity$/.test( c.field ) ? 'no fixed amount' : '(empty)';
-		if ( v === true ) return 'on';
-		if ( v === false ) return 'off';
-		return String( v );
-	}
-	function resolveConflicts( conflicts ) {
-		return modal( {
-			title: 'Something changed on the site',
-			body: conflicts.map( ( c ) => h( 'fieldset.fs-conflict', {},
-				h( 'legend', {}, c.label ),
-				h( 'p', {}, `When you started editing it was ${ show( c, c.base ) }. The site now has ${ show( c, c.live ) }${ /(^|:)stock_quantity$/.test( c.field ) ? ', probably because an order came in' : '' }.` ),
-				h( 'label.fs-radio', {}, h( 'input', { type: 'radio', name: c.field, value: 'live', checked: true } ), `Keep ${ show( c, c.live ) }` ),
-				h( 'label.fs-radio', {}, h( 'input', { type: 'radio', name: c.field, value: 'mine' } ), `Use mine: ${ show( c, c.mine ) }` ) ) ),
-			// Each answer carries the site value shown, so "Use mine" is refused if an order changes it again meanwhile.
-			actions: [ { label: 'Cancel', value: null }, { label: 'Publish', kind: 'primary', submit: true, value: ( f ) => Object.fromEntries( conflicts.map( ( c ) => [ c.field, { choice: f.elements[ c.field ].value, live: c.live } ] ) ) } ],
-		} );
 	}
 
 	async function discard() {
