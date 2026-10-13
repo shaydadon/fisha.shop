@@ -20,11 +20,21 @@ function fisha_studio_draft_get( int $id ): array {
 	return ( is_array( $d ) && isset( $d['fields'] ) && is_array( $d['fields'] ) ) ? array_merge( $empty, $d ) : $empty;
 }
 
+/** Stores a draft (or removes it when it has no fields). */
+function fisha_studio_draft_put( int $id, array $d ): array {
+	if ( empty( $d['fields'] ) ) {
+		delete_post_meta( $id, FISHA_STUDIO_DRAFT_META );
+		return fisha_studio_draft_get( $id );
+	}
+	update_post_meta( $id, FISHA_STUDIO_DRAFT_META, wp_slash( $d ) );
+	return $d;
+}
+
 /** $seen: cleaned values the owner had on screen, keyed by field; the base of a field entering the draft. */
 function fisha_studio_draft_save( WC_Product $p, array $values, array $seen = array() ): array {
 	$id   = $p->get_id();
 	$d    = fisha_studio_draft_get( $id );
-	$live = fisha_studio_product_read( $p );
+	$live = fisha_studio_product_values( $p );
 	foreach ( $values as $k => $v ) {
 		if ( ! array_key_exists( $k, $live ) ) continue;
 		if ( ! array_key_exists( $k, $d['base'] ) ) $d['base'][ $k ] = array_key_exists( $k, $seen ) ? $seen[ $k ] : $live[ $k ];
@@ -33,28 +43,23 @@ function fisha_studio_draft_save( WC_Product $p, array $values, array $seen = ar
 			unset( $d['fields'][ $k ], $d['base'][ $k ] );
 		}
 	}
-	if ( ! $d['fields'] ) {
-		delete_post_meta( $id, FISHA_STUDIO_DRAFT_META );
-		return fisha_studio_draft_get( $id );
-	}
 	$d['user']    = get_current_user_id();
 	$d['updated'] = time();
-	update_post_meta( $id, FISHA_STUDIO_DRAFT_META, wp_slash( $d ) );
-	return $d;
+	return fisha_studio_draft_put( $id, $d );
 }
 
 function fisha_studio_draft_discard( int $id ): void {
 	delete_post_meta( $id, FISHA_STUDIO_DRAFT_META );
+	fisha_studio_variation_discard_pending( $id );
 }
 
 function fisha_studio_conflicts( WC_Product $p, array $draft ): array {
-	$live   = fisha_studio_product_read( $p );
-	$schema = fisha_studio_product_fields();
+	$live   = fisha_studio_product_values( $p );
 	$out    = array();
 	foreach ( $draft['fields'] as $k => $mine ) {
 		if ( ! array_key_exists( $k, $draft['base'] ) || ! array_key_exists( $k, $live ) ) continue;
 		if ( fisha_studio_same( $draft['base'][ $k ], $live[ $k ] ) || fisha_studio_same( $mine, $live[ $k ] ) ) continue;
-		$out[] = array( 'field' => $k, 'label' => $schema[ $k ]['label'] ?? $k, 'base' => $draft['base'][ $k ], 'live' => $live[ $k ], 'mine' => $mine );
+		$out[] = array( 'field' => $k, 'label' => fisha_studio_value_label( $p, (string) $k ), 'base' => $draft['base'][ $k ], 'live' => $live[ $k ], 'mine' => $mine );
 	}
 	return $out;
 }
@@ -78,8 +83,8 @@ function fisha_studio_default_card_bg( array $cat_ids ): string {
 	return $bg ? strtolower( $bg ) : '#efe8dc';
 }
 
-function fisha_studio_product_create( string $name ): WC_Product_Simple {
-	$p = new WC_Product_Simple();
+function fisha_studio_product_create( string $name, string $type = 'simple' ): WC_Product {
+	$p = 'variable' === $type ? new WC_Product_Variable() : new WC_Product_Simple();
 	$p->set_name( $name );
 	$p->set_status( 'draft' );
 	$p->set_slug( fisha_studio_slug_from_name( $name ) );
@@ -89,10 +94,10 @@ function fisha_studio_product_create( string $name ): WC_Product_Simple {
 	return $p;
 }
 
-/** Cleans the "seen" values sent with an edit; unknown keys and values that do not clean are dropped. */
-function fisha_studio_clean_seen( $seen ): array {
+/** Cleans the "seen" values sent with an edit (size keys too when the product is given); bad or unknown keys are dropped. */
+function fisha_studio_clean_seen( $seen, ?WC_Product $p = null ): array {
 	if ( ! is_array( $seen ) ) return array();
-	list( $values, $errors ) = fisha_studio_sanitize( fisha_studio_product_fields(), $seen );
+	list( $values, $errors ) = $p ? fisha_studio_sanitize_product_input( $p, $seen ) : fisha_studio_sanitize( fisha_studio_product_fields(), $seen );
 	return array_diff_key( $values, $errors );
 }
 
@@ -117,7 +122,7 @@ function fisha_studio_product_edit( WC_Product $p, array $values, array $seen = 
 		$values['slug'] = fisha_studio_slug_from_name( $values['name'] );
 	}
 	if ( array_key_exists( 'card_bg', $values ) ) update_post_meta( $id, '_fisha_studio_bg_manual', '1' );
-	fisha_studio_product_apply( $p, $values );
+	fisha_studio_product_apply_all( $p, $values );
 	if ( ! array_key_exists( 'card_bg', $values ) && array_key_exists( 'category_ids', $values ) && ! get_post_meta( $id, '_fisha_studio_bg_manual', true ) ) {
 		$p->update_meta_data( '_fisha_card_bg', fisha_studio_default_card_bg( (array) $values['category_ids'] ) );
 	}
