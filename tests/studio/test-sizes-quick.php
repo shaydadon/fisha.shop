@@ -40,7 +40,7 @@ fs_test( 'sizes quick: refused when the product has a draft or the size is new',
 fs_test( 'sizes quick: invalid values are refused', function () {
 	$p = fs_variable( array( 's' ) );
 	$s = fs_var_id( $p, 's' );
-	fs_eq( 'fisha_studio_invalid', fisha_studio_variation_quick( $s, array( 'stock_quantity' => 3 ), array( 'stock_quantity' => null ) )->get_error_code(), 'stock not counted for this size' );
+	fs_eq( 'fisha_studio_invalid', fisha_studio_variation_quick( $s, array( 'stock_quantity' => '' ), array( 'stock_quantity' => null ) )->get_error_code(), 'a fixed amount needs a number' );
 	fs_eq( 'fisha_studio_invalid', fisha_studio_variation_quick( $s, array( 'regular_price' => '' ), array( 'regular_price' => '100' ) )->get_error_code(), 'a size that is on needs a price' );
 	fs_eq( 'fisha_studio_invalid', fisha_studio_variation_quick( $s, array( 'regular_price' => 'abc' ), array( 'regular_price' => '100' ) )->get_error_code() );
 } );

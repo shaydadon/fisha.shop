@@ -30,7 +30,8 @@ function fisha_studio_variation_fields(): array {
 		'sale_price'     => $prop( 'sale_price', 'money', array( 'label' => 'Sale price' ) ),
 		'sku'            => $prop( 'sku', 'text', array( 'label' => 'SKU', 'max' => 64 ) ),
 		'manage_stock'   => $prop( 'manage_stock', 'bool', array( 'label' => 'Count stock' ) ),
-		'stock_quantity' => $prop( 'stock_quantity', 'int', array( 'label' => 'Stock', 'nullable' => true, 'min' => 0 ) ),
+		'stock_quantity' => $prop( 'stock_quantity', 'int', array( 'label' => 'Stock', 'nullable' => true, 'min' => 0,
+			'get' => function ( WC_Product $v ) { return true === $v->get_manage_stock( 'edit' ) ? $v->get_stock_quantity( 'edit' ) : null; } ) ),
 		'stock_status'   => $prop( 'stock_status', 'enum', array( 'label' => 'Stock status', 'options' => array( 'instock', 'outofstock', 'onbackorder' ) ) ),
 		'image_id'       => $prop( 'image_id', 'attachment', array( 'label' => 'Photo' ) ),
 	);
@@ -217,6 +218,8 @@ function fisha_studio_product_apply_all( WC_Product $p, array $values ): void {
 		$var = wc_get_product( $vid );
 		if ( ! $var || $var->get_parent_id() !== $p->get_id() ) continue;
 		foreach ( $fields as $f => $x ) call_user_func( $defs[ $f ]['set'], $var, $x );
+		// "Fixed amount" sells at most the count (the product itself gets backorders 'no' from the Studio with the same choice).
+		if ( true === ( $fields['manage_stock'] ?? null ) ) $var->set_backorders( 'no' );
 		$var->save();
 	}
 }
@@ -300,6 +303,11 @@ function fisha_studio_variation_create( WC_Product $p, array $attrs ): WC_Produc
 	$v->set_regular_price( fisha_studio_default_size_price( $p ) );
 	$v->set_status( $is_new ? 'publish' : 'private' );
 	$v->set_menu_order( count( fisha_studio_variation_ids( $p ) ) );
+	// Starts on "Fixed amount" with no number, unless the product counts its stock as a whole.
+	if ( true !== $p->get_manage_stock( 'edit' ) ) {
+		$v->set_manage_stock( true );
+		$v->set_backorders( 'no' );
+	}
 	// A product that was live and is back in Draft takes the size at once, but marks it pending so it stays deletable until publish.
 	if ( ! $is_new || ! fisha_studio_never_live( $p ) ) $v->update_meta_data( FISHA_STUDIO_PENDING_META, '1' );
 	$v->save();
@@ -384,6 +392,13 @@ function fisha_studio_set_product_type( WC_Product $p, string $type ) {
 	if ( 'simple' === $type ) {
 		foreach ( get_children( array( 'post_parent' => $id, 'post_type' => 'product_variation', 'fields' => 'ids' ) ) as $vid ) wp_delete_post( (int) $vid, true );
 		$p->set_attributes( array() );
+		// One item starts on "Fixed amount" again.
+		$p->set_manage_stock( true );
+		$p->set_backorders( 'no' );
+		$p->save();
+	} else {
+		// With sizes, stock is counted per size unless the owner chooses to count the whole product.
+		$p->set_manage_stock( false );
 		$p->save();
 	}
 	wp_set_object_terms( $id, $type, 'product_type' );
@@ -469,6 +484,8 @@ function fisha_studio_variation_quick( int $vid, array $input, array $seen_input
 	list( $values, $errors ) = fisha_studio_sanitize( $defs, $input );
 	if ( $errors ) return new WP_Error( 'fisha_studio_invalid', reset( $errors ), array( 'status' => 422, 'fields' => $errors ) );
 	if ( ! $values ) return $v;
+	// A number and a stock status together: the number wins (it is the "Fixed amount" choice).
+	if ( array_key_exists( 'stock_quantity', $values ) ) unset( $values['stock_status'] );
 
 	// Every field sent must come with the value the owner saw; without it the change cannot be checked.
 	list( $seen, $seen_errors ) = fisha_studio_sanitize( $defs, $seen_input );
@@ -504,13 +521,21 @@ function fisha_studio_variation_quick( int $vid, array $input, array $seen_input
 	foreach ( array( 'stock_quantity', 'stock_status' ) as $f ) {
 		if ( $whole && array_key_exists( $f, $values ) ) return $invalid( $f, 'Stock is kept for the whole product. Change it on the product.' );
 	}
-	if ( array_key_exists( 'stock_quantity', $values ) && ! $v->get_manage_stock( 'edit' ) ) return $invalid( 'stock_quantity', 'This size does not count stock. Open the product to turn counting on.' );
+	// The stock choice: a number means "Fixed amount" (counting on, never sold beyond it); a stock status means
+	// "In stock", "Made to order" or "Sold out" (counting off).
+	$counting = null;
+	if ( array_key_exists( 'stock_quantity', $values ) ) {
+		if ( null === $values['stock_quantity'] ) return $invalid( 'stock_quantity', 'Enter how many are in stock.' );
+		if ( true !== $v->get_manage_stock( 'edit' ) ) $counting = true;
+	} elseif ( array_key_exists( 'stock_status', $values ) && true === $v->get_manage_stock( 'edit' ) ) {
+		$counting = false;
+	}
 
 	global $wpdb;
 	$wpdb->query( 'START TRANSACTION' );
 	try {
 		// Lock the stock row so an order placed now waits for this save; then check the seen values again.
-		if ( array_key_exists( 'stock_quantity', $values ) ) {
+		if ( array_key_exists( 'stock_quantity', $values ) || null !== $counting ) {
 			$wpdb->get_var( $wpdb->prepare( "SELECT meta_value FROM {$wpdb->postmeta} WHERE post_id = %d AND meta_key = '_stock' FOR UPDATE", $vid ) );
 		}
 		do_action( 'fisha_studio_quick_before_recheck', $vid );
@@ -523,14 +548,17 @@ function fisha_studio_variation_quick( int $vid, array $input, array $seen_input
 			$wpdb->query( 'ROLLBACK' );
 			return $refused( $conflicts );
 		}
-		$live = array();
-		foreach ( $defs as $f => $def ) $live[ $f ] = fisha_studio_clean( $def, call_user_func( $def['get'], $cur ) )[0];
+		$logged = $defs + array( 'manage_stock' => fisha_studio_variation_fields()['manage_stock'] );
+		$live   = array();
+		foreach ( $logged as $f => $def ) $live[ $f ] = fisha_studio_clean( $def, call_user_func( $def['get'], $cur ) )[0];
+		if ( null !== $counting ) $cur->set_manage_stock( $counting );
+		if ( true === $counting ) $cur->set_backorders( 'no' );
 		foreach ( $values as $f => $x ) call_user_func( $defs[ $f ]['set'], $cur, $x );
 		$cur->save();
 		WC_Product_Variable::sync( $p->get_id() );
 		$fresh = wc_get_product( $vid );
 		$after = array();
-		foreach ( $defs as $f => $def ) $after[ $f ] = fisha_studio_clean( $def, call_user_func( $def['get'], $fresh ) )[0];
+		foreach ( $logged as $f => $def ) $after[ $f ] = fisha_studio_clean( $def, call_user_func( $def['get'], $fresh ) )[0];
 		if ( ! fisha_studio_log( 'variation', $vid, 'quick', $live, $after ) ) throw new RuntimeException( 'audit log write failed: ' . $wpdb->last_error );
 		if ( false === $wpdb->query( 'COMMIT' ) ) throw new RuntimeException( 'commit failed: ' . $wpdb->last_error );
 	} catch ( Throwable $e ) {

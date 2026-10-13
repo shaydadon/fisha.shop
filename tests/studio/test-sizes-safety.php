@@ -14,7 +14,7 @@ function fs_studio_published_variable(): WC_Product_Variable {
 	$attrs = fisha_studio_clean_attributes( array( array( 'name' => 'pa_size', 'taxonomy' => true, 'options' => array( fs_sz( 's' ), fs_sz( 'm' ) ), 'variation' => true, 'visible' => true ) ) )[0];
 	fisha_studio_product_edit( $p, array( 'attributes' => $attrs, 'image_id' => fs_image(), 'category_ids' => array( fs_term( 'safe-' . wp_rand() )->term_id ), 'short_description' => '<p>Soft.</p>' ) );
 	$ids = fisha_studio_variation_generate( wc_get_product( $id ), fisha_studio_product_values( wc_get_product( $id ) )['attributes'] );
-	foreach ( $ids as $vid ) fisha_studio_product_edit( wc_get_product( $id ), array( "var:$vid:regular_price" => '119' ) );
+	foreach ( $ids as $vid ) fisha_studio_product_edit( wc_get_product( $id ), array( "var:$vid:regular_price" => '119', "var:$vid:stock_quantity" => 5 ) );
 	$r = fisha_studio_publish_product( $id );
 	if ( is_wp_error( $r ) ) throw new Fs_Fail( wp_json_encode( $r->get_error_data() ) );
 	return wc_get_product( $id );
@@ -111,7 +111,7 @@ fs_test( 'safety: publish keeps a pending size that is off pending, so it can st
 	fisha_studio_product_edit( $p, array( 'attributes' => $attrs ) );
 	$on  = fisha_studio_variation_create( wc_get_product( $p->get_id() ), array( 'pa_size' => 'l' ) );
 	$off = fisha_studio_variation_create( wc_get_product( $p->get_id() ), array( 'pa_size' => 'xl' ) );
-	fisha_studio_product_edit( wc_get_product( $p->get_id() ), array( 'var:' . $off->get_id() . ':enabled' => false ) );
+	fisha_studio_product_edit( wc_get_product( $p->get_id() ), array( 'var:' . $off->get_id() . ':enabled' => false, 'var:' . $on->get_id() . ':stock_quantity' => 2 ) );
 	$r = fisha_studio_publish_product( $p->get_id() );
 	fs_false( is_wp_error( $r ), is_wp_error( $r ) ? wp_json_encode( $r->get_error_data() ) : '' );
 	fs_eq( '', get_post_meta( $on->get_id(), FISHA_STUDIO_PENDING_META, true ), 'the size that went live is no longer pending' );
@@ -127,6 +127,7 @@ fs_test( 'safety: a forced failure keeps a new size private and pending', functi
 	$attrs[0]['options'][] = fs_sz( 'm' );
 	fisha_studio_product_edit( $p, array( 'attributes' => $attrs ) );
 	$v    = fisha_studio_variation_create( wc_get_product( $p->get_id() ), array( 'pa_size' => 'm' ) );
+	fisha_studio_product_edit( wc_get_product( $p->get_id() ), array( 'var:' . $v->get_id() . ':stock_quantity' => 2 ) );
 	$boom = function () { throw new RuntimeException( 'zz-test forced failure' ); };
 	add_action( 'fisha_studio_before_commit', $boom );
 	fs_on_cleanup( function () use ( $boom ) { remove_action( 'fisha_studio_before_commit', $boom ); } );

@@ -27,7 +27,7 @@ fs_test( 'api products: create, edit (with a bad field), publish', function () {
 	fs_eq( 'new', $d['state'] );
 	fs_eq( 'publish', $d['values']['status'], 'new items default to Live' );
 
-	list( $s, $d ) = fs_api( 'PUT', "/products/$id/draft", array( 'fields' => array( 'regular_price' => '₪95', 'sale_price' => 'abc', 'short_description' => '<p>Hi</p>', 'image_id' => fs_image(), 'category_ids' => array( fs_term( 'api-create' )->term_id ) ) ) );
+	list( $s, $d ) = fs_api( 'PUT', "/products/$id/draft", array( 'fields' => array( 'regular_price' => '₪95', 'sale_price' => 'abc', 'short_description' => '<p>Hi</p>', 'image_id' => fs_image(), 'category_ids' => array( fs_term( 'api-create' )->term_id ), 'stock_quantity' => 5 ) ) );
 	fs_eq( 200, $s );
 	fs_eq( '95', $d['values']['regular_price'], 'valid field saved' );
 	fs_true( isset( $d['field_errors']['sale_price'] ), 'bad field reported' );

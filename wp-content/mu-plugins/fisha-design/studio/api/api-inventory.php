@@ -29,6 +29,7 @@ function fisha_studio_inventory_row( WC_Product $item, ?WC_Product $parent = nul
 		'sku'            => (string) $item->get_sku( 'edit' ),
 		'enabled'        => ! $parent || 'publish' === $item->get_status( 'edit' ),
 		'manage_stock'   => $manage,
+		'counted'        => $manage, // false: "In stock", "Made to order" or "Sold out", with no limit
 		'stock_quantity' => $qty,
 		'stock_status'   => $item->get_stock_status( 'edit' ),
 		'regular_price'  => (string) $item->get_regular_price( 'edit' ),
@@ -65,6 +66,8 @@ function fisha_studio_rest_inventory( WP_REST_Request $r ): array {
 	$rows   = array_values( array_filter( $rows, function ( $row ) use ( $search, $stock ) {
 		if ( '' !== $search && false === mb_strpos( mb_strtolower( $row['name'] . ' ' . $row['option'] . ' ' . $row['sku'] ), $search ) ) return false;
 		if ( 'low' === $stock ) return $row['low'];
+		// Sizes of a product counted as a whole have no count of their own to set.
+		if ( 'uncounted' === $stock ) return ! $row['counted'] && 'Stock is kept for the whole product' !== $row['locked'];
 		if ( in_array( $stock, array( 'instock', 'outofstock', 'onbackorder' ), true ) ) return $row['stock_status'] === $stock;
 		return true;
 	} ) );

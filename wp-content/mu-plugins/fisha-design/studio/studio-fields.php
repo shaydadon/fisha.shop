@@ -51,7 +51,9 @@ function fisha_studio_product_fields(): array {
 		// Inventory
 		'sku'                => $prop( 'sku', 'text', array( 'label' => 'SKU', 'max' => 64 ) ),
 		'manage_stock'       => $prop( 'manage_stock', 'bool', array( 'label' => 'Track stock' ) ),
-		'stock_quantity'     => $prop( 'stock_quantity', 'int', array( 'label' => 'Stock', 'nullable' => true, 'min' => 0 ) ),
+		// Only a counted item has a stock number; WooCommerce can keep an old number on an item that no longer counts.
+		'stock_quantity'     => $prop( 'stock_quantity', 'int', array( 'label' => 'Stock', 'nullable' => true, 'min' => 0,
+			'get' => function ( WC_Product $p ) { return true === $p->get_manage_stock( 'edit' ) ? $p->get_stock_quantity( 'edit' ) : null; } ) ),
 		'stock_status'       => $prop( 'stock_status', 'enum', array( 'label' => 'Stock status', 'options' => array( 'instock', 'outofstock', 'onbackorder' ) ) ),
 		'low_stock_amount'   => $prop( 'low_stock_amount', 'int', array( 'label' => 'Low stock alert at', 'nullable' => true, 'min' => 0 ) ),
 		'backorders'         => $prop( 'backorders', 'enum', array( 'label' => 'Orders when sold out', 'options' => array( 'no', 'notify', 'yes' ) ) ),

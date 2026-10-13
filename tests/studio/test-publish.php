@@ -65,7 +65,7 @@ fs_test( 'publish: new product goes live at /product/{slug}/ first in its catego
 	fs_on_cleanup( function () use ( $p ) { wp_delete_post( $p->get_id(), true ); } );
 	$img = fs_image();
 	update_post_meta( $img, '_wp_attachment_image_alt', '' );
-	fisha_studio_product_edit( $p, array( 'category_ids' => array( $cat->term_id ), 'image_id' => $img, 'short_description' => '<p>Short.</p>', 'regular_price' => '80' ) );
+	fisha_studio_product_edit( $p, array( 'category_ids' => array( $cat->term_id ), 'image_id' => $img, 'short_description' => '<p>Short.</p>', 'regular_price' => '80', 'stock_quantity' => 2 ) );
 	$r = fisha_studio_publish_product( $p->get_id() );
 	fs_false( is_wp_error( $r ), is_wp_error( $r ) ? wp_json_encode( $r->get_error_data() ) : '' );
 	$live = wc_get_product( $p->get_id() );

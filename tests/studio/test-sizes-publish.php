@@ -18,6 +18,7 @@ fs_test( 'sizes publish: a new size goes live', function () {
 	$attrs[0]['options'][] = (int) get_term_by( 'slug', 'l', 'pa_size' )->term_id;
 	fisha_studio_product_edit( $p, array( 'attributes' => $attrs ) );
 	$v = fisha_studio_variation_create( wc_get_product( $p->get_id() ), array( 'pa_size' => 'l' ) );
+	fisha_studio_product_edit( wc_get_product( $p->get_id() ), array( 'var:' . $v->get_id() . ':stock_quantity' => 4 ) );
 	$r = fisha_studio_publish_product( $p->get_id() );
 	fs_false( is_wp_error( $r ), is_wp_error( $r ) ? wp_json_encode( $r->get_error_data() ) : '' );
 	fs_eq( 'publish', get_post_status( $v->get_id() ) );
@@ -127,7 +128,7 @@ fs_test( 'sizes publish: a new product with sizes goes live in one go', function
 	$attrs = fisha_studio_clean_attributes( array( array( 'name' => 'pa_size', 'taxonomy' => true, 'options' => array( get_term_by( 'slug', 's', 'pa_size' )->term_id, get_term_by( 'slug', 'm', 'pa_size' )->term_id ), 'variation' => true, 'visible' => true ) ) )[0];
 	fisha_studio_product_edit( $p, array( 'attributes' => $attrs, 'image_id' => fs_image(), 'category_ids' => array( fs_term( 'sz-new' )->term_id ), 'short_description' => '<p>Soft tee.</p>' ) );
 	$ids = fisha_studio_variation_generate( wc_get_product( $id ), fisha_studio_product_values( wc_get_product( $id ) )['attributes'] );
-	foreach ( $ids as $vid ) fisha_studio_product_edit( wc_get_product( $id ), array( "var:$vid:regular_price" => '119' ) );
+	foreach ( $ids as $vid ) fisha_studio_product_edit( wc_get_product( $id ), array( "var:$vid:regular_price" => '119', "var:$vid:stock_quantity" => 5 ) );
 	$r = fisha_studio_publish_product( $id );
 	fs_false( is_wp_error( $r ), is_wp_error( $r ) ? wp_json_encode( $r->get_error_data() ) : '' );
 	$live = wc_get_product( $id );

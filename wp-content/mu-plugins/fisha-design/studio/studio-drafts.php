@@ -97,6 +97,12 @@ function fisha_studio_product_create( string $name, string $type = 'simple' ): W
 	$p->set_slug( fisha_studio_slug_from_name( $name ) );
 	$p->set_catalog_visibility( 'visible' );
 	$p->set_reviews_allowed( false );
+	// Starts on "Fixed amount" with no number yet, so the owner is asked how many there are (they can pick another choice).
+	// A product with sizes counts per size instead (each new size starts on a fixed amount).
+	if ( 'variable' !== $type ) {
+		$p->set_manage_stock( true );
+		$p->set_backorders( 'no' );
+	}
 	// Made here and never published: only such a product may have its sizes deleted or its type switched.
 	$p->update_meta_data( FISHA_STUDIO_CREATED_META, '1' );
 	$p->save();

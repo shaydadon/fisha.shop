@@ -71,7 +71,7 @@ fs_test( 'api sizes: new product with an empty name, type switch, publish', func
 	fs_api( 'PUT', "/products/$id/draft", array( 'fields' => array( 'name' => 'zz-test Api Hoodie', 'attributes' => $attrs, 'short_description' => '<p>Warm.</p>', 'image_id' => fs_image(), 'category_ids' => array( fs_term( 'api-sz' )->term_id ) ) ) );
 	list( , $d ) = fs_api( 'POST', "/products/$id/variations/generate" );
 	$vid = $d['variations'][0]['id'];
-	fs_api( 'PUT', "/products/$id/draft", array( 'fields' => array( "var:$vid:regular_price" => '199' ) ) );
+	fs_api( 'PUT', "/products/$id/draft", array( 'fields' => array( "var:$vid:regular_price" => '199', "var:$vid:stock_quantity" => 3 ) ) );
 	list( $st, $d ) = fs_api( 'POST', "/products/$id/publish" );
 	fs_eq( 200, $st, wp_json_encode( $d ) );
 	fs_eq( 'live', $d['state'] );

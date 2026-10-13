@@ -144,6 +144,7 @@ function fisha_studio_product_row( WC_Product $p ): array {
 		'sale_price'     => (string) $p->get_sale_price( 'edit' ),
 		'price_text'     => html_entity_decode( wp_strip_all_tags( $p->get_price_html() ), ENT_QUOTES, 'UTF-8' ),
 		'manage_stock'   => (bool) $p->get_manage_stock(),
+		'counted'        => true === $p->get_manage_stock( 'edit' ),
 		'stock_quantity' => $qty,
 		'stock_status'   => $p->get_stock_status( 'edit' ),
 		'low'            => (bool) $low,
@@ -285,6 +286,14 @@ function fisha_studio_rest_products_quick( WP_REST_Request $r ) {
 	$input = array_intersect_key( $sent, array_flip( array( 'regular_price', 'stock_quantity', 'stock_status' ) ) );
 	list( $values, $errors ) = fisha_studio_sanitize( fisha_studio_product_fields(), $input );
 	if ( $errors ) return new WP_Error( 'fisha_studio_invalid', reset( $errors ), array( 'status' => 422, 'fields' => $errors ) );
+	// The stock choice: a number means "Fixed amount" (counting on, never sold beyond it); a stock status means
+	// "In stock", "Made to order" or "Sold out" (counting off).
+	if ( array_key_exists( 'stock_quantity', $values ) ) {
+		unset( $values['stock_status'] );
+		if ( true !== $p->get_manage_stock( 'edit' ) ) $values += array( 'manage_stock' => true, 'backorders' => 'no' );
+	} elseif ( array_key_exists( 'stock_status', $values ) && true === $p->get_manage_stock( 'edit' ) ) {
+		$values['manage_stock'] = false;
+	}
 	// Quick edit publishes at once, so refuse when a sent field changed on the site since the list was loaded (an order).
 	$seen      = array_intersect_key( fisha_studio_clean_seen( $body['seen'] ?? array() ), $values );
 	$live      = fisha_studio_product_read( $p );
