@@ -15,6 +15,7 @@ require_once FISHA_DESIGN_DIR . 'river.php';
 require_once FISHA_DESIGN_DIR . 'mosaic.php';
 require_once FISHA_DESIGN_DIR . 'tattoos.php';
 require_once FISHA_DESIGN_DIR . 'contact.php';
+require_once FISHA_DESIGN_DIR . 'cat-visibility.php';
 require_once FISHA_DESIGN_DIR . 'shop.php';
 require_once FISHA_DESIGN_DIR . 'cart.php';
 require_once FISHA_DESIGN_DIR . 'legal.php';

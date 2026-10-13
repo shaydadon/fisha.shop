@@ -73,7 +73,12 @@ function fs_product( array $props = array(), string $status = 'publish' ): WC_Pr
 function fs_term( string $name, int $parent = 0 ): WP_Term {
 	$r = wp_insert_term( 'zz-test ' . $name, 'product_cat', array( 'parent' => $parent, 'slug' => 'zz-test-' . sanitize_title( $name ) ) );
 	if ( is_wp_error( $r ) ) throw new Fs_Fail( $r->get_error_message() );
-	fs_on_cleanup( function () use ( $r ) { wp_delete_term( $r['term_id'], 'product_cat' ); } );
+	fs_on_cleanup( function () use ( $r ) {
+		global $wpdb;
+		$table = $wpdb->prefix . 'fisha_studio_log';
+		if ( $wpdb->get_var( "SHOW TABLES LIKE '$table'" ) ) $wpdb->delete( $table, array( 'item_type' => 'category', 'item_id' => $r['term_id'] ) );
+		wp_delete_term( $r['term_id'], 'product_cat' );
+	} );
 	return get_term( $r['term_id'], 'product_cat' );
 }
 /** A real image attachment (copy of the Fisha logo). */
@@ -170,4 +175,18 @@ function fs_ready_variable( array $sizes = array( 's', 'm', 'l' ) ): WC_Product_
 	$p->set_category_ids( array( fs_term( 'sz-' . wp_rand() )->term_id ) );
 	$p->save();
 	return wc_get_product( $p->get_id() );
+}
+
+/* ---------- categories ---------- */
+
+/** A category with "Show on site" set (fs_term() ones have no fisha_shown, so the site treats them as hidden). */
+function fs_cat( string $name, int $parent = 0, bool $shown = true ): WP_Term {
+	$t = fs_term( $name, $parent );
+	update_term_meta( $t->term_id, 'fisha_shown', $shown ? '1' : '0' );
+	// This environment's object cache can keep a stale product_cat_children after delete_option(); drop it so sub-categories resolve.
+	delete_option( 'product_cat_children' );
+	wp_cache_delete( 'alloptions', 'options' );
+	clean_taxonomy_cache( 'product_cat' );
+	if ( function_exists( 'fisha_cat_cache_reset' ) ) fisha_cat_cache_reset();
+	return $t;
 }
