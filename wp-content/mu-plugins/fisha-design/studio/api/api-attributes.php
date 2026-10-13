@@ -45,7 +45,7 @@ function fisha_studio_attribute_usage( string $tax ): array {
 	global $wpdb;
 	$rows = $wpdb->get_results( $wpdb->prepare(
 		"SELECT pm.meta_value AS slug, COUNT(*) AS n FROM {$wpdb->postmeta} pm JOIN {$wpdb->posts} p ON p.ID = pm.post_id
-		WHERE pm.meta_key = %s AND p.post_type = 'product_variation' AND p.post_status IN ('publish','private') GROUP BY pm.meta_value",
+		WHERE pm.meta_key = %s AND p.post_type = 'product_variation' AND p.post_status IN ('publish','private','draft','pending','future','trash') GROUP BY pm.meta_value",
 		'attribute_' . $tax
 	), ARRAY_A );
 	$out = array();
@@ -162,7 +162,7 @@ function fisha_studio_rest_attribute_term_delete( WP_REST_Request $r ) {
 	$t = fisha_studio_rest_attribute_term( $r );
 	if ( ! $t ) return new WP_Error( 'fisha_studio_not_found', 'This value no longer exists.', array( 'status' => 404 ) );
 	$product_ids = array_map( 'intval', get_objects_in_term( $t->term_id, $t->taxonomy ) );
-	foreach ( get_posts( array( 'post_type' => 'product_variation', 'post_status' => array( 'publish', 'private' ), 'numberposts' => -1, 'fields' => 'id=>parent', 'meta_key' => 'attribute_' . $t->taxonomy, 'meta_value' => $t->slug ) ) as $parent ) {
+	foreach ( get_posts( array( 'post_type' => 'product_variation', 'post_status' => array( 'publish', 'private', 'draft', 'pending', 'future', 'trash' ), 'numberposts' => -1, 'fields' => 'id=>parent', 'meta_key' => 'attribute_' . $t->taxonomy, 'meta_value' => $t->slug ) ) as $parent ) {
 		$product_ids[] = (int) $parent;
 	}
 	$product_ids = array_values( array_unique( array_filter( $product_ids ) ) );
