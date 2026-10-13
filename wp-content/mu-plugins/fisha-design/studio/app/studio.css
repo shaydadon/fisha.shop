@@ -247,6 +247,13 @@ textarea.fs-input { resize: vertical; }
 
 .fs-inv__option { display: inline-block; margin-left: .4rem; padding: .05rem .5rem; border-radius: 999px; background: var(--fs-orange-soft); font-weight: 800; font-size: .85rem; }
 
+.fs-opts { display: grid; gap: 1rem; max-width: 760px; }
+.fs-opts__card { background: var(--fs-card); border-radius: var(--fs-radius); box-shadow: var(--fs-shadow); padding: 1rem; display: grid; gap: .6rem; }
+.fs-opts__values { list-style: none; margin: 0; padding: 0; display: grid; gap: .3rem; }
+.fs-opts__value { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: .6rem; padding: .35rem .5rem; border: 1px solid var(--fs-line); border-radius: 10px; }
+.fs-opts__tools { display: flex; gap: .25rem; }
+@media (max-width: 760px) { .fs-opts__value { grid-template-columns: 1fr; } }
+
 /* Touch targets: 44px on touch screens and phones, compact sizes stay on desktop */
 @media (pointer: coarse), (max-width: 760px) {
 	.fs-btn--small, .fs-btn--tiny, .fs-input--small, .fs-inline, .fs-seg, .fs-rt__btn, .fs-check, .fs-radio, .fs-chip--toggle { min-height: 44px; }
