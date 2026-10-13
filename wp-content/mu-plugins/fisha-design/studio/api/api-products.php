@@ -266,7 +266,12 @@ function fisha_studio_rest_products_publish( WP_REST_Request $r ) {
 	$b   = fisha_studio_body( $r );
 	$res = fisha_studio_publish_product( $p->get_id(), is_array( $b['resolutions'] ?? null ) ? $b['resolutions'] : array(), ! empty( $b['change_url'] ) );
 	if ( is_wp_error( $res ) ) return $res;
-	return array_merge( fisha_studio_product_payload( wc_get_product( $p->get_id() ) ), array( 'published_url' => $res['url'] ) );
+	$fresh    = wc_get_product( $p->get_id() );
+	$warnings = array();
+	$cats     = $fresh->get_category_ids();
+	$public   = array_filter( $cats, function ( $cid ) { $t = fisha_studio_category( (int) $cid ); return $t && ! fisha_cat_is_unpublished( $t ); } );
+	if ( $cats && ! $public ) $warnings[] = 'Its category is not published yet, so no category page lists this product until you publish the category.';
+	return array_merge( fisha_studio_product_payload( $fresh ), array( 'published_url' => $res['url'], 'warnings' => $warnings ) );
 }
 
 function fisha_studio_rest_products_quick( WP_REST_Request $r ) {

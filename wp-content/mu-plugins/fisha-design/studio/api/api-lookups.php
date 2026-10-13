@@ -16,16 +16,19 @@ function fisha_studio_rest_lookups(): array {
 	$terms = is_wp_error( $terms ) ? array() : $terms;
 	$by_id = array();
 	foreach ( $terms as $t ) $by_id[ $t->term_id ] = $t;
-	$path = function ( WP_Term $t ) use ( $by_id ): string {
-		$names = array( fisha_studio_plain( $t->name ) );
+	$label = function ( WP_Term $t ): string {
+		return fisha_studio_plain( $t->name ) . ( fisha_cat_is_unpublished( $t ) ? ' (not published yet)' : '' );
+	};
+	$path = function ( WP_Term $t ) use ( $by_id, $label ): string {
+		$names = array( $label( $t ) );
 		while ( $t->parent && isset( $by_id[ $t->parent ] ) ) {
 			$t = $by_id[ $t->parent ];
-			array_unshift( $names, fisha_studio_plain( $t->name ) );
+			array_unshift( $names, $label( $t ) );
 		}
 		return implode( ' › ', $names );
 	};
 	$categories = array();
-	foreach ( $terms as $t ) $categories[] = array( 'id' => $t->term_id, 'name' => fisha_studio_plain( $t->name ), 'parent' => $t->parent, 'slug' => $t->slug, 'path' => $path( $t ) );
+	foreach ( $terms as $t ) $categories[] = array( 'id' => $t->term_id, 'name' => $label( $t ),'parent' => $t->parent, 'slug' => $t->slug, 'path' => $path( $t ) );
 	usort( $categories, function ( $a, $b ) { return strcasecmp( $a['path'], $b['path'] ); } );
 
 	$tag_terms = get_terms( array( 'taxonomy' => 'product_tag', 'hide_empty' => false ) );
