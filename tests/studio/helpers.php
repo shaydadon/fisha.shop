@@ -207,6 +207,10 @@ function fs_studio_cat( string $name = '', int $parent = 0 ): WP_Term {
 	$t = fisha_studio_category_create( $name, $parent );
 	if ( is_wp_error( $t ) ) throw new Fs_Fail( $t->get_error_message() );
 	$id = $t->term_id;
+	// Same stale product_cat_children issue as fs_cat(): drop it so sub-categories resolve in get_term_children().
+	delete_option( 'product_cat_children' );
+	wp_cache_delete( 'alloptions', 'options' );
+	clean_taxonomy_cache( 'product_cat' );
 	fs_on_cleanup( function () use ( $id ) {
 		global $wpdb;
 		$wpdb->delete( $wpdb->prefix . 'fisha_studio_log', array( 'item_type' => 'category', 'item_id' => $id ) );

@@ -181,6 +181,23 @@ function fisha_studio_purge_product( WC_Product $p, array $extra_cat_ids = array
 	foreach ( array_unique( array_filter( $urls ) ) as $url ) do_action( 'litespeed_purge_url', $url );
 	do_action( 'litespeed_purge_post', $p->get_id() );
 	wc_delete_product_transients( $p->get_id() );
+	// A top-level category with no other product may have just appeared or disappeared from the menus on every page.
+	if ( function_exists( 'fisha_cat_is_enabled' ) ) {
+		fisha_cat_cache_reset();
+		$tops = array();
+		foreach ( array_unique( array_merge( $p->get_category_ids(), $extra_cat_ids ) ) as $cid ) {
+			$chain = array_merge( array( (int) $cid ), array_map( 'intval', get_ancestors( (int) $cid, 'product_cat' ) ) );
+			$tops[ end( $chain ) ] = true;
+		}
+		foreach ( array_keys( $tops ) as $tid ) {
+			$top = get_term( (int) $tid, 'product_cat' );
+			if ( ! $top instanceof WP_Term || ! fisha_cat_is_enabled( $top ) ) continue;
+			if ( count( wc_get_products( array( 'status' => 'publish', 'limit' => 2, 'return' => 'ids', 'visibility' => 'catalog', 'category' => array( $top->slug ) ) ) ) < 2 ) {
+				do_action( 'litespeed_purge_all' );
+				break;
+			}
+		}
+	}
 }
 
 /** @return true|WP_Error */
