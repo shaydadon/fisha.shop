@@ -72,7 +72,7 @@ function fisha_studio_preview_install_product( int $id, array $fields ): void {
 	if ( ! $p ) return;
 	$GLOBALS['fisha_studio_preview'] = array( 'type' => 'product', 'id' => $id, 'fields' => $fields );
 
-	$merged = array_merge( fisha_studio_product_read( $p ), $fields );
+	$merged = array_merge( fisha_studio_product_values( $p ), $fields );
 	$over   = array_intersect_key( $merged, $fields );
 	if ( array_intersect_key( $fields, array_flip( array( 'manage_stock', 'stock_quantity', 'stock_status', 'backorders' ) ) ) ) {
 		$over['stock_status'] = fisha_studio_effective_stock_status( $merged );
@@ -159,6 +159,8 @@ function fisha_studio_preview_install_product( int $id, array $fields ): void {
 		if ( ! $seen && true === $match ) array_unshift( $out, 'ids' === ( $args['return'] ?? '' ) ? $id : wc_get_product( $id ) );
 		return $out;
 	} );
+
+	if ( $p->is_type( 'variable' ) ) fisha_studio_preview_install_sizes( $p, $merged, $fields );
 }
 
 add_action( 'init', function () {
@@ -191,4 +193,83 @@ function fisha_studio_preview_targets( WC_Product $p, array $cat_ids ): array {
 	$targets[] = array( 'key' => 'home', 'label' => 'Home', 'url' => home_url( '/' ) );
 	foreach ( $targets as &$t ) $t['url'] = add_query_arg( 'fisha_preview', $token, $t['url'] );
 	return $targets;
+}
+
+/** Preview of a product with sizes: each changed size, which sizes are offered, the price range, stock and options. */
+function fisha_studio_preview_install_sizes( WC_Product $p, array $merged, array $fields ): void {
+	$id    = $p->get_id();
+	$sizes = array();
+	foreach ( fisha_studio_variation_ids( $p ) as $vid ) {
+		foreach ( array_keys( fisha_studio_variation_fields() ) as $f ) $sizes[ $vid ][ $f ] = $merged[ fisha_studio_var_key( $vid, $f ) ] ?? null;
+		$v = wc_get_product( $vid );
+		$sizes[ $vid ]['backorders'] = $v ? $v->get_backorders( 'edit' ) : 'no';
+	}
+	$touched = array();
+	foreach ( array_keys( $fields ) as $k ) {
+		$parsed = fisha_studio_parse_var_key( (string) $k );
+		if ( $parsed ) $touched[ $parsed[0] ] = true;
+	}
+	if ( ! $touched && ! array_key_exists( 'attributes', $fields ) ) return;
+
+	$price_of = function ( array $x ): string {
+		return fisha_studio_effective_price( array( 'regular_price' => (string) $x['regular_price'], 'sale_price' => (string) $x['sale_price'], 'date_on_sale_from' => '', 'date_on_sale_to' => '' ) );
+	};
+	$stock_of = function ( array $x ): string {
+		return fisha_studio_effective_stock_status( array( 'manage_stock' => (bool) $x['manage_stock'], 'stock_quantity' => $x['stock_quantity'], 'stock_status' => (string) $x['stock_status'], 'backorders' => (string) $x['backorders'] ) );
+	};
+	$offered = array();
+	foreach ( $sizes as $vid => $x ) $offered[ $vid ] = ! empty( $x['enabled'] ) && '' !== (string) $x['regular_price'];
+	$on = array_keys( array_filter( $offered ) );
+
+	// 1. Each changed size's own values.
+	foreach ( array_keys( $touched ) as $vid ) {
+		if ( ! isset( $sizes[ $vid ] ) ) continue;
+		$x    = $sizes[ $vid ];
+		$over = array(
+			'status' => $x['enabled'] ? 'publish' : 'private', 'regular_price' => (string) $x['regular_price'], 'sale_price' => (string) $x['sale_price'],
+			'price' => $price_of( $x ), 'sku' => (string) $x['sku'], 'manage_stock' => (bool) $x['manage_stock'], 'stock_quantity' => $x['stock_quantity'],
+			'stock_status' => $stock_of( $x ), 'image_id' => (int) $x['image_id'],
+		);
+		foreach ( $over as $prop => $value ) {
+			fisha_studio_preview_add( "woocommerce_product_variation_get_$prop", function ( $val, $obj = null ) use ( $vid, $value ) {
+				return ( $obj instanceof WC_Product && $obj->get_id() === $vid ) ? $value : $val;
+			} );
+		}
+	}
+	fisha_studio_preview_add( 'woocommerce_variation_is_visible', function ( $visible, $vid = 0 ) use ( $offered ) {
+		return array_key_exists( (int) $vid, $offered ) ? $offered[ (int) $vid ] : $visible;
+	} );
+
+	// 2. Which sizes are offered, and the price range.
+	fisha_studio_preview_add( 'woocommerce_get_children', function ( $children, $product = null, $visible_only = false ) use ( $id, $on ) {
+		return ( $visible_only && $product instanceof WC_Product && $product->get_id() === $id ) ? $on : $children;
+	}, 99, 3 );
+	fisha_studio_preview_add( 'woocommerce_variation_prices', function ( $prices, $product = null ) use ( $id, $on, $sizes, $price_of ) {
+		if ( ! $product instanceof WC_Product || $product->get_id() !== $id ) return $prices;
+		$dp  = wc_get_price_decimals();
+		$out = array( 'price' => array(), 'regular_price' => array(), 'sale_price' => array() );
+		foreach ( $on as $vid ) {
+			$x = $sizes[ $vid ];
+			$out['price'][ $vid ]         = wc_format_decimal( $price_of( $x ), $dp );
+			$out['regular_price'][ $vid ] = wc_format_decimal( $x['regular_price'], $dp );
+			$out['sale_price'][ $vid ]    = wc_format_decimal( '' !== (string) $x['sale_price'] ? $x['sale_price'] : $x['regular_price'], $dp );
+		}
+		foreach ( $out as &$list ) asort( $list );
+		return $out;
+	} );
+
+	// 3. In stock when any size that is on is.
+	$in = false;
+	foreach ( $on as $vid ) if ( 'outofstock' !== $stock_of( $sizes[ $vid ] ) ) $in = true;
+	fisha_studio_preview_add( 'woocommerce_product_get_stock_status', function ( $s, $obj = null ) use ( $id, $in ) {
+		return ( $obj instanceof WC_Product && $obj->get_id() === $id ) ? ( $in ? 'instock' : 'outofstock' ) : $s;
+	} );
+
+	// 4. The options shown on the product page.
+	if ( array_key_exists( 'attributes', $fields ) ) {
+		$objs = fisha_studio_attribute_objects( (array) $merged['attributes'] );
+		fisha_studio_preview_add( 'woocommerce_product_get_attributes', function ( $a, $obj = null ) use ( $id, $objs ) {
+			return ( $obj instanceof WC_Product && $obj->get_id() === $id ) ? $objs : $a;
+		} );
+	}
 }
