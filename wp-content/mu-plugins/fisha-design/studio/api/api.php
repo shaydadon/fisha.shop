@@ -23,3 +23,4 @@ require_once __DIR__ . '/api-lookups.php';
 require_once __DIR__ . '/api-media.php';
 require_once __DIR__ . '/api-products.php';
 require_once __DIR__ . '/api-attributes.php';
+require_once __DIR__ . '/api-inventory.php';
