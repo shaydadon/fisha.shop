@@ -183,7 +183,7 @@ function fs_ready_variable( array $sizes = array( 's', 'm', 'l' ) ): WC_Product_
 function fs_cat( string $name, int $parent = 0, bool $shown = true ): WP_Term {
 	$t = fs_term( $name, $parent );
 	update_term_meta( $t->term_id, 'fisha_shown', $shown ? '1' : '0' );
-	// This environment's object cache can keep a stale product_cat_children after delete_option(); drop it so sub-categories resolve.
+	// A ROLLBACK earlier in this long-lived process leaves the cached alloptions out of step with the database, so delete_option() finds no row and does not clear the cached product_cat_children; clear it explicitly so sub-categories resolve.
 	delete_option( 'product_cat_children' );
 	wp_cache_delete( 'alloptions', 'options' );
 	clean_taxonomy_cache( 'product_cat' );
@@ -207,7 +207,7 @@ function fs_studio_cat( string $name = '', int $parent = 0 ): WP_Term {
 	$t = fisha_studio_category_create( $name, $parent );
 	if ( is_wp_error( $t ) ) throw new Fs_Fail( $t->get_error_message() );
 	$id = $t->term_id;
-	// Same stale product_cat_children issue as fs_cat(): drop it so sub-categories resolve in get_term_children().
+	// Same cause as in fs_cat(): a ROLLBACK earlier in this process leaves cached alloptions stale, so delete_option() does not clear product_cat_children.
 	delete_option( 'product_cat_children' );
 	wp_cache_delete( 'alloptions', 'options' );
 	clean_taxonomy_cache( 'product_cat' );

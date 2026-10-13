@@ -72,8 +72,10 @@ function fisha_studio_publish_category( int $id, array $resolutions = array(), b
 		if ( false === $wpdb->query( 'COMMIT' ) ) throw new RuntimeException( 'commit failed: ' . $wpdb->last_error );
 	} catch ( Throwable $e ) {
 		$wpdb->query( 'ROLLBACK' );
+		wp_cache_delete( 'alloptions', 'options' );
+		wp_cache_delete( 'notoptions', 'options' );
 		clean_term_cache( array_keys( $old_paths ) ?: array( $id ), 'product_cat' );
-		wp_cache_delete( $id, 'term_meta' );
+		foreach ( array_merge( array( $id ), array_keys( $old_paths ) ) as $tid ) wp_cache_delete( $tid, 'term_meta' );
 		fisha_cat_cache_reset();
 		fisha_studio_log_error( 'publish category ' . $id, $e );
 		return new WP_Error( 'fisha_studio_publish_failed', 'Publishing failed, so nothing was changed. Please try again.', array( 'status' => 500 ) );
@@ -81,7 +83,7 @@ function fisha_studio_publish_category( int $id, array $resolutions = array(), b
 
 	fisha_cat_cache_reset();
 	$fresh = get_term( $id, 'product_cat' );
-	fisha_studio_purge_category( $fresh, array_values( $old_paths ), $was_top || 0 === (int) $fresh->parent || $after['shown'] !== $before['shown'] );
+	fisha_studio_purge_category( $fresh, array_values( $old_paths ), $was_top || 0 === (int) $fresh->parent || $after['shown'] !== $before['shown'] || isset( $args['parent'] ) );
 	return array( 'id' => $id, 'url' => get_term_link( $fresh ) );
 }
 
@@ -158,12 +160,25 @@ function fisha_studio_category_reorder( int $parent, array $ids ) {
 	if ( $a !== $b ) return new WP_Error( 'fisha_studio_stale', 'The categories changed meanwhile. Please reload and try again.', array( 'status' => 409 ) );
 	$before = array();
 	$after  = array();
-	foreach ( $ids as $i => $cid ) {
-		$before[ $cid ] = (int) get_term_meta( $cid, 'order', true );
-		$after[ $cid ]  = $i + 1;
-		update_term_meta( $cid, 'order', $i + 1 );
+	global $wpdb;
+	$wpdb->query( 'START TRANSACTION' );
+	try {
+		foreach ( $ids as $i => $cid ) {
+			$before[ $cid ] = (int) get_term_meta( $cid, 'order', true );
+			$after[ $cid ]  = $i + 1;
+			update_term_meta( $cid, 'order', $i + 1 );
+		}
+		do_action( 'fisha_studio_before_category_reorder_commit', $parent );
+		if ( ! fisha_studio_log( 'category', $parent, 'reorder', $before, $after ) ) {
+			throw new RuntimeException( 'audit log write failed: ' . $wpdb->last_error );
+		}
+		if ( false === $wpdb->query( 'COMMIT' ) ) throw new RuntimeException( 'commit failed: ' . $wpdb->last_error );
+	} catch ( Throwable $e ) {
+		$wpdb->query( 'ROLLBACK' );
+		foreach ( $ids as $cid ) wp_cache_delete( $cid, 'term_meta' );
+		fisha_studio_log_error( 'reorder categories under ' . $parent, $e );
+		return new WP_Error( 'fisha_studio_reorder_failed', 'Saving the order failed, so nothing was changed. Please try again.', array( 'status' => 500 ) );
 	}
-	fisha_studio_log( 'category', $parent, 'reorder', $before, $after );
 	do_action( 'litespeed_purge_all' );
 	return true;
 }
@@ -192,6 +207,7 @@ function fisha_studio_category_delete( int $id, int $move_to = 0 ) {
 		return new WP_Error( 'fisha_studio_default_cat', 'This is the shop\'s default category, so it cannot be deleted.', array( 'status' => 400 ) );
 	}
 	$orphans = fisha_studio_category_orphans( $id );
+	$direct  = fisha_studio_category_direct_products( $id );
 	if ( $orphans ) {
 		$target = fisha_studio_category( $move_to );
 		if ( ! $target || $move_to === $id || in_array( $id, array_map( 'intval', get_ancestors( $move_to, 'product_cat' ) ), true ) ) {
@@ -228,14 +244,18 @@ function fisha_studio_category_delete( int $id, int $move_to = 0 ) {
 			}
 			update_option( 'fisha_deleted_cat_paths', $deleted, false );
 		}
+		do_action( 'fisha_studio_before_category_delete_commit', $id );
 		if ( ! fisha_studio_log( 'category', $id, 'delete', array_merge( $before, array( 'products_moved' => $orphans, 'move_to' => $move_to ) ), null ) ) {
 			throw new RuntimeException( 'audit log write failed: ' . $wpdb->last_error );
 		}
 		if ( false === $wpdb->query( 'COMMIT' ) ) throw new RuntimeException( 'commit failed: ' . $wpdb->last_error );
 	} catch ( Throwable $e ) {
 		$wpdb->query( 'ROLLBACK' );
-		clean_term_cache( array_merge( array( $id ), array_keys( $paths ) ), 'product_cat' );
-		foreach ( $orphans as $pid ) clean_object_term_cache( $pid, 'product' );
+		wp_cache_delete( 'alloptions', 'options' );
+		wp_cache_delete( 'notoptions', 'options' );
+		clean_term_cache( array_filter( array_merge( array( $id, $move_to ), array_keys( $paths ) ) ), 'product_cat' );
+		foreach ( array_merge( array( $id ), array_keys( $paths ) ) as $tid ) wp_cache_delete( $tid, 'term_meta' );
+		foreach ( $direct as $pid ) clean_object_term_cache( $pid, 'product' );
 		wp_cache_delete( 'fisha_deleted_cat_paths', 'options' );
 		fisha_cat_cache_reset();
 		fisha_studio_log_error( 'delete category ' . $id, $e );

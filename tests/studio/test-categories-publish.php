@@ -154,3 +154,35 @@ fs_test( 'categories delete: the default category is refused; an empty never-pub
 	fs_true( true === fisha_studio_category_delete( $t->term_id ) );
 	fs_false( array_key_exists( $path, (array) get_option( 'fisha_deleted_cat_paths', array() ) ) );
 } );
+
+fs_test( 'categories: a failed reorder rolls back', function () {
+	fs_as( FISHA_STUDIO_ROLE );
+	$top = fs_cat( 'rorder-top' );
+	$a = fs_cat( 'rorder-a', $top->term_id ); $b = fs_cat( 'rorder-b', $top->term_id );
+	fisha_studio_category_reorder( $top->term_id, array( $a->term_id, $b->term_id ) );
+	$boom = function () { throw new RuntimeException( 'forced' ); };
+	add_action( 'fisha_studio_before_category_reorder_commit', $boom );
+	fs_on_cleanup( function () use ( $boom ) { remove_action( 'fisha_studio_before_category_reorder_commit', $boom ); } );
+	$r = fisha_studio_category_reorder( $top->term_id, array( $b->term_id, $a->term_id ) );
+	fs_eq( 500, $r->get_error_data()['status'] );
+	fs_eq( array( '1', '2' ), array( get_term_meta( $a->term_id, 'order', true ), get_term_meta( $b->term_id, 'order', true ) ) );
+} );
+
+fs_test( 'categories delete: a failure rolls everything back', function () {
+	fs_as( FISHA_STUDIO_ROLE );
+	fs_keep_deleted_paths();
+	$gone = fs_cat( 'delf-gone' ); $kid = fs_cat( 'delf-kid', $gone->term_id ); $to = fs_cat( 'delf-to' ); $other = fs_cat( 'delf-other' );
+	$only = fs_product( array( 'category_ids' => array( $gone->term_id ) ) );
+	$both = fs_product( array( 'category_ids' => array( $gone->term_id, $other->term_id ) ) );
+	$boom = function () { throw new RuntimeException( 'forced' ); };
+	add_action( 'fisha_studio_before_category_delete_commit', $boom );
+	fs_on_cleanup( function () use ( $boom ) { remove_action( 'fisha_studio_before_category_delete_commit', $boom ); } );
+	$r = fisha_studio_category_delete( $gone->term_id, $to->term_id );
+	fs_eq( 500, $r->get_error_data()['status'] );
+	fs_true( (bool) get_term( $gone->term_id, 'product_cat' ), 'still there' );
+	fs_eq( (int) $gone->term_id, (int) get_term( $kid->term_id, 'product_cat' )->parent, 'child not moved' );
+	fs_eq( array( $gone->term_id ), wp_get_object_terms( $only->get_id(), 'product_cat', array( 'fields' => 'ids' ) ) );
+	$ids = wp_get_object_terms( $both->get_id(), 'product_cat', array( 'fields' => 'ids' ) ); sort( $ids );
+	$want = array( $gone->term_id, $other->term_id ); sort( $want );
+	fs_eq( $want, $ids );
+} );
