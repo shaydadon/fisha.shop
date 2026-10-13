@@ -3,7 +3,7 @@
  * row per size with its own on/off, price, sale price, stock, SKU and photo. Every change is a normal draft edit
  * ("attributes" or "var:{id}:{field}"), so autosave, preview, conflicts and Publish work as for any other field.
  */
-import { h, toast, modal } from '../ui.js';
+import { h, toast, modal, confirmDialog } from '../ui.js';
 import { api } from '../api.js';
 
 const STATUSES = [ [ 'instock', 'In stock' ], [ 'outofstock', 'Sold out' ], [ 'onbackorder', 'Made to order' ] ];
@@ -16,7 +16,10 @@ export function variationsPanel( ctx ) {
 	const key = ( vid, f ) => `var:${ vid }:${ f }`;
 
 	function sig() {
-		return JSON.stringify( [ ctx.payload().variations.map( ( s ) => [ s.id, s.pending ] ), ctx.values().attributes ] );
+		const v = ctx.values();
+		// When the product counts stock as a whole, a size switching its own count on or off changes how its row looks.
+		const whole = ( s ) => ( v.manage_stock ? !! v[ key( s.id, 'manage_stock' ) ] : null );
+		return JSON.stringify( [ ctx.payload().variations.map( ( s ) => [ s.id, s.pending, s.deletable, whole( s ) ] ), v.attributes, !! v.manage_stock ] );
 	}
 
 	/** Rebuilds when sizes or options changed; otherwise only refreshes values of inputs not being typed in. */
@@ -204,15 +207,18 @@ export function variationsPanel( ctx ) {
 		reg( 'sku', sku, keep( sku, ( x ) => { sku.value = x ?? ''; } ) );
 		reg( 'image_id', photo, ( x ) => { photo.value = String( x || 0 ); } );
 
-		const canDelete = s.pending || ctx.payload().state === 'new';
+		// The product counts its stock as a whole and this size has no count of its own: nothing to set here.
+		const whole = !! v.manage_stock && ! v[ k( 'manage_stock' ) ];
 		return h( 'div.fs-vars__row', { dataset: { vid: s.id } },
 			h( 'div.fs-vars__name', {}, on, h( 'strong', {}, s.label ), s.pending ? h( 'span.fs-badge.fs-badge--draft', {}, 'New' ) : null ),
 			h( 'label.fs-vars__cell', {}, h( 'span.fs-vars__cap', {}, ctx.currency ), price ),
 			h( 'label.fs-vars__cell', {}, sale ),
-			h( 'div.fs-vars__cell', {}, h( 'label.fs-check', {}, count, 'Count' ), qty, status ),
+			whole
+				? h( 'div.fs-vars__cell.fs-field__help', {}, 'Stock is kept for the whole product' )
+				: h( 'div.fs-vars__cell', {}, h( 'label.fs-check', {}, count, 'Count' ), qty, status ),
 			h( 'div.fs-vars__cell', {}, sku ),
 			h( 'div.fs-vars__cell', {}, photo ),
-			canDelete ? h( 'button.fs-btn.fs-btn--tiny.fs-btn--danger', { type: 'button', 'aria-label': `Delete ${ s.label }`, onclick: () => removeSize( s ) }, 'Delete' ) : null,
+			s.deletable ? h( 'button.fs-btn.fs-btn--tiny.fs-btn--danger', { type: 'button', 'aria-label': `Delete ${ s.label }`, onclick: () => removeSize( s ) }, 'Delete' ) : null,
 			h( 'p.fs-field__error.fs-vars__err', { hidden: true } ) );
 	}
 
@@ -235,6 +241,7 @@ export function variationsPanel( ctx ) {
 	}
 
 	async function removeSize( s ) {
+		if ( ! ( await confirmDialog( 'Delete ' + s.label + '?', 'This size is removed from the product.', 'Delete', 'danger' ) ) ) return;
 		if ( ! ( await ctx.flush() ) ) return;
 		try {
 			const d = await api( 'DELETE', `products/${ ctx.productId }/variations/${ s.id }` );

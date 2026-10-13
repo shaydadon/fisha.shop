@@ -95,17 +95,20 @@ export function inventoryView( main ) {
 		const stock = r.manage_stock
 			? h( 'input.fs-input.fs-inline.fs-inline--short', { inputmode: 'numeric', value: r.stock_quantity ?? '', 'aria-label': `Stock of ${ title }` } )
 			: h( 'select.fs-input.fs-input--small', { 'aria-label': `Stock status of ${ title }` }, Object.entries( STATUS ).map( ( [ v, t ] ) => h( 'option', { value: v, selected: v === r.stock_status }, t ) ) );
-		const price = h( 'input.fs-input.fs-inline', { inputmode: 'decimal', value: r.regular_price, 'aria-label': `Price of ${ title }` } );
+		// A product with sizes whose stock is counted as a whole: only its count is edited here, prices are per size.
+		const price = r.stock_only
+			? h( 'span.fs-field__help', {}, 'Set per size' )
+			: h( 'input.fs-input.fs-inline', { inputmode: 'decimal', value: r.regular_price, 'aria-label': `Price of ${ title }` } );
 		const save = h( 'button.fs-btn.fs-btn--small.fs-btn--primary', { type: 'button', hidden: true, onclick: () => commit() }, 'Save' );
 		const stockKey = r.manage_stock ? 'stock_quantity' : 'stock_status';
 		const was = { stock_quantity: r.stock_quantity, stock_status: r.stock_status, regular_price: r.regular_price };
 		const fieldsNow = () => {
 			const f = {};
 			if ( stock.value !== String( was[ stockKey ] ?? '' ) ) f[ stockKey ] = stock.value;
-			if ( price.value !== r.regular_price ) f.regular_price = price.value;
+			if ( ! r.stock_only && price.value !== r.regular_price ) f.regular_price = price.value;
 			return f;
 		};
-		for ( const input of [ stock, price ] ) {
+		for ( const input of r.stock_only ? [ stock ] : [ stock, price ] ) {
 			input.addEventListener( 'input', () => { save.hidden = ! Object.keys( fieldsNow() ).length; } );
 			input.addEventListener( 'change', () => { save.hidden = ! Object.keys( fieldsNow() ).length; } );
 			input.addEventListener( 'keydown', ( e ) => { if ( e.key === 'Enter' && ! save.hidden && ! save.disabled ) commit(); } );
@@ -117,9 +120,12 @@ export function inventoryView( main ) {
 			for ( const k of Object.keys( fields ) ) seen[ k ] = was[ k ];
 			save.disabled = true;
 			try {
-				await api( 'POST', r.kind === 'variation' ? `variations/${ r.id }/quick` : `products/${ r.id }/quick`, { fields, seen } );
+				const res = await api( 'POST', r.kind === 'variation' ? `variations/${ r.id }/quick` : `products/${ r.id }/quick`, { fields, seen } );
 				toast( `${ title } is updated on the site.` );
-				load();
+				// Only this row is redrawn, so numbers typed in other rows stay. A size comes back as its inventory row;
+				// a product comes back as its products-list row, whose stock and price are merged in.
+				const next = r.kind === 'variation' ? res : { ...r, stock_quantity: res.stock_quantity, stock_status: res.stock_status, regular_price: res.regular_price, low: res.low };
+				if ( alive ) tr.replaceWith( row( next ) );
 			} catch ( e ) {
 				save.disabled = false;
 				if ( e.code === 'fisha_studio_conflict' ) {
@@ -130,10 +136,11 @@ export function inventoryView( main ) {
 				toast( e.message, 'error' );
 			}
 		}
-		return h( 'tr', {}, thumb, product,
+		const tr = h( 'tr', {}, thumb, product,
 			h( 'td', { 'data-label': 'Stock' }, stock ),
 			h( 'td', { 'data-label': 'Price' }, price ),
 			h( 'td.fs-table__actions', {}, save, open ) );
+		return tr;
 	}
 
 	load();

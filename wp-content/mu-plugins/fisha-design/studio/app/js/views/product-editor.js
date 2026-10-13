@@ -61,6 +61,8 @@ export function productEditor( main, id ) {
 		if ( pub && ed.data.editable && ! ed.publishing ) pub.disabled = false;
 		autosave();
 		refreshDerived();
+		// Size rows show "Stock is kept for the whole product" while the product counts its stock.
+		if ( 'manage_stock' === key ) varsPanel?.render();
 	}
 
 	/** Saves pending edits, waiting for any save already in flight. Resolves true only when everything on screen is saved. */
@@ -355,7 +357,8 @@ export function productEditor( main, id ) {
 		W.catalog_visibility = selectField( 'Where it shows', v.catalog_visibility, [ [ 'visible', 'Shop and search' ], [ 'catalog', 'Shop only' ], [ 'search', 'Search only' ], [ 'hidden', 'Only by direct link' ] ], on( 'catalog_visibility' ) );
 		W.featured = toggleField( 'Featured product', v.featured, on( 'featured' ) );
 		W.reviews_allowed = toggleField( 'Allow reviews', v.reviews_allowed, on( 'reviews_allowed' ) );
-		const typeField = d.state === 'new'
+		// Only a product that was never live (and never sold) can switch type; switching to one item deletes its sizes.
+		const typeField = d.restructurable
 			? toggleField( 'Comes in sizes or options', sizes, ( yes ) => switchType( yes ? 'variable' : 'simple' ), { help: 'For example a T-shirt in S, M and L. Each size gets its own price and stock.' } )
 			: null;
 
@@ -383,7 +386,9 @@ export function productEditor( main, id ) {
 		showIf( W.date_on_sale_to, ( x ) => ! onRequest && x.sale_price !== '' );
 
 		W.sku = textField( 'SKU', v.sku, on( 'sku' ), { max: 64, help: 'Your own stock code. Optional.' } );
-		W.manage_stock = toggleField( 'Count stock', v.manage_stock, on( 'manage_stock' ), { help: 'The shop marks it sold out when the count reaches 0.' } );
+		W.manage_stock = toggleField( 'Count stock', v.manage_stock, on( 'manage_stock' ), { help: sizes
+			? 'Count stock for the whole product, or switch it off and count each size in Sizes & options.'
+			: 'The shop marks it sold out when the count reaches 0.' } );
 		W.stock_quantity = textField( 'In stock', v.stock_quantity ?? '', on( 'stock_quantity' ), { inputmode: 'numeric' } );
 		W.stock_status = selectField( 'Stock status', v.stock_status, [ [ 'instock', 'In stock' ], [ 'outofstock', 'Sold out' ], [ 'onbackorder', 'Can be ordered (made to order)' ] ], on( 'stock_status' ) );
 		W.low_stock_amount = textField( 'Low stock alert at', v.low_stock_amount ?? '', on( 'low_stock_amount' ), { inputmode: 'numeric', help: 'The Studio flags it as low stock at this count (2 when empty).' } );
@@ -442,7 +447,7 @@ export function productEditor( main, id ) {
 				? panel( 'variations', varsPanel.el )
 				: panel( 'price', onRequestField.el, h( 'div.fs-grid-2', {}, W.regular_price.el, W.sale_price.el ), h( 'div.fs-grid-2', {}, W.date_on_sale_from.el, W.date_on_sale_to.el ) ),
 			sizes
-				? panel( 'inventory', W.sku.el, W.sold_individually.el, h( 'p.fs-field__help', {}, 'Stock is set for each size in Sizes & options, or for many products at once on the Inventory page.' ) )
+				? panel( 'inventory', W.manage_stock.el, h( 'div.fs-grid-2', {}, W.stock_quantity.el, W.low_stock_amount.el ), W.backorders.el, W.sold_individually.el, W.sku.el )
 				: panel( 'inventory', h( 'div.fs-stock-actions', {}, soldOut, backIn ), W.manage_stock.el, h( 'div.fs-grid-2', {}, W.stock_quantity.el, W.low_stock_amount.el ), W.stock_status.el, W.backorders.el, W.sold_individually.el, W.sku.el ),
 			panel( 'images', W.images.el ),
 			panel( 'shipping', h( 'div.fs-grid-4', {}, W.weight.el, W.length.el, W.width.el, W.height.el ), W.shipping_class_id.el, h( 'div.fs-grid-2', {}, W.tax_status.el, W.tax_class.el ) ) );
