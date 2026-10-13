@@ -199,6 +199,12 @@ function fisha_studio_product_validate( array $v, WC_Product $p ): array {
 		$val = $v[ $key ] ?? null;
 		if ( '' === $val || null === $val || 0 === $val || array() === $val ) $e[ $key ] = sprintf( '%s is needed before publishing.', $def['label'] );
 	}
+	// WooCommerce's default category ("Uncategorized") on its own is a placeholder, not a choice.
+	$def = (int) get_option( 'default_product_cat' );
+	if ( ! isset( $e['category_ids'] ) && $def && array( $def ) === array_map( 'intval', (array) ( $v['category_ids'] ?? array() ) ) ) {
+		$t = get_term( $def, 'product_cat' );
+		$e['category_ids'] = sprintf( 'Pick a category other than "%s" before publishing.', ( $t && ! is_wp_error( $t ) ) ? $t->name : 'Uncategorized' );
+	}
 	$sale    = (string) ( $v['sale_price'] ?? '' );
 	$regular = (string) ( $v['regular_price'] ?? '' );
 	if ( '' !== $sale ) {
@@ -219,6 +225,13 @@ function fisha_studio_product_validate( array $v, WC_Product $p ): array {
 		if ( $slug_error ) $e['slug'] = $slug_error;
 	}
 	return $e;
+}
+
+/** Drops WooCommerce's default category ("Uncategorized") from a list that also has a real category. */
+function fisha_studio_drop_default_cat( array $ids ): array {
+	$def = (int) get_option( 'default_product_cat' );
+	if ( ! $def || count( $ids ) < 2 || ! in_array( $def, array_map( 'intval', $ids ), true ) ) return $ids;
+	return array_values( array_filter( $ids, function ( $id ) use ( $def ) { return (int) $id !== $def; } ) );
 }
 
 function fisha_studio_same( $a, $b ): bool {

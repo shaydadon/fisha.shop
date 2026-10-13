@@ -98,6 +98,7 @@ function fisha_studio_clean_seen( $seen ): array {
 
 /** The one entry point for an edit coming from the Studio. $values and $seen must already be cleaned. */
 function fisha_studio_product_edit( WC_Product $p, array $values, array $seen = array() ): void {
+	if ( isset( $values['category_ids'] ) && is_array( $values['category_ids'] ) ) $values['category_ids'] = fisha_studio_drop_default_cat( $values['category_ids'] );
 	if ( ! fisha_studio_is_new( $p ) ) {
 		fisha_studio_draft_save( $p, $values, $seen );
 		return;

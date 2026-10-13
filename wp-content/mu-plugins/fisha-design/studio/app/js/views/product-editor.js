@@ -254,7 +254,7 @@ export function productEditor( main, id ) {
 
 	async function trash() {
 		const isNew = ed.data.state === 'new';
-		if ( ! ( await confirmDialog( isNew ? 'Delete this draft?' : 'Move to trash?', isNew ? 'This product was never published. It will be moved to the trash.' : 'The product disappears from the shop. It stays in the trash for 30 days and can be restored.', isNew ? 'Delete draft' : 'Move to trash', 'danger' ) ) ) return;
+		if ( ! ( await confirmDialog( isNew ? 'Delete this draft?' : 'Move to trash?', isNew ? 'This product was never published. It will be moved to the trash.' : 'The product disappears from the shop. It stays in the trash for 30 days, and the site admin can restore it.', isNew ? 'Delete draft' : 'Move to trash', 'danger' ) ) ) return;
 		autosave.cancel();
 		ed.pending = {};
 		try {

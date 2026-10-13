@@ -103,3 +103,28 @@ fs_test( 'drafts: card colour follows the category picked after the name', funct
 	fisha_studio_product_edit( wc_get_product( $p->get_id() ), array( 'category_ids' => array( $other->term_id ) ) );
 	fs_eq( '#123456', wc_get_product( $p->get_id() )->get_meta( '_fisha_card_bg' ), 'owner colour kept' );
 } );
+
+fs_test( 'drafts: the default category is dropped when another category is picked', function () {
+	$def = (int) get_option( 'default_product_cat' );
+	fs_true( $def > 0, 'site has a default product category' );
+	$cat = fs_term( 'drafts-default-cat' );
+	$p   = fisha_studio_product_create( 'zz-test Default Cat New' );
+	fs_on_cleanup( function () use ( $p ) { wp_delete_post( $p->get_id(), true ); } );
+	fisha_studio_product_edit( $p, array( 'category_ids' => array( $def, $cat->term_id ) ) );
+	fs_eq( array( $cat->term_id ), wc_get_product( $p->get_id() )->get_category_ids(), 'new item: default dropped' );
+	$other = fs_term( 'drafts-default-cat-other' );
+	$live  = fs_product( array( 'category_ids' => array( $cat->term_id ) ) );
+	fisha_studio_product_edit( $live, array( 'category_ids' => array( $def, $other->term_id ) ) );
+	fs_eq( array( $other->term_id ), fisha_studio_draft_get( $live->get_id() )['fields']['category_ids'] ?? null, 'live item draft: default dropped' );
+} );
+
+fs_test( 'fields: only the default category counts as no category', function () {
+	$def = (int) get_option( 'default_product_cat' );
+	$p   = fs_product();
+	$e   = fisha_studio_product_validate( array_merge( fisha_studio_product_read( $p ), array( 'category_ids' => array( $def ), 'image_id' => fs_image() ) ), $p );
+	fs_true( isset( $e['category_ids'] ), 'refused' );
+	fs_true( 0 === strpos( $e['category_ids'], 'Pick a category' ), $e['category_ids'] ?? '' );
+	$cat = fs_term( 'fields-default-cat' );
+	$e   = fisha_studio_product_validate( array_merge( fisha_studio_product_read( $p ), array( 'category_ids' => array( $cat->term_id ), 'image_id' => fs_image() ) ), $p );
+	fs_false( isset( $e['category_ids'] ), 'a real category is fine' );
+} );
