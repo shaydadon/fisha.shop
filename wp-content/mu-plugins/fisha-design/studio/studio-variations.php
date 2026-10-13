@@ -90,6 +90,7 @@ function fisha_studio_clean_attributes( $v ): array {
 			return array( $out, 'An option no longer exists. Please reload the page.' );
 		}
 		if ( ! $tax && mb_strlen( $name ) > 40 ) return array( $out, 'Option names can be at most 40 characters.' );
+		if ( ! $tax && '' === sanitize_title( $name ) ) return array( $out, sprintf( '"%s" needs at least one letter or number.', $name ) );
 		$key = strtolower( $tax ? $name : sanitize_title( $name ) );
 		if ( isset( $names[ $key ] ) ) return array( $out, sprintf( '"%s" is listed twice.', $tax ? wc_attribute_label( $name ) : $name ) );
 		$names[ $key ] = true;
@@ -104,6 +105,8 @@ function fisha_studio_clean_attributes( $v ): array {
 			$opts = array();
 			foreach ( (array) ( $a['options'] ?? array() ) as $o ) {
 				$o = trim( sanitize_text_field( (string) $o ) );
+				// WooCommerce stores a product's own values joined with "|", so a value cannot contain it.
+				if ( false !== strpos( $o, '|' ) ) return array( $out, sprintf( 'The value "%s" of %s cannot contain the | sign.', $o, $name ) );
 				if ( '' !== $o && ! in_array( $o, $opts, true ) ) $opts[] = $o;
 			}
 		}
@@ -228,6 +231,7 @@ function fisha_studio_variation_label( WC_Product $v ): string {
 /** A plain-English name for any edited key ("M: Stock", "Price"). */
 function fisha_studio_value_label( WC_Product $p, string $key ): string {
 	if ( 'attributes' === $key ) return 'Sizes and options';
+	if ( 'variations' === $key ) return 'Sizes';
 	$parsed = fisha_studio_parse_var_key( $key );
 	if ( ! $parsed ) return fisha_studio_product_fields()[ $key ]['label'] ?? $key;
 	$v = wc_get_product( $parsed[0] );
@@ -235,6 +239,36 @@ function fisha_studio_value_label( WC_Product $p, string $key ): string {
 }
 
 /* ---------- creating and removing sizes ---------- */
+
+/** Whether WooCommerce has order lines for this product (any size), or for this one size when $vid is given. */
+function fisha_studio_has_orders( int $pid, int $vid = 0 ): bool {
+	global $wpdb;
+	$table = $wpdb->prefix . 'wc_order_product_lookup';
+	if ( $table !== $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $table ) ) ) ) return false;
+	$sql = $vid
+		? $wpdb->prepare( "SELECT 1 FROM $table WHERE variation_id = %d LIMIT 1", $vid )
+		: $wpdb->prepare( "SELECT 1 FROM $table WHERE product_id = %d LIMIT 1", $pid );
+	return (bool) $wpdb->get_var( $sql );
+}
+
+/**
+ * True only for a product made in the Studio that was never published (by the Studio or in WP admin) and never sold.
+ * Only such a product may have sizes deleted or its type switched; a product that was live and then moved back to
+ * Draft keeps everything, because orders and links may point at it.
+ */
+function fisha_studio_never_live( WC_Product $p ): bool {
+	$id = $p->get_id();
+	if ( ! fisha_studio_is_new( $p ) ) return false;
+	if ( '1' !== get_post_meta( $id, FISHA_STUDIO_CREATED_META, true ) ) return false;
+	if ( metadata_exists( 'post', $id, FISHA_STUDIO_PUBLISHED_META ) ) return false;
+	return ! fisha_studio_has_orders( $id );
+}
+
+/** Whether this size may be deleted: a size added in the Studio and never sold, or any size of a never-live product. */
+function fisha_studio_size_deletable( WC_Product $p, int $vid ): bool {
+	if ( fisha_studio_never_live( $p ) ) return true;
+	return '1' === get_post_meta( $vid, FISHA_STUDIO_PENDING_META, true ) && ! fisha_studio_has_orders( $p->get_id(), $vid );
+}
 
 function fisha_studio_combo_key( array $attrs ): string {
 	ksort( $attrs );
@@ -266,7 +300,8 @@ function fisha_studio_variation_create( WC_Product $p, array $attrs ): WC_Produc
 	$v->set_regular_price( fisha_studio_default_size_price( $p ) );
 	$v->set_status( $is_new ? 'publish' : 'private' );
 	$v->set_menu_order( count( fisha_studio_variation_ids( $p ) ) );
-	if ( ! $is_new ) $v->update_meta_data( FISHA_STUDIO_PENDING_META, '1' );
+	// A product that was live and is back in Draft takes the size at once, but marks it pending so it stays deletable until publish.
+	if ( ! $is_new || ! fisha_studio_never_live( $p ) ) $v->update_meta_data( FISHA_STUDIO_PENDING_META, '1' );
 	$v->save();
 	if ( ! $is_new ) {
 		$key = fisha_studio_var_key( $v->get_id(), 'enabled' );
@@ -318,9 +353,8 @@ function fisha_studio_variation_generate( WC_Product $p, array $attributes ) {
 function fisha_studio_variation_remove( WC_Product $p, int $vid ) {
 	$v = wc_get_product( $vid );
 	if ( ! $v || $v->get_parent_id() !== $p->get_id() ) return new WP_Error( 'fisha_studio_not_found', 'This size no longer exists.', array( 'status' => 404 ) );
-	$pending = '1' === get_post_meta( $vid, FISHA_STUDIO_PENDING_META, true );
-	if ( ! $pending && ! fisha_studio_is_new( $p ) ) {
-		return new WP_Error( 'fisha_studio_invalid', 'A size that is already in the shop cannot be deleted. Switch it off instead.', array( 'status' => 409 ) );
+	if ( ! fisha_studio_size_deletable( $p, $vid ) ) {
+		return new WP_Error( 'fisha_studio_invalid', 'A size that was in the shop or has orders cannot be deleted. Switch it off instead.', array( 'status' => 409 ) );
 	}
 	$d      = fisha_studio_draft_get( $p->get_id() );
 	$prefix = "var:$vid:";
@@ -338,10 +372,13 @@ function fisha_studio_variation_discard_pending( int $pid ): void {
 	foreach ( $ids as $vid ) wp_delete_post( (int) $vid, true );
 }
 
-/** Switches a never-published product between "one item" (simple) and "with sizes" (variable). @return WC_Product|WP_Error */
+/** Switches a product that was never live between "one item" (simple) and "with sizes" (variable). @return WC_Product|WP_Error */
 function fisha_studio_set_product_type( WC_Product $p, string $type ) {
 	if ( ! in_array( $type, array( 'simple', 'variable' ), true ) ) return new WP_Error( 'fisha_studio_invalid', 'Unknown product type.', array( 'status' => 422 ) );
-	if ( ! fisha_studio_is_new( $p ) ) return new WP_Error( 'fisha_studio_invalid', 'A product that is already in the shop keeps its type.', array( 'status' => 409 ) );
+	if ( ! $p->is_type( array( 'simple', 'variable' ) ) ) return new WP_Error( 'fisha_studio_unsupported', 'This kind of product can only be edited in WP admin.', array( 'status' => 400 ) );
+	if ( ! fisha_studio_is_new( $p ) || ! fisha_studio_never_live( $p ) ) {
+		return new WP_Error( 'fisha_studio_invalid', 'A product that has been in the shop keeps its type.', array( 'status' => 409 ) );
+	}
 	if ( $p->get_type() === $type ) return $p;
 	$id = $p->get_id();
 	if ( 'simple' === $type ) {
@@ -463,6 +500,10 @@ function fisha_studio_variation_quick( int $vid, array $input, array $seen_input
 		$sale = (string) $v->get_sale_price( 'edit' );
 		if ( '' !== $sale && '' !== $values['regular_price'] && (float) $sale >= (float) $values['regular_price'] ) return $invalid( 'regular_price', 'This size has a sale price that would be higher. Open the product to change both.' );
 	}
+	$whole = true !== $v->get_manage_stock( 'edit' ) && true === $p->get_manage_stock( 'edit' );
+	foreach ( array( 'stock_quantity', 'stock_status' ) as $f ) {
+		if ( $whole && array_key_exists( $f, $values ) ) return $invalid( $f, 'Stock is kept for the whole product. Change it on the product.' );
+	}
 	if ( array_key_exists( 'stock_quantity', $values ) && ! $v->get_manage_stock( 'edit' ) ) return $invalid( 'stock_quantity', 'This size does not count stock. Open the product to turn counting on.' );
 
 	global $wpdb;
@@ -491,7 +532,7 @@ function fisha_studio_variation_quick( int $vid, array $input, array $seen_input
 		$after = array();
 		foreach ( $defs as $f => $def ) $after[ $f ] = fisha_studio_clean( $def, call_user_func( $def['get'], $fresh ) )[0];
 		if ( ! fisha_studio_log( 'variation', $vid, 'quick', $live, $after ) ) throw new RuntimeException( 'audit log write failed: ' . $wpdb->last_error );
-		$wpdb->query( 'COMMIT' );
+		if ( false === $wpdb->query( 'COMMIT' ) ) throw new RuntimeException( 'commit failed: ' . $wpdb->last_error );
 	} catch ( Throwable $e ) {
 		$wpdb->query( 'ROLLBACK' );
 		clean_post_cache( $vid );
@@ -502,4 +543,37 @@ function fisha_studio_variation_quick( int $vid, array $input, array $seen_input
 	}
 	fisha_studio_purge_product( wc_get_product( $p->get_id() ) );
 	return wc_get_product( $vid );
+}
+
+/* ---------- pre-live data check ---------- */
+
+/** Every published or hidden product with sizes that would not pass the publish checks: [{id, name, problems: [label => message]}]. */
+function fisha_studio_check_sizes(): array {
+	$out = array();
+	$ids = get_posts( array(
+		'post_type' => 'product', 'post_status' => array( 'publish', 'private' ), 'numberposts' => -1, 'fields' => 'ids', 'orderby' => 'ID', 'order' => 'ASC',
+		'tax_query' => array( array( 'taxonomy' => 'product_type', 'field' => 'slug', 'terms' => 'variable' ) ),
+	) );
+	foreach ( $ids as $id ) {
+		$p = wc_get_product( (int) $id );
+		if ( ! $p || ! $p->is_type( 'variable' ) ) continue;
+		$errors = fisha_studio_variable_validate( fisha_studio_product_values( $p ), $p );
+		if ( ! $errors ) continue;
+		$problems = array();
+		foreach ( $errors as $key => $msg ) $problems[] = fisha_studio_value_label( $p, (string) $key ) . ': ' . $msg;
+		$out[] = array( 'id' => (int) $id, 'name' => $p->get_name( 'edit' ), 'problems' => $problems );
+	}
+	return $out;
+}
+
+if ( defined( 'WP_CLI' ) && WP_CLI ) {
+	/** wp fisha-studio check-sizes: lists live products with sizes the Studio would refuse to publish as they are. Always exits 0. */
+	WP_CLI::add_command( 'fisha-studio check-sizes', function () {
+		$found = fisha_studio_check_sizes();
+		foreach ( $found as $row ) {
+			WP_CLI::log( sprintf( '#%d %s', $row['id'], $row['name'] ) );
+			foreach ( $row['problems'] as $line ) WP_CLI::log( '  - ' . $line );
+		}
+		WP_CLI::log( sprintf( '%d product%s with sizes need%s a look.', count( $found ), 1 === count( $found ) ? '' : 's', 1 === count( $found ) ? 's' : '' ) );
+	} );
 }

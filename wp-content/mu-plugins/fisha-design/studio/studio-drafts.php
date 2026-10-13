@@ -9,10 +9,17 @@
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 define( 'FISHA_STUDIO_DRAFT_META', '_fisha_studio_draft' );
+define( 'FISHA_STUDIO_CREATED_META', '_fisha_studio_created' );
+define( 'FISHA_STUDIO_PUBLISHED_META', '_fisha_studio_published' );
 
 function fisha_studio_is_new( WC_Product $p ): bool {
 	return in_array( get_post_status( $p->get_id() ), array( 'draft', 'auto-draft', 'pending' ), true );
 }
+
+/** A product that goes live by any route (WP admin too) is marked, so moving it back to Draft never makes it "never live". */
+add_action( 'transition_post_status', function ( $new, $old, $post ) {
+	if ( 'product' === $post->post_type && in_array( $new, array( 'publish', 'private' ), true ) ) update_post_meta( $post->ID, FISHA_STUDIO_PUBLISHED_META, '1' );
+}, 10, 3 );
 
 function fisha_studio_draft_get( int $id ): array {
 	$d = get_post_meta( $id, FISHA_STUDIO_DRAFT_META, true );
@@ -90,6 +97,8 @@ function fisha_studio_product_create( string $name, string $type = 'simple' ): W
 	$p->set_slug( fisha_studio_slug_from_name( $name ) );
 	$p->set_catalog_visibility( 'visible' );
 	$p->set_reviews_allowed( false );
+	// Made here and never published: only such a product may have its sizes deleted or its type switched.
+	$p->update_meta_data( FISHA_STUDIO_CREATED_META, '1' );
 	$p->save();
 	if ( '' === $name ) {
 		// WooCommerce titles an unnamed new product "Product"; keep it empty so the owner types the real name.

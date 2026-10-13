@@ -16,7 +16,8 @@ function fisha_studio_inventory_row( WC_Product $item, ?WC_Product $parent = nul
 	if ( fisha_studio_is_new( $p ) ) $locked = 'Not published yet';
 	elseif ( $parent && '1' === get_post_meta( $item->get_id(), FISHA_STUDIO_PENDING_META, true ) ) $locked = 'New size, not published yet';
 	elseif ( fisha_studio_draft_get( $p->get_id() )['fields'] ) $locked = 'Unpublished changes';
-	$manage = $parent ? true === $item->get_manage_stock( 'edit' ) : (bool) $item->get_manage_stock();
+	$manage = true === $item->get_manage_stock( 'edit' );
+	if ( ! $locked && $parent && ! $manage && true === $parent->get_manage_stock( 'edit' ) ) $locked = 'Stock is kept for the whole product';
 	$qty    = $manage ? $item->get_stock_quantity() : null;
 	$img    = $item->get_image_id() ?: $p->get_image_id();
 	return array(
@@ -34,6 +35,7 @@ function fisha_studio_inventory_row( WC_Product $item, ?WC_Product $parent = nul
 		'low'            => null !== $qty && $qty > 0 && $qty <= fisha_studio_low_threshold( $item ),
 		'thumb'          => $img ? (string) wp_get_attachment_image_url( $img, 'thumbnail' ) : '',
 		'locked'         => $locked,
+		'stock_only'     => ! $parent && $item->is_type( 'variable' ), // a product with sizes counted as a whole: no price of its own
 		'pos'            => 0,
 	);
 }
@@ -48,6 +50,7 @@ function fisha_studio_rest_inventory( WP_REST_Request $r ): array {
 		if ( $p->is_type( 'simple' ) ) {
 			$rows[] = fisha_studio_inventory_row( $p );
 		} elseif ( $p->is_type( 'variable' ) ) {
+			if ( true === $p->get_manage_stock( 'edit' ) ) $rows[] = fisha_studio_inventory_row( $p );
 			foreach ( fisha_studio_variation_ids( $p ) as $vid ) {
 				$v = wc_get_product( $vid );
 				if ( $v ) $rows[] = fisha_studio_inventory_row( $v, $p );

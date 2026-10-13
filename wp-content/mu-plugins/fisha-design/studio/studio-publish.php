@@ -41,6 +41,13 @@ function fisha_studio_publish_product( int $id, array $resolutions = array(), bo
 	global $wpdb;
 	$wpdb->query( 'START TRANSACTION' );
 	try {
+		if ( ! $is_new ) {
+			$stock_error = fisha_studio_lock_and_recheck_stock( $p, $draft, array_keys( $changes ), $resolutions );
+			if ( $stock_error ) {
+				$wpdb->query( 'ROLLBACK' );
+				return $stock_error;
+			}
+		}
 		fisha_studio_product_apply_all( $p, $changes );
 		if ( $is_new ) {
 			$p->set_slug( fisha_studio_unique_product_slug( $after['slug'] ?: fisha_studio_slug_from_name( $after['name'] ), $id ) );
@@ -51,8 +58,12 @@ function fisha_studio_publish_product( int $id, array $resolutions = array(), bo
 		}
 		$p->delete_meta_data( FISHA_STUDIO_DRAFT_META );
 		$p->save();
+		update_post_meta( $id, FISHA_STUDIO_PUBLISHED_META, '1' );
 		if ( $p->is_type( 'variable' ) ) {
-			foreach ( fisha_studio_variation_ids( $p ) as $vid ) delete_post_meta( $vid, FISHA_STUDIO_PENDING_META );
+			// Only a size that goes live stops being pending; one left off stays pending, so Discard or Delete can still remove it.
+			foreach ( fisha_studio_variation_ids( $p ) as $vid ) {
+				if ( ! empty( $after[ fisha_studio_var_key( $vid, 'enabled' ) ] ) ) delete_post_meta( $vid, FISHA_STUDIO_PENDING_META );
+			}
 			WC_Product_Variable::sync( $id );
 		}
 		fisha_studio_default_alts( $p );
@@ -61,7 +72,7 @@ function fisha_studio_publish_product( int $id, array $resolutions = array(), bo
 		if ( ! fisha_studio_log( 'product', $id, $is_new ? 'create' : 'publish', $is_new ? null : $before, fisha_studio_product_values( $fresh ) ) ) {
 			throw new RuntimeException( 'audit log write failed: ' . $wpdb->last_error );
 		}
-		$wpdb->query( 'COMMIT' );
+		if ( false === $wpdb->query( 'COMMIT' ) ) throw new RuntimeException( 'commit failed: ' . $wpdb->last_error );
 	} catch ( Throwable $e ) {
 		$wpdb->query( 'ROLLBACK' );
 		clean_post_cache( $id );
@@ -78,6 +89,36 @@ function fisha_studio_publish_product( int $id, array $resolutions = array(), bo
 
 	fisha_studio_purge_product( wc_get_product( $id ), $before['category_ids'] );
 	return array( 'id' => $id, 'url' => get_permalink( $id ) );
+}
+
+/**
+ * Inside the publish transaction, before any write: locks the stock rows of the product and the sizes whose stock is
+ * written ($keys = the keys being published), so an order placed now waits, then checks for conflicts again on fresh
+ * values. A conflict the owner has not answered yet ($resolutions) means the caller rolls back and asks.
+ */
+function fisha_studio_lock_and_recheck_stock( WC_Product $p, array $draft, array $keys, array $resolutions ): ?WP_Error {
+	global $wpdb;
+	$id    = $p->get_id();
+	$stock = array( 'stock_quantity', 'manage_stock' );
+	$ids   = array();
+	foreach ( $keys as $k ) {
+		$parsed = fisha_studio_parse_var_key( (string) $k );
+		if ( $parsed && in_array( $parsed[1], $stock, true ) ) $ids[ $parsed[0] ] = true;
+		elseif ( in_array( (string) $k, $stock, true ) ) $ids[ $id ] = true;
+	}
+	if ( ! $ids ) return null;
+	$in = implode( ',', array_map( 'intval', array_keys( $ids ) ) );
+	$wpdb->get_col( "SELECT meta_value FROM {$wpdb->postmeta} WHERE post_id IN ($in) AND meta_key = '_stock' FOR UPDATE" );
+	do_action( 'fisha_studio_before_stock_recheck', $id );
+	foreach ( array_unique( array_merge( array( $id ), array_keys( $ids ) ) ) as $x ) {
+		clean_post_cache( $x );
+		wc_delete_product_transients( $x );
+		if ( class_exists( 'WC_Cache_Helper' ) ) WC_Cache_Helper::invalidate_cache_group( 'product_' . $x );
+	}
+	$open = array_values( array_filter( fisha_studio_conflicts( wc_get_product( $id ), $draft ), function ( $c ) use ( $resolutions ) {
+		return ! in_array( $resolutions[ $c['field'] ] ?? '', array( 'mine', 'live' ), true );
+	} ) );
+	return $open ? new WP_Error( 'fisha_studio_conflict', 'Some details changed on the site while you were editing.', array( 'status' => 409, 'conflicts' => $open ) ) : null;
 }
 
 function fisha_studio_first_menu_order( array $cat_ids ): int {

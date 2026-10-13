@@ -66,6 +66,8 @@ function fisha_studio_product_payload( WC_Product $p ): array {
 		'images'       => (object) $images,
 		'conflicts'    => $is_new ? array() : fisha_studio_conflicts( $p, $draft ),
 		'variations'   => fisha_studio_variations_payload( $p ),
+		// Sizes can be deleted and the type switched only while the product has never been live (and never sold).
+		'restructurable' => fisha_studio_never_live( $p ),
 	);
 }
 
@@ -98,14 +100,21 @@ function fisha_studio_variations_payload( WC_Product $p ): array {
 	foreach ( fisha_studio_variation_ids( $p ) as $vid ) {
 		$v = wc_get_product( $vid );
 		if ( ! $v ) continue;
-		$out[] = array( 'id' => $vid, 'label' => fisha_studio_variation_label( $v ), 'attrs' => (object) $v->get_attributes( 'edit' ), 'pending' => '1' === get_post_meta( $vid, FISHA_STUDIO_PENDING_META, true ) );
+		$out[] = array(
+			'id'        => $vid,
+			'label'     => fisha_studio_variation_label( $v ),
+			'attrs'     => (object) $v->get_attributes( 'edit' ),
+			'pending'   => '1' === get_post_meta( $vid, FISHA_STUDIO_PENDING_META, true ),
+			'deletable' => fisha_studio_size_deletable( $p, $vid ),
+		);
 	}
 	return $out;
 }
 
 function fisha_studio_product_row( WC_Product $p ): array {
 	$sizes = $p->is_type( 'variable' );
-	$qty   = ( ! $sizes && $p->get_manage_stock() ) ? $p->get_stock_quantity() : null;
+	// A product with sizes can count its stock as a whole (then the sizes do not count their own).
+	$qty   = true === $p->get_manage_stock( 'edit' ) ? $p->get_stock_quantity() : null;
 	$low   = null !== $qty && $qty > 0 && $qty <= fisha_studio_low_threshold( $p );
 	if ( $sizes ) {
 		foreach ( fisha_studio_variation_ids( $p ) as $vid ) {
@@ -203,6 +212,9 @@ function fisha_studio_rest_products_draft( WP_REST_Request $r ) {
 	$body = fisha_studio_body( $r );
 	list( $values, $errors ) = fisha_studio_sanitize_product_input( $p, (array) ( $body['fields'] ?? array() ) );
 	$values = array_diff_key( $values, $errors );
+	// A SKU already in use is reported on its own key and the rest of the batch is still saved.
+	$errors += fisha_studio_taken_skus( $p, $values );
+	$values  = array_diff_key( $values, $errors );
 	if ( $values ) {
 		try {
 			fisha_studio_product_edit( $p, $values, fisha_studio_clean_seen( $body['seen'] ?? array(), $p ) );
@@ -216,6 +228,28 @@ function fisha_studio_rest_products_draft( WP_REST_Request $r ) {
 		}
 	}
 	return array_merge( fisha_studio_product_payload( wc_get_product( $p->get_id() ) ), array( 'field_errors' => (object) $errors ) );
+}
+
+/** Errors for the SKUs in an edit ("sku", "var:{id}:sku") that another product or size uses, or that repeat within the edit. */
+function fisha_studio_taken_skus( WC_Product $p, array $values ): array {
+	$errors = array();
+	$batch  = array();
+	$keys   = array_keys( $values );
+	usort( $keys, function ( $a, $b ) { return ( 'sku' === $b ) <=> ( 'sku' === $a ); } ); // the product's own SKU first
+	foreach ( $keys as $k ) {
+		$k      = (string) $k;
+		$parsed = fisha_studio_parse_var_key( $k );
+		if ( 'sku' !== $k && ! ( $parsed && 'sku' === $parsed[1] ) ) continue;
+		$sku = (string) $values[ $k ];
+		if ( '' === $sku ) continue;
+		$owner = $parsed ? $parsed[0] : $p->get_id();
+		if ( isset( $batch[ $sku ] ) || ! wc_product_has_unique_sku( $owner, $sku ) ) {
+			$errors[ $k ] = 'Another product or size already uses this SKU.';
+			continue;
+		}
+		$batch[ $sku ] = true;
+	}
+	return $errors;
 }
 
 function fisha_studio_rest_products_discard( WP_REST_Request $r ) {
@@ -237,12 +271,18 @@ function fisha_studio_rest_products_publish( WP_REST_Request $r ) {
 function fisha_studio_rest_products_quick( WP_REST_Request $r ) {
 	$p = fisha_studio_rest_product( $r );
 	if ( is_wp_error( $p ) ) return $p;
-	if ( ! $p->is_type( 'simple' ) || fisha_studio_is_new( $p ) ) return new WP_Error( 'fisha_studio_unsupported', 'Open this product to edit it.', array( 'status' => 400 ) );
+	$body = fisha_studio_body( $r );
+	$sent = (array) ( $body['fields'] ?? array() );
+	// A product with sizes whose stock is counted as a whole: only that stock count can be changed here.
+	$whole = $p->is_type( 'variable' ) && true === $p->get_manage_stock( 'edit' );
+	if ( ( ! $p->is_type( 'simple' ) && ! $whole ) || fisha_studio_is_new( $p ) ) return new WP_Error( 'fisha_studio_unsupported', 'Open this product to edit it.', array( 'status' => 400 ) );
+	if ( $whole && array( 'stock_quantity' ) !== array_keys( $sent ) ) {
+		return new WP_Error( 'fisha_studio_unsupported', 'Only the stock count of this product can be changed here. Open it to change the rest.', array( 'status' => 400 ) );
+	}
 	if ( fisha_studio_draft_get( $p->get_id() )['fields'] ) {
 		return new WP_Error( 'fisha_studio_has_draft', 'This product has unpublished changes. Open it to review and publish them together.', array( 'status' => 409 ) );
 	}
-	$body  = fisha_studio_body( $r );
-	$input = array_intersect_key( (array) ( $body['fields'] ?? array() ), array_flip( array( 'regular_price', 'stock_quantity', 'stock_status' ) ) );
+	$input = array_intersect_key( $sent, array_flip( array( 'regular_price', 'stock_quantity', 'stock_status' ) ) );
 	list( $values, $errors ) = fisha_studio_sanitize( fisha_studio_product_fields(), $input );
 	if ( $errors ) return new WP_Error( 'fisha_studio_invalid', reset( $errors ), array( 'status' => 422, 'fields' => $errors ) );
 	// Quick edit publishes at once, so refuse when a sent field changed on the site since the list was loaded (an order).
