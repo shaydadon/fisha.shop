@@ -28,3 +28,10 @@ fs_test( 'seo: preview shows the draft SEO text', function () {
 	fs_view( $p->get_id() );
 	fs_eq( 'Draft description.', fisha_seo_description() );
 } );
+
+fs_test( 'seo: the product SEO title is printed escaped', function () {
+	$p = fs_product();
+	update_post_meta( $p->get_id(), 'fisha_seo_title', 'Black & White <b>' );
+	fs_view( $p->get_id() );
+	fs_eq( 'Black &amp; White &lt;b&gt; | ' . get_bloginfo( 'name' ), apply_filters( 'pre_get_document_title', '' ) );
+} );

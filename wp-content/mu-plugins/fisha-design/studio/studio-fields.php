@@ -86,8 +86,9 @@ function fisha_studio_clean( array $def, $v ): array {
 	$label = $def['label'] ?? 'This field';
 	switch ( $def['type'] ) {
 		case 'text':
-			// WordPress stores some text with entities (a title's "&" as "&amp;"): decode, so read and sent values compare equal.
-			$v = fisha_studio_plain( trim( sanitize_text_field( (string) $v ) ) );
+			// WordPress stores some text with entities (a title's "&" as "&amp;"): decode, so read and sent values compare
+			// equal. Decode first, then sanitize, so encoded tags ("&lt;script&gt;") are stripped like typed ones.
+			$v = trim( sanitize_text_field( fisha_studio_plain( (string) $v ) ) );
 			if ( isset( $def['max'] ) && mb_strlen( $v ) > $def['max'] ) return array( $v, sprintf( '%s can be at most %d characters.', $label, $def['max'] ) );
 			return array( $v, null );
 

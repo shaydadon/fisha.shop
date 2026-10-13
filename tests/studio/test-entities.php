@@ -61,3 +61,13 @@ fs_test( 'entities: category names and paths, option values and size labels are 
 	$v->save();
 	fs_false( strpos( fisha_studio_variation_label( wc_get_product( $v->get_id() ) ), '&amp;' ), 'size label decoded' );
 } );
+
+fs_test( 'entities: decoding never brings back tags', function () {
+	$name = fisha_studio_product_fields()['seo_title'];
+	$out  = fisha_studio_clean( $name, '&lt;script&gt;alert(1)&lt;/script&gt;Hi' )[0];
+	fs_false( false !== strpos( $out, '<' ) || false !== strpos( $out, '>' ), 'no tags: ' . $out );
+	fs_false( false !== stripos( $out, 'script' ) && false !== strpos( $out, '<' ), 'no script tag' );
+	$out = fisha_studio_clean( $name, '&lt;/title&gt;&lt;script&gt;x()&lt;/script&gt;' )[0];
+	fs_false( false !== strpos( $out, '<' ), 'no tags: ' . $out );
+	fs_eq( 'Black & White', fisha_studio_clean( $name, 'Black &amp; White' )[0] );
+} );

@@ -51,8 +51,10 @@ function fisha_studio_publish_product( int $id, array $resolutions = array(), bo
 		$changes['status'] = fisha_studio_target_status( $p );
 	}
 
-	$after  = array_merge( $before, $changes );
-	$errors = fisha_studio_product_validate( $after, $p );
+	// "Fixed amount" never sells beyond the count: whatever this publish leaves counted also stops backorders (logged with the rest).
+	$changes = array_merge( $changes, fisha_studio_backorder_fixes( array_merge( $before, $changes ), $p ) );
+	$after   = array_merge( $before, $changes );
+	$errors  = fisha_studio_product_validate( $after, $p );
 	if ( $p->is_type( 'variable' ) ) $errors += fisha_studio_variable_validate( $after, $p );
 	if ( $errors ) return new WP_Error( 'fisha_studio_invalid', 'Please check the highlighted fields.', array( 'status' => 422, 'fields' => $errors ) );
 
@@ -107,6 +109,17 @@ function fisha_studio_publish_product( int $id, array $resolutions = array(), bo
 
 	fisha_studio_purge_product( wc_get_product( $id ), $before['category_ids'] );
 	return array( 'id' => $id, 'url' => get_permalink( $id ) );
+}
+
+/** backorders 'no' for the product and each size that counts stock ($after = live values merged with the changes) but still allows backorders. */
+function fisha_studio_backorder_fixes( array $after, WC_Product $p ): array {
+	$out = array();
+	if ( ! empty( $after['manage_stock'] ) && 'no' !== ( $after['backorders'] ?? 'no' ) ) $out['backorders'] = 'no';
+	foreach ( fisha_studio_variation_ids( $p ) as $vid ) {
+		$k = fisha_studio_var_key( $vid, 'backorders' );
+		if ( ! empty( $after[ fisha_studio_var_key( $vid, 'manage_stock' ) ] ) && 'no' !== ( $after[ $k ] ?? 'no' ) ) $out[ $k ] = 'no';
+	}
+	return $out;
 }
 
 /**

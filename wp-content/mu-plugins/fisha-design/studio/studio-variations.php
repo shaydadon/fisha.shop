@@ -33,6 +33,7 @@ function fisha_studio_variation_fields(): array {
 		'stock_quantity' => $prop( 'stock_quantity', 'int', array( 'label' => 'Stock', 'nullable' => true, 'min' => 0,
 			'get' => function ( WC_Product $v ) { return true === $v->get_manage_stock( 'edit' ) ? $v->get_stock_quantity( 'edit' ) : null; } ) ),
 		'stock_status'   => $prop( 'stock_status', 'enum', array( 'label' => 'Stock status', 'options' => array( 'instock', 'outofstock', 'onbackorder' ) ) ),
+		'backorders'     => $prop( 'backorders', 'enum', array( 'label' => 'Orders when sold out', 'options' => array( 'no', 'notify', 'yes' ) ) ),
 		'image_id'       => $prop( 'image_id', 'attachment', array( 'label' => 'Photo' ) ),
 	);
 	return $fields;
@@ -218,8 +219,6 @@ function fisha_studio_product_apply_all( WC_Product $p, array $values ): void {
 		$var = wc_get_product( $vid );
 		if ( ! $var || $var->get_parent_id() !== $p->get_id() ) continue;
 		foreach ( $fields as $f => $x ) call_user_func( $defs[ $f ]['set'], $var, $x );
-		// "Fixed amount" sells at most the count (the product itself gets backorders 'no' from the Studio with the same choice).
-		if ( true === ( $fields['manage_stock'] ?? null ) ) $var->set_backorders( 'no' );
 		$var->save();
 	}
 }
@@ -550,12 +549,13 @@ function fisha_studio_variation_quick( int $vid, array $input, array $seen_input
 			$wpdb->query( 'ROLLBACK' );
 			return $refused( $conflicts );
 		}
-		$logged = $defs + array( 'manage_stock' => fisha_studio_variation_fields()['manage_stock'] );
+		$logged = $defs + array_intersect_key( fisha_studio_variation_fields(), array_flip( array( 'manage_stock', 'backorders' ) ) );
 		$live   = array();
 		foreach ( $logged as $f => $def ) $live[ $f ] = fisha_studio_clean( $def, call_user_func( $def['get'], $cur ) )[0];
 		if ( null !== $counting ) $cur->set_manage_stock( $counting );
-		if ( true === $counting ) $cur->set_backorders( 'no' );
 		foreach ( $values as $f => $x ) call_user_func( $defs[ $f ]['set'], $cur, $x );
+		// "Fixed amount" never sells beyond the count, also for a size that allowed backorders before.
+		if ( true === $cur->get_manage_stock( 'edit' ) ) $cur->set_backorders( 'no' );
 		$cur->save();
 		WC_Product_Variable::sync( $p->get_id() );
 		$fresh = wc_get_product( $vid );

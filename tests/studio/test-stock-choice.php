@@ -127,3 +127,49 @@ fs_test( 'stock choice: inventory flags uncounted rows and filters them', functi
 	list( , $d ) = fs_api( 'GET', '/products', array( 'search' => $u->get_name() ) );
 	fs_false( $d['items'][0]['counted'] );
 } );
+
+/* ---------- Fix round 1: a fixed amount never oversells ---------- */
+
+fs_test( 'stock choice: a quick edit of a counted product that allowed backorders stops them', function () {
+	$p = fs_product( array( 'image_id' => fs_image(), 'category_ids' => array( fs_term( 'bo-' . wp_rand() )->term_id ), 'manage_stock' => true, 'stock_quantity' => 3, 'backorders' => 'yes' ) );
+	fs_as( FISHA_STUDIO_ROLE );
+	list( $st, $row ) = fs_api( 'POST', '/products/' . $p->get_id() . '/quick', array( 'fields' => array( 'stock_quantity' => '5' ), 'seen' => array( 'stock_quantity' => 3 ) ) );
+	fs_eq( 200, $st, wp_json_encode( $row ) );
+	fs_eq( 'no', wc_get_product( $p->get_id() )->get_backorders( 'edit' ) );
+} );
+
+fs_test( 'stock choice: a quick edit of a counted size that allowed backorders stops them', function () {
+	$p = fs_variable( array( 's' ) );
+	$s = fs_var_id( $p, 's' );
+	$v = wc_get_product( $s );
+	$v->set_manage_stock( true );
+	$v->set_stock_quantity( 3 );
+	$v->set_backorders( 'notify' );
+	$v->save();
+	$r = fisha_studio_variation_quick( $s, array( 'stock_quantity' => 5 ), array( 'stock_quantity' => 3 ) );
+	fs_true( $r instanceof WC_Product_Variation, is_wp_error( $r ) ? $r->get_error_message() : '' );
+	fs_eq( 'no', wc_get_product( $s )->get_backorders( 'edit' ) );
+	fs_eq( 'no', fisha_studio_log_for( 'variation', $s )[0]['after']['backorders'] );
+} );
+
+fs_test( 'stock choice: publishing a counted product or size that allowed backorders stops them (logged)', function () {
+	$p = fs_product( array( 'image_id' => fs_image(), 'category_ids' => array( fs_term( 'bo-' . wp_rand() )->term_id ), 'manage_stock' => true, 'stock_quantity' => 3, 'backorders' => 'yes' ) );
+	fisha_studio_product_edit( $p, array( 'stock_quantity' => 5 ), array( 'stock_quantity' => 3 ) );
+	$r = fisha_studio_publish_product( $p->get_id() );
+	fs_false( is_wp_error( $r ), is_wp_error( $r ) ? wp_json_encode( $r->get_error_data() ) : '' );
+	fs_eq( 'no', wc_get_product( $p->get_id() )->get_backorders( 'edit' ) );
+	fs_eq( 'no', fisha_studio_log_for( 'product', $p->get_id() )[0]['after']['backorders'] );
+
+	$q = fs_ready_variable( array( 's' ) );
+	$s = fs_var_id( $q, 's' );
+	$v = wc_get_product( $s );
+	$v->set_manage_stock( true );
+	$v->set_stock_quantity( 3 );
+	$v->set_backorders( 'yes' );
+	$v->save();
+	fisha_studio_product_edit( wc_get_product( $q->get_id() ), array( "var:$s:stock_quantity" => 5 ), array( "var:$s:stock_quantity" => 3 ) );
+	$r = fisha_studio_publish_product( $q->get_id() );
+	fs_false( is_wp_error( $r ), is_wp_error( $r ) ? wp_json_encode( $r->get_error_data() ) : '' );
+	fs_eq( 'no', wc_get_product( $s )->get_backorders( 'edit' ) );
+	fs_eq( 'no', fisha_studio_log_for( 'product', $q->get_id() )[0]['after']["var:$s:backorders"] );
+} );

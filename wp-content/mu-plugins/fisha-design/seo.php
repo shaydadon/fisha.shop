@@ -121,7 +121,8 @@ add_filter( 'pre_get_document_title', function ( $title ) {
 		return $title;
 	}
 	$custom = trim( (string) get_post_meta( get_queried_object_id(), 'fisha_seo_title', true ) );
-	return '' !== $custom ? $custom . ' | ' . get_bloginfo( 'name' ) : $title;
+	// Escaped here as well: whatever the meta holds is printed inside <title> as text.
+	return '' !== $custom ? esc_html( $custom ) . ' | ' . get_bloginfo( 'name' ) : $title;
 }, 25 );
 
 add_action( 'wp_head', function () {
