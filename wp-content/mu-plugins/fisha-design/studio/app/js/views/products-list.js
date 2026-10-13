@@ -116,15 +116,33 @@ export function productsList( main ) {
 		}
 		async function quickSave() {
 			const fields = {};
-			if ( price.tagName === 'INPUT' && price.value !== r.regular_price ) fields.regular_price = price.value;
-			if ( stock.tagName === 'INPUT' && stock.value !== String( r.stock_quantity ?? '' ) ) fields.stock_quantity = stock.value;
+			const seen = {};
+			if ( price.tagName === 'INPUT' && price.value !== r.regular_price ) {
+				fields.regular_price = price.value;
+				seen.regular_price = r.regular_price;
+			}
+			if ( stock.tagName === 'INPUT' && stock.value !== String( r.stock_quantity ?? '' ) ) {
+				fields.stock_quantity = stock.value;
+				seen.stock_quantity = r.stock_quantity;
+			}
 			save.disabled = true;
 			try {
-				const next = await api( 'POST', `products/${ r.id }/quick`, { fields } );
+				const next = await api( 'POST', `products/${ r.id }/quick`, { fields, seen } );
 				tr.replaceWith( row( next ) );
 				toast( `${ r.name } is updated on the site.` );
 			} catch ( e ) {
 				save.disabled = false;
+				if ( e.code === 'fisha_studio_conflict' ) {
+					// Something (usually an order) changed it on the site after this list loaded: show the new values, write nothing.
+					for ( const c of e.data.conflicts || [] ) {
+						const now = c.live === null || c.live === '' ? 'not set' : String( c.live );
+						toast( c.field === 'stock_quantity'
+							? `Stock changed on the site since this page loaded (probably an order). Now: ${ now }.`
+							: `${ c.label } changed on the site since this page loaded. Now: ${ now }.`, 'error' );
+					}
+					load();
+					return;
+				}
 				toast( e.message, 'error' );
 			}
 		}

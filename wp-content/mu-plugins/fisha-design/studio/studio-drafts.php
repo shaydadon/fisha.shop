@@ -1,8 +1,9 @@
 <?php
 /**
  * Fisha Studio drafts. Edits to a live product are kept in one post meta ({fields, base, user, updated}) until
- * Publish; "base" remembers the live value of each edited field at the moment editing started, so a change made
- * on the site meanwhile (an order lowering stock) is noticed. A product created in the Studio is a normal
+ * Publish; "base" remembers the value of each edited field the owner saw when editing started (sent by the Studio
+ * as "seen", or the live value when it is not sent), so a change made on the site meanwhile (an order lowering
+ * stock) is noticed. A product created in the Studio is a normal
  * WooCommerce draft: its edits apply directly and customers cannot see it.
  */
 if ( ! defined( 'ABSPATH' ) ) exit;
@@ -19,13 +20,14 @@ function fisha_studio_draft_get( int $id ): array {
 	return ( is_array( $d ) && isset( $d['fields'] ) && is_array( $d['fields'] ) ) ? array_merge( $empty, $d ) : $empty;
 }
 
-function fisha_studio_draft_save( WC_Product $p, array $values ): array {
+/** $seen: cleaned values the owner had on screen, keyed by field; the base of a field entering the draft. */
+function fisha_studio_draft_save( WC_Product $p, array $values, array $seen = array() ): array {
 	$id   = $p->get_id();
 	$d    = fisha_studio_draft_get( $id );
 	$live = fisha_studio_product_read( $p );
 	foreach ( $values as $k => $v ) {
 		if ( ! array_key_exists( $k, $live ) ) continue;
-		if ( ! array_key_exists( $k, $d['base'] ) ) $d['base'][ $k ] = $live[ $k ];
+		if ( ! array_key_exists( $k, $d['base'] ) ) $d['base'][ $k ] = array_key_exists( $k, $seen ) ? $seen[ $k ] : $live[ $k ];
 		$d['fields'][ $k ] = $v;
 		if ( fisha_studio_same( $v, $live[ $k ] ) && fisha_studio_same( $d['base'][ $k ], $live[ $k ] ) ) {
 			unset( $d['fields'][ $k ], $d['base'][ $k ] );
@@ -87,10 +89,17 @@ function fisha_studio_product_create( string $name ): WC_Product_Simple {
 	return $p;
 }
 
-/** The one entry point for an edit coming from the Studio. $values must already be cleaned. */
-function fisha_studio_product_edit( WC_Product $p, array $values ): void {
+/** Cleans the "seen" values sent with an edit; unknown keys and values that do not clean are dropped. */
+function fisha_studio_clean_seen( $seen ): array {
+	if ( ! is_array( $seen ) ) return array();
+	list( $values, $errors ) = fisha_studio_sanitize( fisha_studio_product_fields(), $seen );
+	return array_diff_key( $values, $errors );
+}
+
+/** The one entry point for an edit coming from the Studio. $values and $seen must already be cleaned. */
+function fisha_studio_product_edit( WC_Product $p, array $values, array $seen = array() ): void {
 	if ( ! fisha_studio_is_new( $p ) ) {
-		fisha_studio_draft_save( $p, $values );
+		fisha_studio_draft_save( $p, $values, $seen );
 		return;
 	}
 	$id = $p->get_id();

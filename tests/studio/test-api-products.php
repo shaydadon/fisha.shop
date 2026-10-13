@@ -128,3 +128,47 @@ fs_test( 'api products: sku search finds the parent of a variation and respects 
 	list( , $d ) = fs_api( 'GET', '/products', array( 'search' => $sku, 'category' => $b ) );
 	fs_false( in_array( $pid, wp_list_pluck( $d['items'], 'id' ), true ), 'category filter respected' );
 } );
+
+fs_test( 'api products: quick edit refuses when stock moved since the list loaded (seen)', function () {
+	$p = fs_ready_product( array( 'manage_stock' => true, 'stock_quantity' => 1 ) );
+	fs_as( FISHA_STUDIO_ROLE );
+	wc_update_product_stock( $p->get_id(), 0, 'set' );                           // a customer bought the last one
+	list( $s, $d ) = fs_api( 'POST', '/products/' . $p->get_id() . '/quick', array( 'fields' => array( 'stock_quantity' => '3' ), 'seen' => array( 'stock_quantity' => 1 ) ) );
+	fs_eq( 409, $s, wp_json_encode( $d ) );
+	fs_eq( 'fisha_studio_conflict', $d['code'] );
+	fs_eq( 'stock_quantity', $d['data']['conflicts'][0]['field'] );
+	fs_eq( 1, $d['data']['conflicts'][0]['base'] );
+	fs_eq( 0, $d['data']['conflicts'][0]['live'] );
+	fs_eq( 3, $d['data']['conflicts'][0]['mine'] );
+	fs_eq( 0, wc_get_product( $p->get_id() )->get_stock_quantity(), 'stock not overwritten' );
+	fs_eq( array(), fisha_studio_draft_get( $p->get_id() )['fields'], 'nothing saved' );
+	list( $s, $row ) = fs_api( 'POST', '/products/' . $p->get_id() . '/quick', array( 'fields' => array( 'stock_quantity' => '3' ), 'seen' => array( 'stock_quantity' => 0 ) ) );
+	fs_eq( 200, $s, 'a fresh seen value goes through' );
+	fs_eq( 3, $row['stock_quantity'] );
+} );
+
+fs_test( 'api products: draft PUT uses seen as the base, so publish reports the conflict', function () {
+	$p = fs_ready_product( array( 'manage_stock' => true, 'stock_quantity' => 3 ) );
+	fs_as( FISHA_STUDIO_ROLE );
+	wc_update_product_stock( $p->get_id(), 2, 'set' );                           // order lands before the first edit reaches the server
+	list( $s ) = fs_api( 'PUT', '/products/' . $p->get_id() . '/draft', array( 'fields' => array( 'stock_quantity' => 5 ), 'seen' => array( 'stock_quantity' => '3' ) ) );
+	fs_eq( 200, $s );
+	fs_eq( 3, fisha_studio_draft_get( $p->get_id() )['base']['stock_quantity'], 'base is what the owner saw (cleaned)' );
+	list( $s, $d ) = fs_api( 'POST', '/products/' . $p->get_id() . '/publish' );
+	fs_eq( 409, $s, wp_json_encode( $d ) );
+	fs_eq( 3, $d['data']['conflicts'][0]['base'] );
+	fs_eq( 2, $d['data']['conflicts'][0]['live'] );
+	fs_eq( 2, wc_get_product( $p->get_id() )->get_stock_quantity(), 'live untouched' );
+} );
+
+fs_test( 'api products: without seen, draft base and quick edit behave as before', function () {
+	$p = fs_ready_product( array( 'manage_stock' => true, 'stock_quantity' => 3 ) );
+	fs_as( FISHA_STUDIO_ROLE );
+	wc_update_product_stock( $p->get_id(), 2, 'set' );
+	fs_api( 'PUT', '/products/' . $p->get_id() . '/draft', array( 'fields' => array( 'stock_quantity' => 5 ) ) );
+	fs_eq( 2, fisha_studio_draft_get( $p->get_id() )['base']['stock_quantity'], 'base is the live value' );
+	fs_api( 'DELETE', '/products/' . $p->get_id() . '/draft' );
+	list( $s, $row ) = fs_api( 'POST', '/products/' . $p->get_id() . '/quick', array( 'fields' => array( 'stock_quantity' => '4' ) ) );
+	fs_eq( 200, $s );
+	fs_eq( 4, $row['stock_quantity'] );
+} );

@@ -145,9 +145,10 @@ function fisha_studio_rest_products_draft( WP_REST_Request $r ) {
 	$p = fisha_studio_rest_product( $r );
 	if ( is_wp_error( $p ) ) return $p;
 	if ( ! $p->is_type( 'simple' ) ) return new WP_Error( 'fisha_studio_unsupported', 'Products with sizes or options can be edited in the Studio soon.', array( 'status' => 400 ) );
-	list( $values, $errors ) = fisha_studio_sanitize( fisha_studio_product_fields(), (array) ( fisha_studio_body( $r )['fields'] ?? array() ) );
+	$body = fisha_studio_body( $r );
+	list( $values, $errors ) = fisha_studio_sanitize( fisha_studio_product_fields(), (array) ( $body['fields'] ?? array() ) );
 	$values = array_diff_key( $values, $errors );
-	if ( $values ) fisha_studio_product_edit( $p, $values );
+	if ( $values ) fisha_studio_product_edit( $p, $values, fisha_studio_clean_seen( $body['seen'] ?? array() ) );
 	return array_merge( fisha_studio_product_payload( wc_get_product( $p->get_id() ) ), array( 'field_errors' => (object) $errors ) );
 }
 
@@ -174,10 +175,22 @@ function fisha_studio_rest_products_quick( WP_REST_Request $r ) {
 	if ( fisha_studio_draft_get( $p->get_id() )['fields'] ) {
 		return new WP_Error( 'fisha_studio_has_draft', 'This product has unpublished changes. Open it to review and publish them together.', array( 'status' => 409 ) );
 	}
-	$input = array_intersect_key( (array) ( fisha_studio_body( $r )['fields'] ?? array() ), array_flip( array( 'regular_price', 'stock_quantity', 'stock_status' ) ) );
+	$body  = fisha_studio_body( $r );
+	$input = array_intersect_key( (array) ( $body['fields'] ?? array() ), array_flip( array( 'regular_price', 'stock_quantity', 'stock_status' ) ) );
 	list( $values, $errors ) = fisha_studio_sanitize( fisha_studio_product_fields(), $input );
 	if ( $errors ) return new WP_Error( 'fisha_studio_invalid', reset( $errors ), array( 'status' => 422, 'fields' => $errors ) );
-	fisha_studio_draft_save( $p, $values );
+	// Quick edit publishes at once, so refuse when a sent field changed on the site since the list was loaded (an order).
+	$seen      = array_intersect_key( fisha_studio_clean_seen( $body['seen'] ?? array() ), $values );
+	$live      = fisha_studio_product_read( $p );
+	$schema    = fisha_studio_product_fields();
+	$conflicts = array();
+	foreach ( $seen as $k => $was ) {
+		if ( ! fisha_studio_same( $was, $live[ $k ] ) ) {
+			$conflicts[] = array( 'field' => $k, 'label' => $schema[ $k ]['label'] ?? $k, 'base' => $was, 'live' => $live[ $k ], 'mine' => $values[ $k ] );
+		}
+	}
+	if ( $conflicts ) return new WP_Error( 'fisha_studio_conflict', 'This changed on the site since the list was loaded, so nothing was changed.', array( 'status' => 409, 'conflicts' => $conflicts ) );
+	fisha_studio_draft_save( $p, $values, $seen );
 	$res = fisha_studio_publish_product( $p->get_id() );
 	if ( is_wp_error( $res ) ) {
 		fisha_studio_draft_discard( $p->get_id() );

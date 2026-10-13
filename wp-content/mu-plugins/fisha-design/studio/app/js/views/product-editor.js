@@ -70,9 +70,13 @@ export function productEditor( main, id ) {
 	async function saveOnce() {
 		const fields = ed.pending;
 		ed.pending = {};
+		// The live values the owner had on screen (from the last payload): the server uses them as the base of a field's
+		// first edit, so an order that lands before that edit reaches the server still shows up as a conflict on Publish.
+		const seen = {};
+		for ( const k of Object.keys( fields ) ) if ( ed.data.live && k in ed.data.live ) seen[ k ] = ed.data.live[ k ];
 		let ok = true;
 		try {
-			const d = await api( 'PUT', `products/${ id }/draft`, { fields } );
+			const d = await api( 'PUT', `products/${ id }/draft`, { fields, seen } );
 			if ( ! ed.alive ) return ok;
 			apply( d );
 			const errs = d.field_errors || {};
