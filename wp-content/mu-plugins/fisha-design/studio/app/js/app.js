@@ -5,12 +5,14 @@ import { h } from './ui.js';
 import { config } from './api.js';
 import { productsList } from './views/products-list.js';
 import { productEditor } from './views/product-editor.js';
+import { inventoryView } from './views/inventory.js';
 
 const root = document.getElementById( 'fs-app' );
 const main = h( 'main.fs-main', { id: 'fs-main', tabindex: '-1' } );
 const offline = h( 'div.fs-offline', { role: 'status', hidden: true }, 'You are offline. Your changes are kept and will be saved when the connection is back.' );
 const nav = h( 'nav.fs-nav', { 'aria-label': 'Studio sections' },
-	h( 'a.fs-nav__item', { href: '#/products', dataset: { section: 'products' } }, 'Products' ) );
+	h( 'a.fs-nav__item', { href: '#/products', dataset: { section: 'products' } }, 'Products' ),
+	h( 'a.fs-nav__item', { href: '#/inventory', dataset: { section: 'inventory' } }, 'Inventory' ) );
 
 root.replaceChildren(
 	h( 'header.fs-top', {},
@@ -26,6 +28,7 @@ window.addEventListener( 'fs:online', ( e ) => { offline.hidden = e.detail; } );
 const routes = [
 	[ /^#\/products$/, () => productsList( main ) ],
 	[ /^#\/products\/(\d+)$/, ( m ) => productEditor( main, Number( m[ 1 ] ) ) ],
+	[ /^#\/inventory$/, () => inventoryView( main ) ],
 ];
 
 let view = null;
