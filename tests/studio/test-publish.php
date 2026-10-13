@@ -93,10 +93,10 @@ fs_test( 'publish: renaming keeps the address; changing it needs change_url and 
 	fs_true( in_array( 'zz-test-keep-me', get_post_meta( $p->get_id(), '_wp_old_slug' ), true ), 'WordPress will 301 the old address' );
 } );
 
-fs_test( 'publish: variable products are refused for now', function () {
-	$v = new WC_Product_Variable();
-	$v->set_name( 'zz-test variable' );
-	$id = $v->save();
+fs_test( 'publish: kinds of product the Studio does not edit are refused', function () {
+	$g = new WC_Product_Grouped();
+	$g->set_name( 'zz-test grouped' );
+	$id = $g->save();
 	fs_on_cleanup( function () use ( $id ) { wp_delete_post( $id, true ); } );
 	fs_eq( 'fisha_studio_unsupported', fisha_studio_publish_product( $id )->get_error_code() );
 } );

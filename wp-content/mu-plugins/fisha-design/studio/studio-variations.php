@@ -355,3 +355,62 @@ function fisha_studio_set_product_type( WC_Product $p, string $type ) {
 	if ( class_exists( 'WC_Cache_Helper' ) ) WC_Cache_Helper::invalidate_cache_group( 'product_' . $id );
 	return wc_get_product( $id );
 }
+
+/* ---------- checks before publishing ---------- */
+
+/** Extra checks for a product with sizes ($v = live values merged with the draft). Errors keyed by field. */
+function fisha_studio_variable_validate( array $v, WC_Product $p ): array {
+	$e    = array();
+	$axes = array();
+	foreach ( (array) ( $v['attributes'] ?? array() ) as $a ) {
+		if ( empty( $a['variation'] ) ) continue;
+		if ( ! $a['options'] ) {
+			$e['attributes'] = sprintf( 'Pick at least one value for %s.', $a['label'] );
+			continue;
+		}
+		$vals = array();
+		foreach ( $a['options'] as $o ) {
+			if ( $a['taxonomy'] ) {
+				$t = get_term( (int) $o, $a['name'] );
+				if ( $t && ! is_wp_error( $t ) ) $vals[] = $t->slug;
+			} else {
+				$vals[] = (string) $o;
+			}
+		}
+		$axes[ sanitize_title( $a['name'] ) ] = $vals;
+	}
+	if ( ! $axes && ! isset( $e['attributes'] ) ) $e['attributes'] = 'Choose the option shoppers pick from, such as Size, and its values.';
+
+	$on     = 0;
+	$combos = array();
+	$skus   = array();
+	foreach ( fisha_studio_variation_ids( $p ) as $vid ) {
+		$k = function ( string $f ) use ( $vid ) { return fisha_studio_var_key( $vid, $f ); };
+		if ( empty( $v[ $k( 'enabled' ) ] ) ) continue;
+		$on++;
+		$var   = wc_get_product( $vid );
+		$attrs = $var ? $var->get_attributes( 'edit' ) : array();
+		foreach ( $axes as $name => $vals ) {
+			$val = (string) ( $attrs[ $name ] ?? '' );
+			if ( '' !== $val && ! in_array( $val, $vals, true ) ) { // '' = "any value", allowed
+				$e[ $k( 'enabled' ) ] = 'This size uses a value that is no longer chosen above. Switch it off or add the value back.';
+				break;
+			}
+		}
+		$combo = fisha_studio_combo_key( array_intersect_key( $attrs, $axes ) );
+		if ( isset( $combos[ $combo ] ) ) $e[ $k( 'enabled' ) ] = 'Two sizes that are on have the same values. Switch one off.';
+		$combos[ $combo ] = true;
+		$reg  = (string) ( $v[ $k( 'regular_price' ) ] ?? '' );
+		$sale = (string) ( $v[ $k( 'sale_price' ) ] ?? '' );
+		if ( '' === $reg ) $e[ $k( 'regular_price' ) ] = 'Each size that is on needs a price.';
+		elseif ( '' !== $sale && (float) $sale >= (float) $reg ) $e[ $k( 'sale_price' ) ] = 'The sale price must be lower than the normal price.';
+		if ( ! empty( $v[ $k( 'manage_stock' ) ] ) && null === ( $v[ $k( 'stock_quantity' ) ] ?? null ) ) $e[ $k( 'stock_quantity' ) ] = 'Enter how many are in stock.';
+		$sku = (string) ( $v[ $k( 'sku' ) ] ?? '' );
+		if ( '' !== $sku ) {
+			if ( isset( $skus[ $sku ] ) || $sku === (string) ( $v['sku'] ?? '' ) || ! wc_product_has_unique_sku( $vid, $sku ) ) $e[ $k( 'sku' ) ] = 'Another product or size already uses this SKU.';
+			$skus[ $sku ] = true;
+		}
+	}
+	if ( ! $on ) $e['variations'] = 'Switch on at least one size and give it a price.';
+	return $e;
+}

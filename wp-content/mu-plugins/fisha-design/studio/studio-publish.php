@@ -9,11 +9,11 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 function fisha_studio_publish_product( int $id, array $resolutions = array(), bool $change_url = false ) {
 	$p = wc_get_product( $id );
 	if ( ! $p || 'trash' === get_post_status( $id ) ) return new WP_Error( 'fisha_studio_not_found', 'This product no longer exists.', array( 'status' => 404 ) );
-	if ( ! $p->is_type( 'simple' ) ) return new WP_Error( 'fisha_studio_unsupported', 'Products with sizes or options can be published from the Studio soon. Nothing was changed.', array( 'status' => 400 ) );
+	if ( ! $p->is_type( array( 'simple', 'variable' ) ) ) return new WP_Error( 'fisha_studio_unsupported', 'This kind of product can only be edited in WP admin. Nothing was changed.', array( 'status' => 400 ) );
 
 	$is_new  = fisha_studio_is_new( $p );
 	$draft   = fisha_studio_draft_get( $id );
-	$before  = fisha_studio_product_read( $p );
+	$before  = fisha_studio_product_values( $p );
 	$changes = $draft['fields'];
 
 	if ( ! $is_new ) {
@@ -35,12 +35,13 @@ function fisha_studio_publish_product( int $id, array $resolutions = array(), bo
 
 	$after  = array_merge( $before, $changes );
 	$errors = fisha_studio_product_validate( $after, $p );
+	if ( $p->is_type( 'variable' ) ) $errors += fisha_studio_variable_validate( $after, $p );
 	if ( $errors ) return new WP_Error( 'fisha_studio_invalid', 'Please check the highlighted fields.', array( 'status' => 422, 'fields' => $errors ) );
 
 	global $wpdb;
 	$wpdb->query( 'START TRANSACTION' );
 	try {
-		fisha_studio_product_apply( $p, $changes );
+		fisha_studio_product_apply_all( $p, $changes );
 		if ( $is_new ) {
 			$p->set_slug( fisha_studio_unique_product_slug( $after['slug'] ?: fisha_studio_slug_from_name( $after['name'] ), $id ) );
 			$p->set_menu_order( fisha_studio_first_menu_order( $after['category_ids'] ) );
@@ -50,16 +51,24 @@ function fisha_studio_publish_product( int $id, array $resolutions = array(), bo
 		}
 		$p->delete_meta_data( FISHA_STUDIO_DRAFT_META );
 		$p->save();
+		if ( $p->is_type( 'variable' ) ) {
+			foreach ( fisha_studio_variation_ids( $p ) as $vid ) delete_post_meta( $vid, FISHA_STUDIO_PENDING_META );
+			WC_Product_Variable::sync( $id );
+		}
 		fisha_studio_default_alts( $p );
 		do_action( 'fisha_studio_before_commit', $id );
 		$fresh = wc_get_product( $id );
-		if ( ! fisha_studio_log( 'product', $id, $is_new ? 'create' : 'publish', $is_new ? null : $before, fisha_studio_product_read( $fresh ) ) ) {
+		if ( ! fisha_studio_log( 'product', $id, $is_new ? 'create' : 'publish', $is_new ? null : $before, fisha_studio_product_values( $fresh ) ) ) {
 			throw new RuntimeException( 'audit log write failed: ' . $wpdb->last_error );
 		}
 		$wpdb->query( 'COMMIT' );
 	} catch ( Throwable $e ) {
 		$wpdb->query( 'ROLLBACK' );
 		clean_post_cache( $id );
+		foreach ( fisha_studio_variation_ids( $p ) as $vid ) {
+			clean_post_cache( $vid );
+			if ( class_exists( 'WC_Cache_Helper' ) ) WC_Cache_Helper::invalidate_cache_group( 'product_' . $vid );
+		}
 		clean_object_term_cache( $id, 'product' );
 		wc_delete_product_transients( $id );
 		if ( class_exists( 'WC_Cache_Helper' ) ) WC_Cache_Helper::invalidate_cache_group( 'product_' . $id );
