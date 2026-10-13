@@ -5,6 +5,7 @@
 import { h, toast, debounce } from '../ui.js';
 import { api } from '../api.js';
 import { pendingCleanup } from './product-editor.js';
+import { stockText } from '../fields.js';
 
 export function productsList( main ) {
 	const state = { search: '', category: '', state: 'all', stock: 'all', page: 1 };
@@ -28,7 +29,7 @@ export function productsList( main ) {
 			h( 'input.fs-input.fs-search', { type: 'search', placeholder: 'Search by name or SKU', value: state.search, 'aria-label': 'Search products', oninput: debounce( ( e ) => update( { search: e.target.value } ), 300 ) } ),
 			catSelect,
 			select( 'state', 'Status', [ [ 'all', 'Any status' ], [ 'live', 'Live' ], [ 'changed', 'Unpublished changes' ], [ 'new', 'Drafts' ], [ 'hidden', 'Hidden' ] ] ),
-			select( 'stock', 'Stock', [ [ 'all', 'Any stock' ], [ 'instock', 'In stock' ], [ 'low', 'Low stock' ], [ 'outofstock', 'Sold out' ] ] ) ),
+			select( 'stock', 'Stock', [ [ 'all', 'Any stock' ], [ 'instock', 'In stock' ], [ 'low', 'Low stock' ], [ 'outofstock', 'Sold out' ], [ 'onbackorder', 'Made to order' ] ] ) ),
 		table,
 		pager );
 
@@ -99,9 +100,9 @@ export function productsList( main ) {
 			: h( 'span', {}, r.price_text || 'Price on request' );
 		const stock = r.sizes
 			? h( 'span', {}, r.stock_text )
-			: quick && r.manage_stock
+			: quick && r.counted
 			? h( 'input.fs-input.fs-inline.fs-inline--short', { inputmode: 'numeric', value: r.stock_quantity ?? '', 'aria-label': `Stock of ${ r.name }` } )
-			: h( 'span', {}, r.manage_stock ? String( r.stock_quantity ?? 0 ) : ( r.stock_status === 'outofstock' ? 'Sold out' : 'In stock' ) );
+			: h( 'span', {}, r.counted && r.stock_quantity === null ? 'Fixed amount, no number yet' : stockText( r.counted, r.stock_quantity, r.stock_status ) );
 		const save = h( 'button.fs-btn.fs-btn--small.fs-btn--primary', { type: 'button', hidden: true, onclick: () => quickSave() }, 'Publish' );
 		const tr = h( 'tr', {},
 			h( 'td.fs-table__thumb', {}, r.thumb ? h( 'img', { src: r.thumb, alt: '', width: 48, height: 48, loading: 'lazy' } ) : h( 'span.fs-thumb-empty' ) ),

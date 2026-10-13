@@ -4,8 +4,7 @@
  */
 import { h, toast, debounce } from '../ui.js';
 import { api } from '../api.js';
-
-const STATUS = { instock: 'In stock', outofstock: 'Sold out', onbackorder: 'Made to order' };
+import { stockControl, stockChoiceOf, stockText } from '../fields.js';
 
 export function inventoryView( main ) {
 	const state = { search: '', category: '', stock: 'all', sort: 'name', page: 1 };
@@ -25,7 +24,7 @@ export function inventoryView( main ) {
 		h( 'div.fs-filters', {},
 			h( 'input.fs-input.fs-search', { type: 'search', placeholder: 'Search by name, size or SKU', value: state.search, 'aria-label': 'Search', oninput: ( e ) => search( e.target.value ) } ),
 			catSelect,
-			select( 'stock', 'Stock', [ [ 'all', 'Any stock' ], [ 'low', 'Low stock' ], [ 'outofstock', 'Sold out' ], [ 'instock', 'In stock' ] ] ),
+			select( 'stock', 'Stock', [ [ 'all', 'Any stock' ], [ 'low', 'Low stock' ], [ 'outofstock', 'Sold out' ], [ 'instock', 'In stock' ], [ 'onbackorder', 'Made to order' ], [ 'uncounted', 'Not counted (no limit)' ] ] ),
 			select( 'sort', 'Sort by', [ [ 'name', 'Name' ], [ 'stock', 'Lowest stock first' ], [ 'sku', 'SKU' ], [ 'price', 'Price' ] ] ) ),
 		list,
 		pager );
@@ -84,33 +83,45 @@ export function inventoryView( main ) {
 			h( 'div.fs-table__meta', {}, [ r.sku, r.enabled ? '' : 'Switched off' ].filter( Boolean ).join( ' · ' ) ),
 			h( 'div.fs-badges', {},
 				'outofstock' === r.stock_status ? h( 'span.fs-badge.fs-badge--out', {}, 'Sold out' ) : r.low ? h( 'span.fs-badge.fs-badge--low', {}, 'Low stock' ) : null,
+				// Sells without a limit: a hint for items the owner may want to cap with a fixed amount.
+				! r.counted && 'outofstock' !== r.stock_status && ! r.locked ? h( 'span.fs-badge.fs-badge--info', {}, 'No limit' ) : null,
 				r.locked ? h( 'span.fs-badge.fs-badge--changed', {}, r.locked ) : null ) );
 		const thumb = h( 'td.fs-table__thumb', {}, r.thumb ? h( 'img', { src: r.thumb, alt: '', width: 48, height: 48, loading: 'lazy' } ) : h( 'span.fs-thumb-empty' ) );
 		if ( r.locked ) {
 			return h( 'tr', {}, thumb, product,
-				h( 'td', { 'data-label': 'Stock' }, r.manage_stock ? String( r.stock_quantity ?? 0 ) : STATUS[ r.stock_status ] ),
+				h( 'td', { 'data-label': 'Stock' }, stockText( r.counted, r.stock_quantity, r.stock_status ) ),
 				h( 'td', { 'data-label': 'Price' }, r.regular_price ),
 				h( 'td.fs-table__actions', {}, open ) );
 		}
-		const stock = r.manage_stock
-			? h( 'input.fs-input.fs-inline.fs-inline--short', { inputmode: 'numeric', value: r.stock_quantity ?? '', 'aria-label': `Stock of ${ title }` } )
-			: h( 'select.fs-input.fs-input--small', { 'aria-label': `Stock status of ${ title }` }, Object.entries( STATUS ).map( ( [ v, t ] ) => h( 'option', { value: v, selected: v === r.stock_status }, t ) ) );
+		// The stock choice and, for "Fixed amount", the number. A product with sizes counted as a whole only has its number.
+		const refresh = () => { save.hidden = ! Object.keys( fieldsNow() ).length; };
+		const stock = r.stock_only
+			? { el: h( 'input.fs-input.fs-inline.fs-inline--short', { inputmode: 'numeric', value: r.stock_quantity ?? '', 'aria-label': `Stock of ${ title }` } ) }
+			: stockControl( { name: title, choice: stockChoiceOf( r.counted, r.stock_status ), qty: r.stock_quantity, onChoice: refresh, onQty: refresh } );
+		if ( r.stock_only ) Object.assign( stock, { select: { value: 'fixed' }, input: stock.el } );
 		// A product with sizes whose stock is counted as a whole: only its count is edited here, prices are per size.
 		const price = r.stock_only
 			? h( 'span.fs-field__help', {}, 'Set per size' )
 			: h( 'input.fs-input.fs-inline', { inputmode: 'decimal', value: r.regular_price, 'aria-label': `Price of ${ title }` } );
 		const save = h( 'button.fs-btn.fs-btn--small.fs-btn--primary', { type: 'button', hidden: true, onclick: () => commit() }, 'Save' );
-		const stockKey = r.manage_stock ? 'stock_quantity' : 'stock_status';
-		const was = { stock_quantity: r.stock_quantity, stock_status: r.stock_status, regular_price: r.regular_price };
+		// What the owner saw; an uncounted item was seen with no number (null).
+		const was = { stock_quantity: r.counted ? r.stock_quantity : null, stock_status: r.stock_status, regular_price: r.regular_price };
 		const fieldsNow = () => {
 			const f = {};
-			if ( stock.value !== String( was[ stockKey ] ?? '' ) ) f[ stockKey ] = stock.value;
+			const choice = stock.select.value;
+			const qty = stock.input.value.trim();
+			if ( choice === 'fixed' ) {
+				// A number turns counting on (the server then never sells beyond it); no number yet means nothing to save.
+				if ( qty !== '' && ( ! r.counted || qty !== String( r.stock_quantity ?? '' ) ) ) f.stock_quantity = qty;
+			} else if ( r.counted || choice !== r.stock_status ) {
+				f.stock_status = choice;
+			}
 			if ( ! r.stock_only && price.value !== r.regular_price ) f.regular_price = price.value;
 			return f;
 		};
-		for ( const input of r.stock_only ? [ stock ] : [ stock, price ] ) {
-			input.addEventListener( 'input', () => { save.hidden = ! Object.keys( fieldsNow() ).length; } );
-			input.addEventListener( 'change', () => { save.hidden = ! Object.keys( fieldsNow() ).length; } );
+		for ( const input of r.stock_only ? [ stock.input ] : [ stock.input, stock.select, price ] ) {
+			input.addEventListener( 'input', refresh );
+			input.addEventListener( 'change', refresh );
 			input.addEventListener( 'keydown', ( e ) => { if ( e.key === 'Enter' && ! save.hidden && ! save.disabled ) commit(); } );
 		}
 		async function commit() {
@@ -124,7 +135,7 @@ export function inventoryView( main ) {
 				toast( `${ title } is updated on the site.` );
 				// Only this row is redrawn, so numbers typed in other rows stay. A size comes back as its inventory row;
 				// a product comes back as its products-list row, whose stock and price are merged in.
-				const next = r.kind === 'variation' ? res : { ...r, stock_quantity: res.stock_quantity, stock_status: res.stock_status, regular_price: res.regular_price, low: res.low };
+				const next = r.kind === 'variation' ? res : { ...r, stock_quantity: res.stock_quantity, stock_status: res.stock_status, regular_price: res.regular_price, low: res.low, counted: res.counted, manage_stock: res.counted };
 				if ( alive ) tr.replaceWith( row( next ) );
 			} catch ( e ) {
 				save.disabled = false;
@@ -137,7 +148,7 @@ export function inventoryView( main ) {
 			}
 		}
 		const tr = h( 'tr', {}, thumb, product,
-			h( 'td', { 'data-label': 'Stock' }, stock ),
+			h( 'td', { 'data-label': 'Stock' }, stock.el ),
 			h( 'td', { 'data-label': 'Price' }, price ),
 			h( 'td.fs-table__actions', {}, save, open ) );
 		return tr;

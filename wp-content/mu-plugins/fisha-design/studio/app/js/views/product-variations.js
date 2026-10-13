@@ -5,8 +5,7 @@
  */
 import { h, toast, modal, confirmDialog } from '../ui.js';
 import { api } from '../api.js';
-
-const STATUSES = [ [ 'instock', 'In stock' ], [ 'outofstock', 'Sold out' ], [ 'onbackorder', 'Made to order' ] ];
+import { stockControl, stockChoiceOf } from '../fields.js';
 
 export function variationsPanel( ctx ) {
 	const el = h( 'div.fs-vars' );
@@ -179,31 +178,34 @@ export function variationsPanel( ctx ) {
 		const on = h( 'input.fs-switch', { type: 'checkbox', role: 'switch', checked: !! v[ k( 'enabled' ) ], 'aria-label': `${ s.label } on sale`, onchange: () => ctx.change( k( 'enabled' ), on.checked ) } );
 		const price = h( 'input.fs-input.fs-inline', { inputmode: 'decimal', value: v[ k( 'regular_price' ) ] ?? '', 'aria-label': `${ s.label } price`, oninput: () => ctx.change( k( 'regular_price' ), price.value ) } );
 		const sale = h( 'input.fs-input.fs-inline', { inputmode: 'decimal', value: v[ k( 'sale_price' ) ] ?? '', placeholder: 'Sale', 'aria-label': `${ s.label } sale price`, oninput: () => ctx.change( k( 'sale_price' ), sale.value ) } );
-		const qty = h( 'input.fs-input.fs-inline.fs-inline--short', { inputmode: 'numeric', value: v[ k( 'stock_quantity' ) ] ?? '', 'aria-label': `${ s.label } in stock`, oninput: () => ctx.change( k( 'stock_quantity' ), qty.value ) } );
-		const status = h( 'select.fs-input.fs-input--small', { 'aria-label': `${ s.label } stock status`, onchange: () => ctx.change( k( 'stock_status' ), status.value ) }, STATUSES.map( ( [ x, t ] ) => h( 'option', { value: x }, t ) ) );
-		status.value = v[ k( 'stock_status' ) ] || 'instock';
-		const paintStock = () => {
-			const counted = !! ctx.values()[ k( 'manage_stock' ) ];
-			qty.hidden = ! counted;
-			status.hidden = counted;
-		};
-		const count = h( 'input', { type: 'checkbox', checked: !! v[ k( 'manage_stock' ) ], 'aria-label': `Count stock of ${ s.label }`, onchange: () => {
-			ctx.change( k( 'manage_stock' ), count.checked );
-			paintStock();
-		} } );
+		// The size's stock choice; "Fixed amount" shows its number (the server then never sells beyond it).
+		const choiceNow = () => stockChoiceOf( ctx.values()[ k( 'manage_stock' ) ], ctx.values()[ k( 'stock_status' ) ] );
+		const stock = stockControl( {
+			name: s.label,
+			choice: choiceNow(),
+			qty: v[ k( 'stock_quantity' ) ],
+			onChoice: ( c ) => {
+				if ( c === 'fixed' ) {
+					ctx.change( k( 'manage_stock' ), true );
+				} else {
+					ctx.change( k( 'manage_stock' ), false );
+					ctx.change( k( 'stock_status' ), c );
+				}
+			},
+			onQty: ( x ) => ctx.change( k( 'stock_quantity' ), x ),
+		} );
+		const paintStock = () => stock.set( choiceNow(), ctx.values()[ k( 'stock_quantity' ) ] );
 		const sku = h( 'input.fs-input.fs-inline', { value: v[ k( 'sku' ) ] ?? '', placeholder: 'SKU', 'aria-label': `${ s.label } SKU`, oninput: () => ctx.change( k( 'sku' ), sku.value ) } );
 		const photo = h( 'select.fs-input.fs-input--small', { 'aria-label': `${ s.label } photo`, onchange: () => ctx.change( k( 'image_id' ), Number( photo.value ) ) },
 			h( 'option', { value: '0' }, 'Product photo' ),
 			ctx.images().map( ( img, i ) => h( 'option', { value: String( img.id ) }, i ? `Photo ${ i + 1 }` : 'Main photo' ) ) );
 		photo.value = String( v[ k( 'image_id' ) ] || 0 );
-		paintStock();
-
 		reg( 'enabled', on, ( x ) => { on.checked = !! x; } );
 		reg( 'regular_price', price, keep( price, ( x ) => { price.value = x ?? ''; } ) );
 		reg( 'sale_price', sale, keep( sale, ( x ) => { sale.value = x ?? ''; } ) );
-		reg( 'manage_stock', count, ( x ) => { count.checked = !! x; paintStock(); } );
-		reg( 'stock_quantity', qty, keep( qty, ( x ) => { qty.value = x ?? ''; } ) );
-		reg( 'stock_status', status, ( x ) => { status.value = x || 'instock'; } );
+		reg( 'manage_stock', stock.select, paintStock );
+		reg( 'stock_quantity', stock.input, paintStock );
+		reg( 'stock_status', stock.select, paintStock );
 		reg( 'sku', sku, keep( sku, ( x ) => { sku.value = x ?? ''; } ) );
 		reg( 'image_id', photo, ( x ) => { photo.value = String( x || 0 ); } );
 
@@ -211,14 +213,14 @@ export function variationsPanel( ctx ) {
 		const whole = !! v.manage_stock && ! v[ k( 'manage_stock' ) ];
 		return h( 'div.fs-vars__row', { dataset: { vid: s.id } },
 			h( 'div.fs-vars__name', {}, on, h( 'strong', {}, s.label ), s.pending ? h( 'span.fs-badge.fs-badge--draft', {}, 'New' ) : null ),
-			h( 'label.fs-vars__cell', {}, h( 'span.fs-vars__cap', {}, ctx.currency ), price ),
-			h( 'label.fs-vars__cell', {}, sale ),
+			h( 'label.fs-vars__cell.fs-vars__price', {}, h( 'span.fs-vars__cap', {}, ctx.currency ), price ),
+			h( 'label.fs-vars__cell.fs-vars__sale', {}, sale ),
 			whole
-				? h( 'div.fs-vars__cell.fs-field__help', {}, 'Stock is kept for the whole product' )
-				: h( 'div.fs-vars__cell', {}, h( 'label.fs-check', {}, count, 'Count' ), qty, status ),
-			h( 'div.fs-vars__cell', {}, sku ),
-			h( 'div.fs-vars__cell', {}, photo ),
-			s.deletable ? h( 'button.fs-btn.fs-btn--tiny.fs-btn--danger', { type: 'button', 'aria-label': `Delete ${ s.label }`, onclick: () => removeSize( s ) }, 'Delete' ) : null,
+				? h( 'div.fs-vars__cell.fs-vars__stock.fs-field__help', {}, 'Stock is kept for the whole product' )
+				: h( 'div.fs-vars__cell.fs-vars__stock', {}, stock.el ),
+			h( 'div.fs-vars__cell.fs-vars__sku', {}, sku ),
+			h( 'div.fs-vars__cell.fs-vars__photo', {}, photo ),
+			s.deletable ? h( 'button.fs-btn.fs-btn--tiny.fs-btn--danger.fs-vars__del', { type: 'button', 'aria-label': `Delete ${ s.label }`, onclick: () => removeSize( s ) }, 'Delete' ) : null,
 			h( 'p.fs-field__error.fs-vars__err', { hidden: true } ) );
 	}
 

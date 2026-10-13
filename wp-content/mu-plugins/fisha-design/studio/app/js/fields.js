@@ -167,3 +167,53 @@ export function colorField( label, value, palette, onChange ) {
 	const w = wrap( label, h( 'div.fs-color-row', {}, swatches, picker, hex ), id, 'The background behind the photo on product cards. The colours used most in the shop come first.' );
 	return { ...w, set( v ) { current = v || ''; render(); }, focus: () => hex.focus() };
 }
+
+/* ---------- stock choice ---------- */
+
+/** The one "Stock" choice every product and size has. "fixed" counts stock and never sells beyond it. */
+export const STOCK_CHOICES = [ [ 'fixed', 'Fixed amount' ], [ 'instock', 'In stock' ], [ 'onbackorder', 'Made to order' ], [ 'outofstock', 'Sold out' ] ];
+const STOCK_LABEL = Object.fromEntries( STOCK_CHOICES );
+
+/** The choice an item is on, from its manage_stock and stock_status. */
+export function stockChoiceOf( manage, status ) {
+	if ( manage ) return 'fixed';
+	return [ 'instock', 'onbackorder', 'outofstock' ].includes( status ) ? status : 'instock';
+}
+
+/** What the owner sees for an item's stock: the number for a fixed amount, otherwise the choice. */
+export function stockText( manage, qty, status ) {
+	return manage ? String( qty ?? 0 ) : STOCK_LABEL[ stockChoiceOf( false, status ) ];
+}
+
+/**
+ * The stock choice as a select, plus a number field shown only for "Fixed amount". onChoice( choice ) and
+ * onQty( text ) report edits; set( choice, qty ) never overwrites the number while the owner types in it.
+ */
+export function stockControl( { name, choice, qty, onChoice, onQty } ) {
+	const sel = h( 'select.fs-input.fs-input--small.fs-stock__choice', { 'aria-label': `Stock of ${ name }`, onchange: () => {
+		paint();
+		onChoice( sel.value );
+		if ( sel.value === 'fixed' && input.value === '' ) input.focus();
+	} }, STOCK_CHOICES.map( ( [ v, t ] ) => h( 'option', { value: v }, t ) ) );
+	const input = h( 'input.fs-input.fs-inline.fs-inline--short.fs-stock__qty', { inputmode: 'numeric', placeholder: 'How many', 'aria-label': `How many of ${ name }`, value: qty ?? '', oninput: () => {
+		paint();
+		onQty( input.value );
+	} } );
+	const paint = () => {
+		input.hidden = sel.value !== 'fixed';
+		input.classList.toggle( 'is-empty', sel.value === 'fixed' && input.value.trim() === '' );
+	};
+	sel.value = choice;
+	paint();
+	return {
+		el: h( 'div.fs-stock', {}, sel, input ),
+		select: sel,
+		input,
+		set( c, q ) {
+			sel.value = c;
+			if ( document.activeElement !== input ) input.value = q ?? '';
+			paint();
+		},
+		focus: () => ( sel.value === 'fixed' ? input : sel ).focus(),
+	};
+}

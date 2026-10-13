@@ -5,7 +5,7 @@
  */
 import { h, toast, modal, confirmDialog, debounce } from '../ui.js';
 import { api } from '../api.js';
-import { textField, selectField, toggleField, categoriesField, tagsField } from '../fields.js';
+import { textField, selectField, toggleField, categoriesField, tagsField, STOCK_CHOICES, stockChoiceOf } from '../fields.js';
 import { variationsPanel } from './product-variations.js';
 import { richText } from '../richtext.js';
 import { imagesField } from '../images.js';
@@ -235,7 +235,7 @@ export function productEditor( main, id ) {
 
 	function show( c, v ) {
 		if ( Array.isArray( v ) ) return v.length ? v.join( ', ' ) : 'none';
-		if ( v === '' || v === null || v === undefined ) return c.field === 'stock_quantity' ? 'not counted' : '(empty)';
+		if ( v === '' || v === null || v === undefined ) return /(^|:)stock_quantity$/.test( c.field ) ? 'no fixed amount' : '(empty)';
 		if ( v === true ) return 'on';
 		if ( v === false ) return 'off';
 		return String( v );
@@ -245,10 +245,11 @@ export function productEditor( main, id ) {
 			title: 'Something changed on the site',
 			body: conflicts.map( ( c ) => h( 'fieldset.fs-conflict', {},
 				h( 'legend', {}, c.label ),
-				h( 'p', {}, `When you started editing it was ${ show( c, c.base ) }. The site now has ${ show( c, c.live ) }${ c.field === 'stock_quantity' ? ', probably because an order came in' : '' }.` ),
+				h( 'p', {}, `When you started editing it was ${ show( c, c.base ) }. The site now has ${ show( c, c.live ) }${ /(^|:)stock_quantity$/.test( c.field ) ? ', probably because an order came in' : '' }.` ),
 				h( 'label.fs-radio', {}, h( 'input', { type: 'radio', name: c.field, value: 'live', checked: true } ), `Keep ${ show( c, c.live ) }` ),
 				h( 'label.fs-radio', {}, h( 'input', { type: 'radio', name: c.field, value: 'mine' } ), `Use mine: ${ show( c, c.mine ) }` ) ) ),
-			actions: [ { label: 'Cancel', value: null }, { label: 'Publish', kind: 'primary', submit: true, value: ( f ) => Object.fromEntries( conflicts.map( ( c ) => [ c.field, f.elements[ c.field ].value ] ) ) } ],
+			// Each answer carries the site value shown, so "Use mine" is refused if an order changes it again meanwhile.
+			actions: [ { label: 'Cancel', value: null }, { label: 'Publish', kind: 'primary', submit: true, value: ( f ) => Object.fromEntries( conflicts.map( ( c ) => [ c.field, { choice: f.elements[ c.field ].value, live: c.live } ] ) ) } ],
 		} );
 	}
 
@@ -386,25 +387,39 @@ export function productEditor( main, id ) {
 		showIf( W.date_on_sale_to, ( x ) => ! onRequest && x.sale_price !== '' );
 
 		W.sku = textField( 'SKU', v.sku, on( 'sku' ), { max: 64, help: 'Your own stock code. Optional.' } );
-		W.manage_stock = toggleField( 'Count stock', v.manage_stock, on( 'manage_stock' ), { help: sizes
-			? 'Count stock for the whole product, or switch it off and count each size in Sizes & options.'
-			: 'The shop marks it sold out when the count reaches 0.' } );
-		W.stock_quantity = textField( 'In stock', v.stock_quantity ?? '', on( 'stock_quantity' ), { inputmode: 'numeric' } );
-		W.stock_status = selectField( 'Stock status', v.stock_status, [ [ 'instock', 'In stock' ], [ 'outofstock', 'Sold out' ], [ 'onbackorder', 'Can be ordered (made to order)' ] ], on( 'stock_status' ) );
+		// One "Stock" choice: Fixed amount (counted, the shop never sells more than that), In stock, Made to order, Sold out.
+		const setChoice = ( c ) => {
+			if ( c === 'fixed' ) {
+				change( 'manage_stock', true );
+				change( 'backorders', 'no' );
+			} else {
+				change( 'manage_stock', false );
+				change( 'stock_status', c );
+			}
+			W.stock_choice.set( c );
+			if ( c === 'fixed' && ( ed.data.values.stock_quantity ?? '' ) === '' ) W.stock_quantity.focus();
+		};
+		W.stock_choice = selectField( 'Stock', stockChoiceOf( v.manage_stock, v.stock_status ), STOCK_CHOICES, setChoice, { help: 'Fixed amount: the shop sells at most this many, then shows it as sold out. In stock: no limit.' } );
+		derived.push( ( x ) => W.stock_choice.set( stockChoiceOf( x.manage_stock, x.stock_status ) ) );
+		// A product with sizes can count its stock as a whole; otherwise each size has its own stock choice.
+		W.manage_stock = toggleField( 'Count stock for the whole product', v.manage_stock, ( yes ) => {
+			change( 'manage_stock', yes );
+			if ( yes ) change( 'backorders', 'no' );
+		}, { help: 'Switch it off to set the stock of each size in Sizes & options.' } );
+		W.stock_quantity = textField( sizes ? 'In stock' : 'How many', v.stock_quantity ?? '', on( 'stock_quantity' ), { inputmode: 'numeric', placeholder: 'Enter a number' } );
+		const notCounted = h( 'p.fs-field__help.fs-stock-note', {}, 'Not counted yet. Enter how many you have.' );
+		derived.push( ( x ) => { notCounted.hidden = ! x.manage_stock || ( x.stock_quantity ?? '' ) !== ''; } );
 		W.low_stock_amount = textField( 'Low stock alert at', v.low_stock_amount ?? '', on( 'low_stock_amount' ), { inputmode: 'numeric', help: 'The Studio flags it as low stock at this count (2 when empty).' } );
-		W.backorders = selectField( 'When sold out', v.backorders, [ [ 'no', 'Stop selling' ], [ 'notify', 'Keep selling, tell the customer' ], [ 'yes', 'Keep selling' ] ], on( 'backorders' ) );
 		W.sold_individually = toggleField( 'One per order', v.sold_individually, on( 'sold_individually' ), { help: 'For one-of-a-kind pieces.' } );
 		showIf( W.stock_quantity, ( x ) => x.manage_stock );
 		showIf( W.low_stock_amount, ( x ) => x.manage_stock );
-		showIf( W.backorders, ( x ) => x.manage_stock );
-		showIf( W.stock_status, ( x ) => ! x.manage_stock );
 		const soldOut = h( 'button.fs-btn', { type: 'button', onclick: () => {
 			if ( ed.data.values.manage_stock ) { change( 'stock_quantity', 0 ); W.stock_quantity.set( 0 ); }
-			else { change( 'stock_status', 'outofstock' ); W.stock_status.set( 'outofstock' ); }
+			else setChoice( 'outofstock' );
 		} }, 'Mark sold out' );
 		const backIn = h( 'button.fs-btn', { type: 'button', onclick: () => {
 			if ( ed.data.values.manage_stock ) { openTab( 'inventory' ); W.stock_quantity.focus(); }
-			else { change( 'stock_status', 'instock' ); W.stock_status.set( 'instock' ); }
+			else setChoice( 'instock' );
 		} }, 'Back in stock' );
 
 		W.images = imagesField( v, d.images, ( x ) => {
@@ -447,8 +462,8 @@ export function productEditor( main, id ) {
 				? panel( 'variations', varsPanel.el )
 				: panel( 'price', onRequestField.el, h( 'div.fs-grid-2', {}, W.regular_price.el, W.sale_price.el ), h( 'div.fs-grid-2', {}, W.date_on_sale_from.el, W.date_on_sale_to.el ) ),
 			sizes
-				? panel( 'inventory', W.manage_stock.el, h( 'div.fs-grid-2', {}, W.stock_quantity.el, W.low_stock_amount.el ), W.backorders.el, W.sold_individually.el, W.sku.el )
-				: panel( 'inventory', h( 'div.fs-stock-actions', {}, soldOut, backIn ), W.manage_stock.el, h( 'div.fs-grid-2', {}, W.stock_quantity.el, W.low_stock_amount.el ), W.stock_status.el, W.backorders.el, W.sold_individually.el, W.sku.el ),
+				? panel( 'inventory', W.manage_stock.el, h( 'div.fs-grid-2', {}, W.stock_quantity.el, W.low_stock_amount.el ), notCounted, W.sold_individually.el, W.sku.el )
+				: panel( 'inventory', h( 'div.fs-stock-actions', {}, soldOut, backIn ), h( 'div.fs-grid-2', {}, W.stock_choice.el, W.stock_quantity.el ), notCounted, W.low_stock_amount.el, W.sold_individually.el, W.sku.el ),
 			panel( 'images', W.images.el ),
 			panel( 'shipping', h( 'div.fs-grid-4', {}, W.weight.el, W.length.el, W.width.el, W.height.el ), W.shipping_class_id.el, h( 'div.fs-grid-2', {}, W.tax_status.el, W.tax_class.el ) ) );
 		if ( readOnly ) panels.querySelectorAll( 'input, select, textarea, button, [contenteditable]' ).forEach( ( x ) => {
