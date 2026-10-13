@@ -167,3 +167,112 @@ add_filter( 'block_core_navigation_render_inner_blocks', function ( $inner ) {
 	for ( $i = count( $swapped ); $i < $n; $i++ ) unset( $inner[ $i ] );
 	return $inner;
 } );
+
+/* ---------- never-published categories, hidden ones, old addresses ---------- */
+
+/** Ids of categories made in the Studio and not published yet. @return int[] */
+function fisha_cat_unpublished_ids(): array {
+	global $wpdb;
+	$cache = &$GLOBALS['fisha_cat_unpublished_cache'];
+	if ( ! is_array( $cache ) ) {
+		$cache = array_map( 'intval', $wpdb->get_col( $wpdb->prepare( "SELECT term_id FROM {$wpdb->termmeta} WHERE meta_key = %s AND meta_value = '1'", FISHA_CAT_UNPUBLISHED ) ) );
+	}
+	return $cache;
+}
+
+/** Whether this request hides never-published categories: public pages, not WP admin, the REST API, WP-CLI or cron. */
+function fisha_cat_hiding_active(): bool {
+	$public = ! is_admin() && ! wp_doing_cron() && ! ( defined( 'REST_REQUEST' ) && REST_REQUEST ) && ! ( defined( 'WP_CLI' ) && WP_CLI );
+	return (bool) apply_filters( 'fisha_cat_hiding_active', $public );
+}
+
+/** The never-published categories to hide right now (the one in the Studio preview stays visible). @return int[] */
+function fisha_cat_hidden_now(): array {
+	if ( ! fisha_cat_hiding_active() ) return array();
+	$exempt = (int) ( $GLOBALS['fisha_studio_preview_term'] ?? 0 );
+	return array_values( array_diff( fisha_cat_unpublished_ids(), array( $exempt ) ) );
+}
+
+// Every category list (menus, chips, shelves, widgets, breadcrumbs, a product's categories) skips them. The clause is part of
+// the term query's SQL, so WordPress caches public and Studio results separately.
+add_filter( 'terms_clauses', function ( $clauses, $taxonomies ) {
+	if ( ! in_array( 'product_cat', (array) $taxonomies, true ) ) return $clauses;
+	$ids = fisha_cat_hidden_now();
+	if ( $ids ) $clauses['where'] .= ' AND t.term_id NOT IN (' . implode( ',', array_map( 'intval', $ids ) ) . ')';
+	return $clauses;
+}, 10, 2 );
+add_filter( 'get_the_terms', function ( $terms, $post_id, $taxonomy ) {
+	if ( 'product_cat' !== $taxonomy || ! is_array( $terms ) ) return $terms;
+	$ids = fisha_cat_hidden_now();
+	if ( ! $ids ) return $terms;
+	return array_values( array_filter( $terms, function ( $t ) use ( $ids ) { return ! in_array( (int) $t->term_id, $ids, true ); } ) );
+}, 10, 3 );
+
+/** 'ok', 'noindex' (switched off, or below a switched-off category) or '404' (never published) for a category page. */
+function fisha_cat_page_status( WP_Term $t ): string {
+	if ( fisha_cat_is_unpublished( $t ) ) return '404';
+	return fisha_cat_is_enabled( $t ) ? 'ok' : 'noindex';
+}
+
+add_action( 'template_redirect', function () {
+	if ( ! is_tax( 'product_cat' ) ) return;
+	$t = get_queried_object();
+	if ( ! $t instanceof WP_Term ) return;
+	$status = fisha_cat_page_status( $t );
+	if ( '404' === $status ) {
+		global $wp_query;
+		$wp_query->set_404();
+		status_header( 404 );
+		nocache_headers();
+	} elseif ( 'noindex' === $status ) {
+		header( 'X-Robots-Tag: noindex' );
+	}
+}, 5 );
+add_filter( 'wp_robots', function ( $robots ) {
+	$t = is_tax( 'product_cat' ) ? get_queried_object() : null;
+	if ( $t instanceof WP_Term && 'ok' !== fisha_cat_page_status( $t ) ) $robots['noindex'] = true;
+	return $robots;
+} );
+add_filter( 'wp_sitemaps_taxonomies_query_args', function ( $args, $taxonomy ) {
+	if ( 'product_cat' !== $taxonomy ) return $args;
+	$terms = get_terms( array( 'taxonomy' => 'product_cat', 'hide_empty' => false ) );
+	$off   = array();
+	foreach ( is_wp_error( $terms ) ? array() : $terms as $t ) {
+		if ( ! fisha_cat_is_enabled( $t ) ) $off[] = (int) $t->term_id;
+	}
+	if ( $off ) $args['exclude'] = array_merge( (array) ( $args['exclude'] ?? array() ), $off );
+	return $args;
+}, 10, 2 );
+
+/** A category's address without the site and the slashes around it: "product-category/wearables/tshirts". */
+function fisha_cat_path( WP_Term $t ): string {
+	$link = get_term_link( $t );
+	return is_wp_error( $link ) ? '' : trim( (string) wp_parse_url( $link, PHP_URL_PATH ), '/' );
+}
+
+/** Where an old category address lives now (the moved category, or the parent page / Shop after a delete), or null. */
+function fisha_cat_redirect_target( string $path ): ?string {
+	$path = trim( $path, '/' );
+	if ( '' === $path ) return null;
+	$found = get_terms( array( 'taxonomy' => 'product_cat', 'hide_empty' => false, 'number' => 1, 'meta_query' => array( array( 'key' => FISHA_CAT_OLD_PATHS, 'value' => $path ) ) ) );
+	if ( ! is_wp_error( $found ) && $found ) {
+		return fisha_cat_path( $found[0] ) === $path ? null : get_term_link( $found[0] );
+	}
+	$deleted = get_option( 'fisha_deleted_cat_paths', array() );
+	if ( ! is_array( $deleted ) || ! array_key_exists( $path, $deleted ) ) return null;
+	$to = $deleted[ $path ] ? get_term( (int) $deleted[ $path ], 'product_cat' ) : null;
+	$url = $to instanceof WP_Term ? get_term_link( $to ) : get_permalink( wc_get_page_id( 'shop' ) );
+	return is_wp_error( $url ) || ! $url ? null : $url;
+}
+
+// Old addresses answer with a permanent redirect. A moved category's old address can still open its page (WordPress reads
+// only the last part), so category pages are checked too, not only 404s.
+add_action( 'template_redirect', function () {
+	if ( ! is_404() && ! is_tax( 'product_cat' ) ) return;
+	$path = rawurldecode( (string) wp_parse_url( (string) ( $_SERVER['REQUEST_URI'] ?? '' ), PHP_URL_PATH ) );
+	$to   = fisha_cat_redirect_target( $path );
+	if ( $to ) {
+		wp_safe_redirect( $to, 301, 'Fisha' );
+		exit;
+	}
+}, 1 );

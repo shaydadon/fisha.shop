@@ -190,3 +190,14 @@ function fs_cat( string $name, int $parent = 0, bool $shown = true ): WP_Term {
 	if ( function_exists( 'fisha_cat_cache_reset' ) ) fisha_cat_cache_reset();
 	return $t;
 }
+
+/** Makes this test act like a public page view: never-published categories are hidden (undone after the test). */
+function fs_hiding(): void {
+	add_filter( 'fisha_cat_hiding_active', '__return_true' );
+	fisha_cat_cache_reset();
+	fs_on_cleanup( function () {
+		remove_filter( 'fisha_cat_hiding_active', '__return_true' );
+		unset( $GLOBALS['fisha_studio_preview_term'] );
+		fisha_cat_cache_reset();
+	} );
+}
