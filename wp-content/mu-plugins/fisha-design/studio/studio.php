@@ -104,6 +104,7 @@ require_once FISHA_STUDIO_DIR . 'studio-audit.php';
 require_once FISHA_STUDIO_DIR . 'studio-drafts.php';
 require_once FISHA_STUDIO_DIR . 'studio-variations.php';
 require_once FISHA_STUDIO_DIR . 'studio-publish.php';
+require_once FISHA_STUDIO_DIR . 'studio-convert.php';
 
 require_once FISHA_STUDIO_DIR . 'studio-preview.php';
 
