@@ -46,6 +46,16 @@ fs_test( 'api sizes: create missing sizes, delete a new one, keep live ones', fu
 	fs_eq( 409, $st, 'a live size cannot be deleted' );
 } );
 
+fs_test( 'api sizes: an unnamed new product left empty can be trashed', function () {
+	fs_as( FISHA_STUDIO_ROLE );
+	list( , $d ) = fs_api( 'POST', '/products', array( 'name' => '' ) );
+	$id = $d['id'];
+	fs_on_cleanup( function () use ( $id ) { fs_delete_product( $id ); } );
+	list( $st ) = fs_api( 'POST', "/products/$id/trash" );
+	fs_eq( 200, $st );
+	fs_eq( 'trash', get_post_status( $id ) );
+} );
+
 fs_test( 'api sizes: new product with an empty name, type switch, publish', function () {
 	fs_as( FISHA_STUDIO_ROLE );
 	list( $st, $d ) = fs_api( 'POST', '/products', array( 'name' => '' ) );
@@ -53,6 +63,7 @@ fs_test( 'api sizes: new product with an empty name, type switch, publish', func
 	$id = $d['id'];
 	fs_on_cleanup( function () use ( $id ) { fs_delete_product( $id ); } );
 	fs_eq( 'simple', $d['type'] );
+	fs_eq( '', fs_api( 'GET', "/products/$id" )[1]['values']['name'], 'an unnamed new product stays unnamed' );
 	list( $st, $d ) = fs_api( 'POST', "/products/$id/type", array( 'type' => 'variable' ) );
 	fs_eq( 200, $st );
 	fs_eq( 'variable', $d['type'] );

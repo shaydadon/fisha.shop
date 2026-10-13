@@ -2,7 +2,7 @@
  * Fisha Studio product list: search and filters (remembered for the browser tab), status badges, and quick
  * price/stock edits that publish straight away for live simple products without pending changes.
  */
-import { h, toast, modal, debounce } from '../ui.js';
+import { h, toast, debounce } from '../ui.js';
 import { api } from '../api.js';
 
 export function productsList( main ) {
@@ -85,16 +85,19 @@ export function productsList( main ) {
 		if ( r.hidden ) b.push( [ 'Hidden', 'hidden' ] );
 		if ( r.stock_status === 'outofstock' ) b.push( [ 'Sold out', 'out' ] );
 		else if ( r.low ) b.push( [ 'Low stock', 'low' ] );
-		if ( ! r.editable ) b.push( [ 'Has sizes', 'info' ] );
+		if ( r.sizes ) b.push( [ 'Sizes', 'info' ] );
+		else if ( ! r.editable ) b.push( [ 'WP admin only', 'info' ] );
 		return b.map( ( [ t, k ] ) => h( 'span.fs-badge.fs-badge--' + k, {}, t ) );
 	}
 
 	function row( r ) {
-		const quick = r.editable && r.state === 'live';
+		const quick = r.editable && ! r.sizes && r.state === 'live';
 		const price = quick
 			? h( 'input.fs-input.fs-inline', { inputmode: 'decimal', value: r.regular_price, 'aria-label': `Price of ${ r.name }` } )
 			: h( 'span', {}, r.price_text || 'Price on request' );
-		const stock = quick && r.manage_stock
+		const stock = r.sizes
+			? h( 'span', {}, r.stock_text )
+			: quick && r.manage_stock
 			? h( 'input.fs-input.fs-inline.fs-inline--short', { inputmode: 'numeric', value: r.stock_quantity ?? '', 'aria-label': `Stock of ${ r.name }` } )
 			: h( 'span', {}, r.manage_stock ? String( r.stock_quantity ?? 0 ) : ( r.stock_status === 'outofstock' ? 'Sold out' : 'In stock' ) );
 		const save = h( 'button.fs-btn.fs-btn--small.fs-btn--primary', { type: 'button', hidden: true, onclick: () => quickSave() }, 'Publish' );
@@ -150,17 +153,8 @@ export function productsList( main ) {
 	}
 
 	async function createProduct() {
-		const name = await modal( {
-			title: 'New product',
-			body: [
-				h( 'label.fs-field__label', {}, 'Name', h( 'input.fs-input', { name: 'name', required: true, maxlength: 120, autocomplete: 'off' } ) ),
-				h( 'p.fs-field__help', {}, 'It stays hidden from the shop until you publish it.' ),
-			],
-			actions: [ { label: 'Cancel', value: null }, { label: 'Create', kind: 'primary', submit: true, value: ( f ) => f.elements.name.value.trim() } ],
-		} );
-		if ( ! name ) return;
 		try {
-			const p = await api( 'POST', 'products', { name } );
+			const p = await api( 'POST', 'products', { name: '' } );
 			location.hash = '#/products/' + p.id;
 		} catch ( e ) {
 			toast( e.message, 'error' );

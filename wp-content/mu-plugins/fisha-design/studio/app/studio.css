@@ -222,9 +222,32 @@ textarea.fs-input { resize: vertical; }
 	.fs-ed-actions .fs-btn { flex: 1; }
 }
 
+/* Sizes & options */
+.fs-vars { display: grid; gap: 1.5rem; }
+.fs-vars h2 { font-size: 1.05rem; margin: 0 0 .3rem; }
+.fs-vars__attr { border: 1px solid var(--fs-line); border-radius: 12px; padding: .8rem 1rem; background: #fff; display: grid; gap: .6rem; margin-bottom: .6rem; }
+.fs-vars__attr-head { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
+.fs-vars__flags { display: flex; flex-wrap: wrap; gap: .25rem 1rem; }
+.fs-chip--toggle { border: 1px solid var(--fs-line); background: #fff; color: var(--fs-ink); padding: .25rem .8rem; min-height: 36px; cursor: pointer; }
+.fs-chip--toggle[aria-pressed="true"] { background: var(--fs-ink); border-color: var(--fs-ink); color: #fff; }
+.fs-vars__bulk { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; margin-bottom: .6rem; }
+.fs-vars__bulk .fs-input--small { width: 7rem; }
+.fs-vars__rows { display: grid; gap: .4rem; margin-bottom: .8rem; }
+.fs-vars__row { display: grid; grid-template-columns: minmax(9rem, 1.2fr) repeat(5, minmax(6rem, 1fr)) auto; align-items: center; gap: .5rem; padding: .5rem .6rem; border: 1px solid var(--fs-line); border-radius: 10px; background: #fff; }
+.fs-vars__row.has-error { border-color: var(--fs-red); }
+.fs-vars__name { display: flex; align-items: center; gap: .5rem; }
+.fs-vars__cell { display: flex; align-items: center; gap: .35rem; min-width: 0; }
+.fs-vars__cell .fs-inline, .fs-vars__cell .fs-input--small { width: 100%; }
+.fs-vars__cap { color: var(--fs-muted); font-weight: 700; }
+.fs-vars__err { grid-column: 1 / -1; }
+@media (max-width: 900px) {
+	.fs-vars__row { grid-template-columns: 1fr 1fr; }
+	.fs-vars__name { grid-column: 1 / -1; }
+}
+
 /* Touch targets: 44px on touch screens and phones, compact sizes stay on desktop */
 @media (pointer: coarse), (max-width: 760px) {
-	.fs-btn--small, .fs-btn--tiny, .fs-input--small, .fs-inline, .fs-seg, .fs-rt__btn, .fs-check, .fs-radio { min-height: 44px; }
+	.fs-btn--small, .fs-btn--tiny, .fs-input--small, .fs-inline, .fs-seg, .fs-rt__btn, .fs-check, .fs-radio, .fs-chip--toggle { min-height: 44px; }
 	.fs-chip button { min-width: 44px; min-height: 44px; }
 	.fs-swatch { width: 44px; height: 44px; }
 	.fs-link { display: inline-flex; align-items: center; min-height: 44px; }

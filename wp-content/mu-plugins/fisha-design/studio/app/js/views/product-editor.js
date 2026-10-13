@@ -5,21 +5,23 @@
  */
 import { h, toast, modal, confirmDialog, debounce } from '../ui.js';
 import { api } from '../api.js';
-import { textField, selectField, toggleField, categoriesField, tagsField, colorField } from '../fields.js';
+import { textField, selectField, toggleField, categoriesField, tagsField } from '../fields.js';
+import { variationsPanel } from './product-variations.js';
 import { richText } from '../richtext.js';
 import { imagesField } from '../images.js';
 import { previewPane } from '../preview.js';
 
-const TABS = [ [ 'basics', 'Basics' ], [ 'price', 'Price' ], [ 'inventory', 'Inventory' ], [ 'images', 'Photos' ], [ 'design', 'Fisha design' ], [ 'seo', 'SEO' ], [ 'shipping', 'Shipping & tax' ] ];
+// The owner asked for the SEO and Fisha design tabs to be removed; the server keeps filling those fields with defaults.
+const TABS = [ [ 'basics', 'Basics' ], [ 'price', 'Price' ], [ 'inventory', 'Inventory' ], [ 'images', 'Photos' ], [ 'shipping', 'Shipping & tax' ] ];
+const TABS_SIZES = [ [ 'basics', 'Basics' ], [ 'variations', 'Sizes & options' ], [ 'inventory', 'Inventory' ], [ 'images', 'Photos' ], [ 'shipping', 'Shipping & tax' ] ];
 const TAB_OF = {
 	name: 'basics', slug: 'basics', status: 'basics', category_ids: 'basics', tag_ids: 'basics', short_description: 'basics', description: 'basics', catalog_visibility: 'basics', featured: 'basics', reviews_allowed: 'basics', menu_order: 'basics',
 	regular_price: 'price', sale_price: 'price', date_on_sale_from: 'price', date_on_sale_to: 'price',
 	sku: 'inventory', manage_stock: 'inventory', stock_quantity: 'inventory', stock_status: 'inventory', low_stock_amount: 'inventory', backorders: 'inventory', sold_individually: 'inventory',
 	image_id: 'images', gallery_image_ids: 'images',
-	card_bg: 'design', meta_line: 'design', series: 'design', hero_skip: 'design',
-	seo_title: 'seo', seo_desc: 'seo',
 	weight: 'shipping', length: 'shipping', width: 'shipping', height: 'shipping', shipping_class_id: 'shipping', tax_status: 'shipping', tax_class: 'shipping',
 };
+const tabOf = ( key ) => ( 'attributes' === key || 'variations' === key || String( key ).startsWith( 'var:' ) ) ? 'variations' : ( TAB_OF[ key ] || 'basics' );
 let lookups = null;
 
 export function productEditor( main, id ) {
@@ -42,6 +44,7 @@ export function productEditor( main, id ) {
 		ed.pending[ key ] = value;
 		ed.data.values[ key ] = value;
 		ed.widgets[ key ]?.setError( '' );
+		if ( varsPanel && 'variations' === tabOf( key ) ) varsPanel.setError( key, '' );
 		markTab( key, false );
 		status.textContent = 'Saving…';
 		// A live product's Publish button is disabled until something changes; enable it at once so a quick click is not lost (publish() waits for the save).
@@ -105,20 +108,22 @@ export function productEditor( main, id ) {
 			if ( key === 'images' ) w.set( ed.data.values, ed.data.images );
 			else if ( key in ed.data.values ) w.set( ed.data.values[ key ] );
 		}
+		varsPanel?.render();
 		refreshDerived();
 	}
 
 	function setError( key, msg ) {
-		const w = ed.widgets[ key === 'image_id' || key === 'gallery_image_ids' ? 'images' : key ];
-		w?.setError( msg );
+		if ( varsPanel && 'variations' === tabOf( key ) ) varsPanel.setError( key, msg );
+		else ed.widgets[ key === 'image_id' || key === 'gallery_image_ids' ? 'images' : key ]?.setError( msg );
 		markTab( key, !! msg );
 	}
 	function clearErrors() {
+		varsPanel?.clearErrors();
 		Object.values( ed.widgets ).forEach( ( w ) => w.setError( '' ) );
 		tabBar.querySelectorAll( '.has-error' ).forEach( ( t ) => t.classList.remove( 'has-error' ) );
 	}
 	function markTab( key, on ) {
-		const t = tabBar.querySelector( `[data-tab="${ TAB_OF[ key ] }"]` );
+		const t = tabBar.querySelector( `[data-tab="${ tabOf( key ) }"]` );
 		if ( t && on ) t.classList.add( 'has-error' );
 	}
 	function showErrors( e ) {
@@ -126,8 +131,9 @@ export function productEditor( main, id ) {
 		Object.entries( fields ).forEach( ( [ k, m ] ) => setError( k, m ) );
 		const first = Object.keys( fields )[ 0 ];
 		if ( first ) {
-			openTab( TAB_OF[ first ] || 'basics' );
-			ed.widgets[ first === 'image_id' || first === 'gallery_image_ids' ? 'images' : first ]?.focus();
+			openTab( tabOf( first ) );
+			if ( 'variations' === tabOf( first ) ) varsPanel?.focus( first );
+			else ed.widgets[ first === 'image_id' || first === 'gallery_image_ids' ? 'images' : first ]?.focus();
 		}
 		toast( e.message, 'error' );
 	}
@@ -139,7 +145,7 @@ export function productEditor( main, id ) {
 		const pill = { new: [ 'Draft · not on the site yet', 'draft' ], changed: [ 'Unpublished changes', 'changed' ], live: [ 'Live', 'live' ] }[ d.state ];
 		const actions = [];
 		if ( ! d.editable ) {
-			actions.push( h( 'p.fs-note', {}, 'This product has sizes or options. Editing those arrives in the next Studio update, so it is read-only here for now.' ) );
+			actions.push( h( 'p.fs-note', {}, 'This kind of product can only be edited in WP admin.' ) );
 		} else {
 			if ( d.state === 'changed' ) actions.push( h( 'button.fs-btn', { type: 'button', onclick: discard }, 'Discard changes' ) );
 			if ( d.url ) actions.push( h( 'a.fs-btn', { href: d.url, target: '_blank', rel: 'noopener' }, 'View on site' ) );
@@ -294,6 +300,7 @@ export function productEditor( main, id ) {
 	}
 
 	let urlBox = null;
+	let varsPanel = null;
 	function urlField( v ) {
 		const code = h( 'code' );
 		const isNew = () => ed.data.state === 'new';
@@ -323,19 +330,25 @@ export function productEditor( main, id ) {
 		const v = d.values;
 		const L = lookups;
 		const W = ed.widgets;
+		const sizes = 'variable' === d.type;
+		const tabs = sizes ? TABS_SIZES : TABS;
+		if ( ! tabs.some( ( [ k ] ) => k === tab ) ) tab = 'basics';
 		const on = ( key ) => ( value ) => change( key, value );
 		const money = { inputmode: 'decimal', prefix: L.currency };
 
-		W.name = textField( 'Name', v.name, on( 'name' ), { max: 120 } );
+		W.name = textField( 'Name', v.name, on( 'name' ), { max: 120, placeholder: 'Product name' } );
 		W.slug = urlBox = urlField( v.slug );
 		W.status = selectField( 'Visibility', v.status, [ [ 'publish', 'Live in the shop' ], [ 'private', 'Hidden (only you can see it)' ] ], on( 'status' ) );
 		W.category_ids = categoriesField( 'Categories', v.category_ids, L.categories, on( 'category_ids' ) );
 		W.tag_ids = tagsField( 'Tags', v.tag_ids, L.tags, on( 'tag_ids' ), ( name ) => api( 'POST', 'tags', { name } ) );
-		W.short_description = richText( 'Short description', v.short_description, on( 'short_description' ), { small: true, help: 'Shown next to the photos and used by Google when there is no SEO description.' } );
+		W.short_description = richText( 'Short description', v.short_description, on( 'short_description' ), { small: true, help: 'Shown next to the photos and used by Google.' } );
 		W.description = richText( 'Full description', v.description, on( 'description' ), { help: 'Shown in the Description tab under the product.' } );
 		W.catalog_visibility = selectField( 'Where it shows', v.catalog_visibility, [ [ 'visible', 'Shop and search' ], [ 'catalog', 'Shop only' ], [ 'search', 'Search only' ], [ 'hidden', 'Only by direct link' ] ], on( 'catalog_visibility' ) );
 		W.featured = toggleField( 'Featured product', v.featured, on( 'featured' ) );
 		W.reviews_allowed = toggleField( 'Allow reviews', v.reviews_allowed, on( 'reviews_allowed' ) );
+		const typeField = d.state === 'new'
+			? toggleField( 'Comes in sizes or options', sizes, ( yes ) => switchType( yes ? 'variable' : 'simple' ), { help: 'For example a T-shirt in S, M and L. Each size gets its own price and stock.' } )
+			: null;
 
 		// "Price on request" = no price at all. A new product starts with the price fields open.
 		let onRequest = d.state !== 'new' && v.regular_price === '';
@@ -385,24 +398,6 @@ export function productEditor( main, id ) {
 			change( 'gallery_image_ids', x.gallery_image_ids );
 		} );
 
-		W.card_bg = colorField( 'Card background', v.card_bg, L.palette, on( 'card_bg' ) );
-		W.meta_line = textField( 'Line under the name', v.meta_line, on( 'meta_line' ), { max: 80, help: 'Shown on cards under the name, e.g. "Ink on cotton paper · 33 × 33 cm" or "4 colours".' } );
-		const seriesList = 'fs-series-list';
-		W.series = textField( 'Design series', v.series, on( 'series' ), { list: seriesList, help: 'Products with the same series show a "Pick your design" row of each other. Leave empty for none.' } );
-		W.hero_skip = toggleField( 'Keep out of the Shop page hero', v.hero_skip, on( 'hero_skip' ) );
-
-		W.seo_title = textField( 'SEO title', v.seo_title, on( 'seo_title' ), { counter: 60, max: 70, help: '" | Fisha" is added after it. Empty: the product name is used.' } );
-		W.seo_desc = textField( 'SEO description', v.seo_desc, on( 'seo_desc' ), { counter: 155, max: 170, multiline: true, help: 'One or two sentences for Google. Empty: the short description is used.' } );
-		const snippet = h( 'div.fs-snippet', { 'aria-label': 'How it may look in Google' } );
-		derived.push( ( x ) => {
-			const strip = ( s ) => s.replace( /<[^>]+>/g, ' ' ).replace( /\s+/g, ' ' ).trim();
-			const desc = x.seo_desc || strip( x.short_description || '' );
-			snippet.replaceChildren(
-				h( 'div.fs-snippet__url', {}, ed.data.product_base + ( x.slug || '…' ) + '/' ),
-				h( 'div.fs-snippet__title', {}, ( x.seo_title || x.name || 'Untitled' ) + ' | Fisha' ),
-				h( 'div.fs-snippet__desc', {}, desc.length > 158 ? desc.slice( 0, 155 ) + '…' : desc ) );
-		} );
-
 		W.weight = textField( 'Weight (kg)', v.weight, on( 'weight' ), { inputmode: 'decimal' } );
 		W.length = textField( 'Length (cm)', v.length, on( 'length' ), { inputmode: 'decimal' } );
 		W.width = textField( 'Width (cm)', v.width, on( 'width' ), { inputmode: 'decimal' } );
@@ -411,24 +406,66 @@ export function productEditor( main, id ) {
 		W.tax_status = selectField( 'Tax', v.tax_status, [ [ 'taxable', 'Taxable' ], [ 'shipping', 'Shipping only' ], [ 'none', 'No tax' ] ], on( 'tax_status' ) );
 		W.tax_class = selectField( 'Tax class', v.tax_class, L.tax_classes.map( ( t ) => [ t.slug, t.name ] ), on( 'tax_class' ) );
 
+		varsPanel = sizes ? variationsPanel( {
+			productId: id,
+			values: () => ed.data.values,
+			payload: () => ed.data,
+			change,
+			flush,
+			apply,
+			saved: ( x ) => ed.hooks.saved.forEach( ( f ) => f( x ) ),
+			catalog: L.attributes || [],
+			currency: L.currency,
+			images: () => [ ed.data.values.image_id, ...( ed.data.values.gallery_image_ids || [] ) ].filter( Boolean ).map( ( x ) => ( { id: x } ) ),
+		} ) : null;
+
 		const panel = ( key, ...children ) => h( 'section.fs-panel', { role: 'tabpanel', id: 'fs-panel-' + key, 'aria-labelledby': 'fs-tab-' + key, dataset: { tab: key }, hidden: key !== tab }, children );
-		tabBar.replaceChildren( ...TABS.map( ( [ key, label ] ) => h( 'button.fs-tab', { type: 'button', role: 'tab', id: 'fs-tab-' + key, 'aria-controls': 'fs-panel-' + key, 'aria-selected': String( key === tab ), dataset: { tab: key }, onclick: () => openTab( key ) }, label ) ) );
+		tabBar.replaceChildren( ...tabs.map( ( [ key, label ] ) => h( 'button.fs-tab', { type: 'button', role: 'tab', id: 'fs-tab-' + key, 'aria-controls': 'fs-panel-' + key, 'aria-selected': String( key === tab ), dataset: { tab: key }, onclick: () => openTab( key ) }, label ) ) );
 		const readOnly = ! d.editable;
 		panels.replaceChildren(
-			panel( 'basics', W.name.el, W.slug.el, W.status.el, W.category_ids.el, W.short_description.el, W.description.el, W.tag_ids.el,
+			panel( 'basics', W.name.el, typeField?.el, W.slug.el, W.status.el, W.category_ids.el, W.short_description.el, W.description.el, W.tag_ids.el,
 				h( 'div.fs-grid-2', {}, W.catalog_visibility.el, h( 'div', {}, W.featured.el, W.reviews_allowed.el ) ),
 				readOnly ? null : h( 'div.fs-danger-zone', {}, h( 'button.fs-btn.fs-btn--danger', { type: 'button', onclick: trash }, d.state === 'new' ? 'Delete this draft' : 'Move to trash' ) ) ),
-			panel( 'price', onRequestField.el, h( 'div.fs-grid-2', {}, W.regular_price.el, W.sale_price.el ), h( 'div.fs-grid-2', {}, W.date_on_sale_from.el, W.date_on_sale_to.el ) ),
-			panel( 'inventory', h( 'div.fs-stock-actions', {}, soldOut, backIn ), W.manage_stock.el, h( 'div.fs-grid-2', {}, W.stock_quantity.el, W.low_stock_amount.el ), W.stock_status.el, W.backorders.el, W.sold_individually.el, W.sku.el ),
+			sizes
+				? panel( 'variations', varsPanel.el )
+				: panel( 'price', onRequestField.el, h( 'div.fs-grid-2', {}, W.regular_price.el, W.sale_price.el ), h( 'div.fs-grid-2', {}, W.date_on_sale_from.el, W.date_on_sale_to.el ) ),
+			sizes
+				? panel( 'inventory', W.sku.el, W.sold_individually.el, h( 'p.fs-field__help', {}, 'Stock is set for each size in Sizes & options, or for many products at once on the Inventory page.' ) )
+				: panel( 'inventory', h( 'div.fs-stock-actions', {}, soldOut, backIn ), W.manage_stock.el, h( 'div.fs-grid-2', {}, W.stock_quantity.el, W.low_stock_amount.el ), W.stock_status.el, W.backorders.el, W.sold_individually.el, W.sku.el ),
 			panel( 'images', W.images.el ),
-			panel( 'design', W.card_bg.el, W.meta_line.el, W.series.el, h( 'datalist', { id: seriesList }, L.series.map( ( s ) => h( 'option', { value: s } ) ) ), W.hero_skip.el ),
-			panel( 'seo', W.seo_title.el, W.seo_desc.el, h( 'p.fs-field__label', {}, 'Google preview' ), snippet ),
 			panel( 'shipping', h( 'div.fs-grid-4', {}, W.weight.el, W.length.el, W.width.el, W.height.el ), W.shipping_class_id.el, h( 'div.fs-grid-2', {}, W.tax_status.el, W.tax_class.el ) ) );
 		if ( readOnly ) panels.querySelectorAll( 'input, select, textarea, button, [contenteditable]' ).forEach( ( x ) => {
 			if ( x.hasAttribute( 'contenteditable' ) ) x.setAttribute( 'contenteditable', 'false' );
 			else x.disabled = true;
 		} );
 		refreshDerived();
+	}
+
+	/** Rebuilds the whole editor from a payload (after the product type changed). */
+	function reload( d ) {
+		ed.data = d;
+		derived.length = 0;
+		for ( const k of Object.keys( ed.widgets ) ) delete ed.widgets[ k ];
+		renderHead();
+		build( d );
+		ed.hooks.saved.forEach( ( f ) => f( d ) );
+	}
+
+	async function switchType( type ) {
+		if ( ! ( await flush() ) ) {
+			reload( ed.data );
+			return;
+		}
+		if ( 'simple' === type && ( ed.data.variations || [] ).length && ! ( await confirmDialog( 'Remove the sizes?', 'This product will be one item again, and the sizes made for it are deleted.', 'Remove sizes', 'danger' ) ) ) {
+			reload( ed.data );
+			return;
+		}
+		try {
+			reload( await api( 'POST', `products/${ id }/type`, { type } ) );
+		} catch ( e ) {
+			toast( e.message, 'error' );
+			reload( ed.data );
+		}
 	}
 
 	/* ---------- load ---------- */
@@ -467,6 +504,10 @@ export function productEditor( main, id ) {
 		destroy() {
 			ed.alive = false;
 			autosave.cancel();
+			// "New product" makes a draft at once; one left completely empty is removed when the owner walks away.
+			const v = ed.data?.values;
+			const blank = v && ! v.name && ! v.image_id && ! v.short_description && ! v.regular_price && ! ( ed.data.variations || [] ).length;
+			if ( ed.data?.state === 'new' && blank && ! Object.keys( ed.pending ).length ) api( 'POST', `products/${ id }/trash` ).catch( () => {} );
 		},
 		dirty: () => Object.keys( ed.pending ).length > 0 || !! ed.saving || ed.publishing,
 		async canLeave() {

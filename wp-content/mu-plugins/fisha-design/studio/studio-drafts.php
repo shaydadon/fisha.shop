@@ -91,8 +91,19 @@ function fisha_studio_product_create( string $name, string $type = 'simple' ): W
 	$p->set_catalog_visibility( 'visible' );
 	$p->set_reviews_allowed( false );
 	$p->save();
+	if ( '' === $name ) {
+		// WooCommerce titles an unnamed new product "Product"; keep it empty so the owner types the real name.
+		global $wpdb;
+		$wpdb->update( $wpdb->posts, array( 'post_title' => '' ), array( 'ID' => $p->get_id() ) );
+		clean_post_cache( $p->get_id() );
+	}
 	return $p;
 }
+
+/** WordPress refuses to save a post with no title, content or excerpt; an unnamed product draft must still save and go to the trash. */
+add_filter( 'wp_insert_post_empty_content', function ( $empty, $post ) {
+	return $empty && ! ( 'product' === ( $post['post_type'] ?? '' ) && in_array( $post['post_status'] ?? '', array( 'draft', 'trash' ), true ) );
+}, 10, 2 );
 
 /** Cleans the "seen" values sent with an edit (size keys too when the product is given); bad or unknown keys are dropped. */
 function fisha_studio_clean_seen( $seen, ?WC_Product $p = null ): array {
