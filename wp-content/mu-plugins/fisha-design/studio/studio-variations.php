@@ -414,3 +414,64 @@ function fisha_studio_variable_validate( array $v, WC_Product $p ): array {
 	if ( ! $on ) $e['variations'] = 'Switch on at least one size and give it a price.';
 	return $e;
 }
+
+/* ---------- quick edit of one size ---------- */
+
+/** Inventory quick edit of one size: refuses if it moved since the owner's list loaded, saves at once, logs it. @return WC_Product_Variation|WP_Error */
+function fisha_studio_variation_quick( int $vid, array $input, array $seen_input ) {
+	$v = wc_get_product( $vid );
+	$p = ( $v && $v->is_type( 'variation' ) ) ? wc_get_product( $v->get_parent_id() ) : null;
+	if ( ! $p || 'trash' === get_post_status( $p->get_id() ) ) return new WP_Error( 'fisha_studio_not_found', 'This size no longer exists.', array( 'status' => 404 ) );
+	if ( fisha_studio_is_new( $p ) || '1' === get_post_meta( $vid, FISHA_STUDIO_PENDING_META, true ) ) {
+		return new WP_Error( 'fisha_studio_unsupported', 'Open this product to edit it.', array( 'status' => 400 ) );
+	}
+	if ( fisha_studio_draft_get( $p->get_id() )['fields'] ) {
+		return new WP_Error( 'fisha_studio_has_draft', 'This product has unpublished changes. Open it to review and publish them together.', array( 'status' => 409 ) );
+	}
+	$defs = array_intersect_key( fisha_studio_variation_fields(), array_flip( array( 'regular_price', 'stock_quantity', 'stock_status' ) ) );
+	list( $values, $errors ) = fisha_studio_sanitize( $defs, $input );
+	if ( $errors ) return new WP_Error( 'fisha_studio_invalid', reset( $errors ), array( 'status' => 422, 'fields' => $errors ) );
+	if ( ! $values ) return $v;
+	list( $seen, $seen_errors ) = fisha_studio_sanitize( $defs, $seen_input );
+	$seen = array_intersect_key( array_diff_key( $seen, $seen_errors ), $values );
+
+	$live = array();
+	foreach ( $defs as $f => $def ) $live[ $f ] = fisha_studio_clean( $def, call_user_func( $def['get'], $v ) )[0];
+	$conflicts = array();
+	foreach ( $seen as $f => $was ) {
+		if ( ! fisha_studio_same( $was, $live[ $f ] ) ) {
+			$conflicts[] = array( 'field' => $f, 'label' => fisha_studio_variation_label( $v ) . ': ' . $defs[ $f ]['label'], 'base' => $was, 'live' => $live[ $f ], 'mine' => $values[ $f ] );
+		}
+	}
+	if ( $conflicts ) return new WP_Error( 'fisha_studio_conflict', 'This changed on the site since the list was loaded, so nothing was changed.', array( 'status' => 409, 'conflicts' => $conflicts ) );
+
+	$invalid = function ( string $f, string $msg ) { return new WP_Error( 'fisha_studio_invalid', $msg, array( 'status' => 422, 'fields' => array( $f => $msg ) ) ); };
+	if ( array_key_exists( 'regular_price', $values ) ) {
+		if ( '' === $values['regular_price'] && 'publish' === $v->get_status( 'edit' ) ) return $invalid( 'regular_price', 'A size that is on needs a price.' );
+		$sale = (string) $v->get_sale_price( 'edit' );
+		if ( '' !== $sale && '' !== $values['regular_price'] && (float) $sale >= (float) $values['regular_price'] ) return $invalid( 'regular_price', 'This size has a sale price that would be higher. Open the product to change both.' );
+	}
+	if ( array_key_exists( 'stock_quantity', $values ) && ! $v->get_manage_stock( 'edit' ) ) return $invalid( 'stock_quantity', 'This size does not count stock. Open the product to turn counting on.' );
+
+	global $wpdb;
+	$wpdb->query( 'START TRANSACTION' );
+	try {
+		foreach ( $values as $f => $x ) call_user_func( $defs[ $f ]['set'], $v, $x );
+		$v->save();
+		WC_Product_Variable::sync( $p->get_id() );
+		$fresh = wc_get_product( $vid );
+		$after = array();
+		foreach ( $defs as $f => $def ) $after[ $f ] = fisha_studio_clean( $def, call_user_func( $def['get'], $fresh ) )[0];
+		if ( ! fisha_studio_log( 'variation', $vid, 'quick', $live, $after ) ) throw new RuntimeException( 'audit log write failed: ' . $wpdb->last_error );
+		$wpdb->query( 'COMMIT' );
+	} catch ( Throwable $e ) {
+		$wpdb->query( 'ROLLBACK' );
+		clean_post_cache( $vid );
+		clean_post_cache( $p->get_id() );
+		wc_delete_product_transients( $p->get_id() );
+		fisha_studio_log_error( 'quick size ' . $vid, $e );
+		return new WP_Error( 'fisha_studio_publish_failed', 'Saving failed, so nothing was changed. Please try again.', array( 'status' => 500 ) );
+	}
+	fisha_studio_purge_product( wc_get_product( $p->get_id() ) );
+	return wc_get_product( $vid );
+}
