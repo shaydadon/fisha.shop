@@ -40,7 +40,27 @@ fs_test( 'sizes quick: refused when the product has a draft or the size is new',
 fs_test( 'sizes quick: invalid values are refused', function () {
 	$p = fs_variable( array( 's' ) );
 	$s = fs_var_id( $p, 's' );
-	fs_eq( 'fisha_studio_invalid', fisha_studio_variation_quick( $s, array( 'stock_quantity' => 3 ), array() )->get_error_code(), 'stock not counted for this size' );
-	fs_eq( 'fisha_studio_invalid', fisha_studio_variation_quick( $s, array( 'regular_price' => '' ), array() )->get_error_code(), 'a size that is on needs a price' );
-	fs_eq( 'fisha_studio_invalid', fisha_studio_variation_quick( $s, array( 'regular_price' => 'abc' ), array() )->get_error_code() );
+	fs_eq( 'fisha_studio_invalid', fisha_studio_variation_quick( $s, array( 'stock_quantity' => 3 ), array( 'stock_quantity' => null ) )->get_error_code(), 'stock not counted for this size' );
+	fs_eq( 'fisha_studio_invalid', fisha_studio_variation_quick( $s, array( 'regular_price' => '' ), array( 'regular_price' => '100' ) )->get_error_code(), 'a size that is on needs a price' );
+	fs_eq( 'fisha_studio_invalid', fisha_studio_variation_quick( $s, array( 'regular_price' => 'abc' ), array( 'regular_price' => '100' ) )->get_error_code() );
+} );
+
+fs_test( 'sizes quick: a sent field without the seen value is refused', function () {
+	$p = fs_variable( array( 's' ) );
+	$s = fs_var_id( $p, 's' );
+	$r = fisha_studio_variation_quick( $s, array( 'regular_price' => '115' ), array() );
+	fs_eq( 'fisha_studio_invalid', $r->get_error_code() );
+	fs_eq( 422, $r->get_error_data()['status'] );
+	fs_eq( '100', wc_get_product( $s )->get_regular_price(), 'nothing written' );
+} );
+
+fs_test( 'sizes quick: an order between the check and the save is caught', function () {
+	$p = fs_variable( array( 's' ) );
+	$s = fs_var_id( $p, 's' );
+	fs_counted( $s, 5 );
+	add_action( 'fisha_studio_quick_before_recheck', function () use ( $s ) { update_post_meta( $s, '_stock', 4 ); } );
+	fs_on_cleanup( function () { remove_all_actions( 'fisha_studio_quick_before_recheck' ); } );
+	$r = fisha_studio_variation_quick( $s, array( 'stock_quantity' => 3 ), array( 'stock_quantity' => 5 ) );
+	fs_eq( 'fisha_studio_conflict', $r->get_error_code() );
+	fs_true( 3 !== (int) wc_get_product( $s )->get_stock_quantity(), 'our write must not land' );
 } );

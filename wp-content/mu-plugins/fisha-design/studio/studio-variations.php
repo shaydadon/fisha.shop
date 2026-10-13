@@ -432,18 +432,30 @@ function fisha_studio_variation_quick( int $vid, array $input, array $seen_input
 	list( $values, $errors ) = fisha_studio_sanitize( $defs, $input );
 	if ( $errors ) return new WP_Error( 'fisha_studio_invalid', reset( $errors ), array( 'status' => 422, 'fields' => $errors ) );
 	if ( ! $values ) return $v;
-	list( $seen, $seen_errors ) = fisha_studio_sanitize( $defs, $seen_input );
-	$seen = array_intersect_key( array_diff_key( $seen, $seen_errors ), $values );
 
-	$live = array();
-	foreach ( $defs as $f => $def ) $live[ $f ] = fisha_studio_clean( $def, call_user_func( $def['get'], $v ) )[0];
-	$conflicts = array();
-	foreach ( $seen as $f => $was ) {
-		if ( ! fisha_studio_same( $was, $live[ $f ] ) ) {
-			$conflicts[] = array( 'field' => $f, 'label' => fisha_studio_variation_label( $v ) . ': ' . $defs[ $f ]['label'], 'base' => $was, 'live' => $live[ $f ], 'mine' => $values[ $f ] );
-		}
+	// Every field sent must come with the value the owner saw; without it the change cannot be checked.
+	list( $seen, $seen_errors ) = fisha_studio_sanitize( $defs, $seen_input );
+	$missing = array();
+	foreach ( array_keys( $values ) as $f ) {
+		if ( ! array_key_exists( $f, $seen ) || array_key_exists( $f, $seen_errors ) ) $missing[ $f ] = 'Please reload the list and try again.';
 	}
-	if ( $conflicts ) return new WP_Error( 'fisha_studio_conflict', 'This changed on the site since the list was loaded, so nothing was changed.', array( 'status' => 409, 'conflicts' => $conflicts ) );
+	if ( $missing ) return new WP_Error( 'fisha_studio_invalid', 'Please reload the list and try again.', array( 'status' => 422, 'fields' => $missing ) );
+	$seen = array_intersect_key( $seen, $values );
+
+	$conflicts_of = function ( WC_Product $cur ) use ( $defs, $seen, $values ): array {
+		$out = array();
+		foreach ( $seen as $f => $was ) {
+			$live = fisha_studio_clean( $defs[ $f ], call_user_func( $defs[ $f ]['get'], $cur ) )[0];
+			if ( ! fisha_studio_same( $was, $live ) ) {
+				$out[] = array( 'field' => $f, 'label' => fisha_studio_variation_label( $cur ) . ': ' . $defs[ $f ]['label'], 'base' => $was, 'live' => $live, 'mine' => $values[ $f ] );
+			}
+		}
+		return $out;
+	};
+	$refused = function ( array $conflicts ) {
+		return new WP_Error( 'fisha_studio_conflict', 'This changed on the site since the list was loaded, so nothing was changed.', array( 'status' => 409, 'conflicts' => $conflicts ) );
+	};
+	if ( $conflicts = $conflicts_of( $v ) ) return $refused( $conflicts );
 
 	$invalid = function ( string $f, string $msg ) { return new WP_Error( 'fisha_studio_invalid', $msg, array( 'status' => 422, 'fields' => array( $f => $msg ) ) ); };
 	if ( array_key_exists( 'regular_price', $values ) ) {
@@ -456,8 +468,24 @@ function fisha_studio_variation_quick( int $vid, array $input, array $seen_input
 	global $wpdb;
 	$wpdb->query( 'START TRANSACTION' );
 	try {
-		foreach ( $values as $f => $x ) call_user_func( $defs[ $f ]['set'], $v, $x );
-		$v->save();
+		// Lock the stock row so an order placed now waits for this save; then check the seen values again.
+		if ( array_key_exists( 'stock_quantity', $values ) ) {
+			$wpdb->get_var( $wpdb->prepare( "SELECT meta_value FROM {$wpdb->postmeta} WHERE post_id = %d AND meta_key = '_stock' FOR UPDATE", $vid ) );
+		}
+		do_action( 'fisha_studio_quick_before_recheck', $vid );
+		clean_post_cache( $vid );
+		wc_delete_product_transients( $vid );
+		if ( class_exists( 'WC_Cache_Helper' ) ) WC_Cache_Helper::invalidate_cache_group( 'product_' . $vid );
+		$cur       = wc_get_product( $vid );
+		$conflicts = $conflicts_of( $cur );
+		if ( $conflicts ) {
+			$wpdb->query( 'ROLLBACK' );
+			return $refused( $conflicts );
+		}
+		$live = array();
+		foreach ( $defs as $f => $def ) $live[ $f ] = fisha_studio_clean( $def, call_user_func( $def['get'], $cur ) )[0];
+		foreach ( $values as $f => $x ) call_user_func( $defs[ $f ]['set'], $cur, $x );
+		$cur->save();
 		WC_Product_Variable::sync( $p->get_id() );
 		$fresh = wc_get_product( $vid );
 		$after = array();
