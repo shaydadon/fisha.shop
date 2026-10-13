@@ -68,7 +68,7 @@ function fisha_studio_attributes_read( WC_Product $p ): array {
 		if ( $tax ) sort( $opts );
 		$out[] = array(
 			'name'      => $a->get_name(),
-			'label'     => $tax ? wc_attribute_label( $a->get_name() ) : $a->get_name(),
+			'label'     => $tax ? fisha_studio_plain( wc_attribute_label( $a->get_name() ) ) : $a->get_name(),
 			'taxonomy'  => $tax,
 			'options'   => array_values( $opts ),
 			'variation' => (bool) $a->get_variation(),
@@ -113,7 +113,7 @@ function fisha_studio_clean_attributes( $v ): array {
 		}
 		$out[] = array(
 			'name'      => $name,
-			'label'     => $tax ? wc_attribute_label( $name ) : $name,
+			'label'     => $tax ? fisha_studio_plain( wc_attribute_label( $name ) ) : $name,
 			'taxonomy'  => $tax,
 			'options'   => $opts,
 			'variation' => ! empty( $a['variation'] ),
@@ -151,8 +151,8 @@ function fisha_studio_attributes_catalog(): array {
 		if ( ! taxonomy_exists( $tax ) ) continue;
 		$terms = get_terms( array( 'taxonomy' => $tax, 'hide_empty' => false, 'orderby' => 'menu_order' ) );
 		$list  = array();
-		foreach ( is_wp_error( $terms ) ? array() : $terms as $t ) $list[] = array( 'id' => (int) $t->term_id, 'name' => $t->name, 'slug' => $t->slug );
-		$out[] = array( 'id' => (int) $a->attribute_id, 'name' => $tax, 'label' => $a->attribute_label, 'terms' => $list );
+		foreach ( is_wp_error( $terms ) ? array() : $terms as $t ) $list[] = array( 'id' => (int) $t->term_id, 'name' => fisha_studio_plain( $t->name ), 'slug' => $t->slug );
+		$out[] = array( 'id' => (int) $a->attribute_id, 'name' => $tax, 'label' => fisha_studio_plain( $a->attribute_label ), 'terms' => $list );
 	}
 	return $out;
 }
@@ -227,7 +227,7 @@ function fisha_studio_product_apply_all( WC_Product $p, array $values ): void {
 /* ---------- labels ---------- */
 
 function fisha_studio_variation_label( WC_Product $v ): string {
-	$label = wc_get_formatted_variation( $v, true, false );
+	$label = fisha_studio_plain( wc_get_formatted_variation( $v, true, false ) );
 	return '' !== $label ? $label : '#' . $v->get_id();
 }
 

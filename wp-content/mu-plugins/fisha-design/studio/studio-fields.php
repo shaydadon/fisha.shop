@@ -86,7 +86,8 @@ function fisha_studio_clean( array $def, $v ): array {
 	$label = $def['label'] ?? 'This field';
 	switch ( $def['type'] ) {
 		case 'text':
-			$v = trim( sanitize_text_field( (string) $v ) );
+			// WordPress stores some text with entities (a title's "&" as "&amp;"): decode, so read and sent values compare equal.
+			$v = fisha_studio_plain( trim( sanitize_text_field( (string) $v ) ) );
 			if ( isset( $def['max'] ) && mb_strlen( $v ) > $def['max'] ) return array( $v, sprintf( '%s can be at most %d characters.', $label, $def['max'] ) );
 			return array( $v, null );
 
@@ -234,6 +235,11 @@ function fisha_studio_drop_default_cat( array $ids ): array {
 	$def = (int) get_option( 'default_product_cat' );
 	if ( ! $def || count( $ids ) < 2 || ! in_array( $def, array_map( 'intval', $ids ), true ) ) return $ids;
 	return array_values( array_filter( $ids, function ( $id ) use ( $def ) { return (int) $id !== $def; } ) );
+}
+
+/** Plain text from a string WordPress may have stored with HTML entities ("Black &amp; White" → "Black & White"). */
+function fisha_studio_plain( string $s ): string {
+	return html_entity_decode( $s, ENT_QUOTES | ENT_HTML5, 'UTF-8' );
 }
 
 function fisha_studio_same( $a, $b ): bool {

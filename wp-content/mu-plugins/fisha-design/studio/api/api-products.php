@@ -128,11 +128,11 @@ function fisha_studio_product_row( WC_Product $p ): array {
 	$names = array();
 	foreach ( $p->get_category_ids() as $cid ) {
 		$t = get_term( $cid, 'product_cat' );
-		if ( $t && ! is_wp_error( $t ) ) $names[] = $t->name;
+		if ( $t && ! is_wp_error( $t ) ) $names[] = fisha_studio_plain( $t->name );
 	}
 	return array(
 		'id'             => $p->get_id(),
-		'name'           => $p->get_name( 'edit' ),
+		'name'           => fisha_studio_plain( $p->get_name( 'edit' ) ),
 		'sku'            => $p->get_sku( 'edit' ),
 		'type'           => $p->get_type(),
 		'editable'       => $p->is_type( array( 'simple', 'variable' ) ),

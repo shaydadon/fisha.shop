@@ -17,24 +17,24 @@ function fisha_studio_rest_lookups(): array {
 	$by_id = array();
 	foreach ( $terms as $t ) $by_id[ $t->term_id ] = $t;
 	$path = function ( WP_Term $t ) use ( $by_id ): string {
-		$names = array( $t->name );
+		$names = array( fisha_studio_plain( $t->name ) );
 		while ( $t->parent && isset( $by_id[ $t->parent ] ) ) {
 			$t = $by_id[ $t->parent ];
-			array_unshift( $names, $t->name );
+			array_unshift( $names, fisha_studio_plain( $t->name ) );
 		}
 		return implode( ' › ', $names );
 	};
 	$categories = array();
-	foreach ( $terms as $t ) $categories[] = array( 'id' => $t->term_id, 'name' => $t->name, 'parent' => $t->parent, 'slug' => $t->slug, 'path' => $path( $t ) );
+	foreach ( $terms as $t ) $categories[] = array( 'id' => $t->term_id, 'name' => fisha_studio_plain( $t->name ), 'parent' => $t->parent, 'slug' => $t->slug, 'path' => $path( $t ) );
 	usort( $categories, function ( $a, $b ) { return strcasecmp( $a['path'], $b['path'] ); } );
 
 	$tag_terms = get_terms( array( 'taxonomy' => 'product_tag', 'hide_empty' => false ) );
 	$tags      = array();
-	foreach ( is_wp_error( $tag_terms ) ? array() : $tag_terms as $t ) $tags[] = array( 'id' => $t->term_id, 'name' => $t->name );
+	foreach ( is_wp_error( $tag_terms ) ? array() : $tag_terms as $t ) $tags[] = array( 'id' => $t->term_id, 'name' => fisha_studio_plain( $t->name ) );
 
 	$ship_terms = get_terms( array( 'taxonomy' => 'product_shipping_class', 'hide_empty' => false ) );
 	$shipping   = array();
-	foreach ( is_wp_error( $ship_terms ) ? array() : $ship_terms as $t ) $shipping[] = array( 'id' => $t->term_id, 'name' => $t->name );
+	foreach ( is_wp_error( $ship_terms ) ? array() : $ship_terms as $t ) $shipping[] = array( 'id' => $t->term_id, 'name' => fisha_studio_plain( $t->name ) );
 
 	$tax = array( array( 'slug' => '', 'name' => 'Standard' ) );
 	foreach ( array_combine( WC_Tax::get_tax_class_slugs(), WC_Tax::get_tax_classes() ) ?: array() as $slug => $name ) $tax[] = array( 'slug' => $slug, 'name' => $name );

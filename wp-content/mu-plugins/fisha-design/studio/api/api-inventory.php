@@ -24,7 +24,7 @@ function fisha_studio_inventory_row( WC_Product $item, ?WC_Product $parent = nul
 		'kind'           => $parent ? 'variation' : 'product',
 		'id'             => $item->get_id(),
 		'product_id'     => $p->get_id(),
-		'name'           => $p->get_name( 'edit' ),
+		'name'           => fisha_studio_plain( $p->get_name( 'edit' ) ),
 		'option'         => $parent ? fisha_studio_variation_label( $item ) : '',
 		'sku'            => (string) $item->get_sku( 'edit' ),
 		'enabled'        => ! $parent || 'publish' === $item->get_status( 'edit' ),

@@ -115,13 +115,13 @@ function fisha_studio_rest_attribute_term_add( WP_REST_Request $r ) {
 	$name = fisha_studio_attribute_label_input( $r, 'name', 40 );
 	if ( is_wp_error( $name ) ) return $name;
 	$existing = get_term_by( 'name', $name, $tax );
-	if ( $existing ) return array( 'id' => (int) $existing->term_id, 'name' => $existing->name, 'slug' => $existing->slug );
+	if ( $existing ) return array( 'id' => (int) $existing->term_id, 'name' => fisha_studio_plain( $existing->name ), 'slug' => $existing->slug );
 	$t = wp_insert_term( $name, $tax );
 	if ( is_wp_error( $t ) ) return new WP_Error( 'fisha_studio_invalid', $t->get_error_message(), array( 'status' => 422 ) );
 	update_term_meta( (int) $t['term_id'], 'order', count( get_terms( array( 'taxonomy' => $tax, 'hide_empty' => false, 'fields' => 'ids' ) ) ) );
 	$term = get_term( (int) $t['term_id'], $tax );
 	fisha_studio_log( 'attribute', (int) $r['id'], 'add value', null, array( 'value' => $name ) );
-	return array( 'id' => (int) $term->term_id, 'name' => $term->name, 'slug' => $term->slug );
+	return array( 'id' => (int) $term->term_id, 'name' => fisha_studio_plain( $term->name ), 'slug' => $term->slug );
 }
 
 function fisha_studio_rest_attribute_order( WP_REST_Request $r ) {
@@ -155,7 +155,7 @@ function fisha_studio_rest_attribute_term_rename( WP_REST_Request $r ) {
 	fisha_studio_log( 'attribute', $t->term_id, 'rename value', array( 'name' => $t->name ), array( 'name' => $name ) );
 	do_action( 'litespeed_purge_all' );
 	$fresh = get_term( $t->term_id, $t->taxonomy );
-	return array( 'id' => (int) $fresh->term_id, 'name' => $fresh->name, 'slug' => $fresh->slug );
+	return array( 'id' => (int) $fresh->term_id, 'name' => fisha_studio_plain( $fresh->name ), 'slug' => $fresh->slug );
 }
 
 function fisha_studio_rest_attribute_term_delete( WP_REST_Request $r ) {
@@ -168,8 +168,8 @@ function fisha_studio_rest_attribute_term_delete( WP_REST_Request $r ) {
 	$product_ids = array_values( array_unique( array_filter( $product_ids ) ) );
 	if ( $product_ids ) {
 		$names = array();
-		foreach ( array_slice( $product_ids, 0, 10 ) as $pid ) $names[] = get_the_title( $pid );
-		return new WP_Error( 'fisha_studio_in_use', sprintf( '%s is used by %s. Remove it from those products first.', $t->name, implode( ', ', $names ) ), array( 'status' => 409, 'products' => $names ) );
+		foreach ( array_slice( $product_ids, 0, 10 ) as $pid ) $names[] = fisha_studio_plain( get_the_title( $pid ) );
+		return new WP_Error( 'fisha_studio_in_use', sprintf( '%s is used by %s. Remove it from those products first.', fisha_studio_plain( $t->name ), implode( ', ', $names ) ), array( 'status' => 409, 'products' => $names ) );
 	}
 	wp_delete_term( $t->term_id, $t->taxonomy );
 	fisha_studio_log( 'attribute', $t->term_id, 'delete value', array( 'name' => $t->name ), null );
