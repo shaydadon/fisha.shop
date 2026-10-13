@@ -174,15 +174,20 @@ export function colorField( label, value, palette, onChange ) {
 export const STOCK_CHOICES = [ [ 'fixed', 'Fixed amount' ], [ 'instock', 'In stock' ], [ 'onbackorder', 'Made to order' ], [ 'outofstock', 'Sold out' ] ];
 const STOCK_LABEL = Object.fromEntries( STOCK_CHOICES );
 
-/** The choice an item is on, from its manage_stock and stock_status. */
-export function stockChoiceOf( manage, status ) {
-	if ( manage ) return 'fixed';
+/** A number typed or stored that is 0 or less: under "Fixed amount" it means Sold out (a fixed amount is 1 or more). */
+export const isNoneLeft = ( qty ) => qty !== null && qty !== undefined && String( qty ).trim() !== '' && Number.isFinite( Number( qty ) ) && Number( qty ) <= 0;
+
+/** The choice an item is on, from its manage_stock, stock_status and stock count (a counted item at 0 shows Sold out). */
+export function stockChoiceOf( manage, status, qty = null ) {
+	if ( manage ) return isNoneLeft( qty ) ? 'outofstock' : 'fixed';
 	return [ 'instock', 'onbackorder', 'outofstock' ].includes( status ) ? status : 'instock';
 }
 
 /** What the owner sees for an item's stock: the number for a fixed amount, otherwise the choice. */
 export function stockText( manage, qty, status ) {
-	return manage ? String( qty ?? 0 ) : STOCK_LABEL[ stockChoiceOf( false, status ) ];
+	if ( manage && ( qty === null || qty === undefined || qty === '' ) ) return 'Fixed amount, no number yet';
+	const c = stockChoiceOf( manage, status, qty );
+	return c === 'fixed' ? String( qty ) : STOCK_LABEL[ c ];
 }
 
 /**
@@ -195,7 +200,16 @@ export function stockControl( { name, choice, qty, onChoice, onQty } ) {
 		onChoice( sel.value );
 		if ( sel.value === 'fixed' && input.value === '' ) input.focus();
 	} }, STOCK_CHOICES.map( ( [ v, t ] ) => h( 'option', { value: v }, t ) ) );
-	const input = h( 'input.fs-input.fs-inline.fs-inline--short.fs-stock__qty', { inputmode: 'numeric', placeholder: 'How many', 'aria-label': `How many of ${ name }`, value: qty ?? '', oninput: () => {
+	const input = h( 'input.fs-input.fs-inline.fs-inline--short.fs-stock__qty', { inputmode: 'numeric', placeholder: 'How many', 'aria-label': `How many of ${ name }`, value: isNoneLeft( qty ) ? '' : qty ?? '', oninput: () => {
+		// A fixed amount is 1 or more: typing 0 (or less) switches the choice to Sold out.
+		if ( isNoneLeft( input.value ) ) {
+			input.value = '';
+			sel.value = 'outofstock';
+			paint();
+			onChoice( 'outofstock' );
+			sel.focus();
+			return;
+		}
 		paint();
 		onQty( input.value );
 	} } );
@@ -211,7 +225,7 @@ export function stockControl( { name, choice, qty, onChoice, onQty } ) {
 		input,
 		set( c, q ) {
 			sel.value = c;
-			if ( document.activeElement !== input ) input.value = q ?? '';
+			if ( document.activeElement !== input ) input.value = isNoneLeft( q ) ? '' : q ?? '';
 			paint();
 		},
 		focus: () => ( sel.value === 'fixed' ? input : sel ).focus(),

@@ -173,3 +173,61 @@ fs_test( 'stock choice: publishing a counted product or size that allowed backor
 	fs_eq( 'no', wc_get_product( $s )->get_backorders( 'edit' ) );
 	fs_eq( 'no', fisha_studio_log_for( 'product', $q->get_id() )[0]['after']["var:$s:backorders"] );
 } );
+
+/* ---------- Round 2: a fixed amount is 1 or more, 0 means Sold out ---------- */
+
+fs_test( 'stock choice: a quick edit to 0 makes the item Sold out', function () {
+	$p = fs_product( array( 'image_id' => fs_image(), 'category_ids' => array( fs_term( 'zero-' . wp_rand() )->term_id ), 'manage_stock' => true, 'stock_quantity' => 3 ) );
+	fs_as( FISHA_STUDIO_ROLE );
+	list( $st, $row ) = fs_api( 'POST', '/products/' . $p->get_id() . '/quick', array( 'fields' => array( 'stock_quantity' => '0' ), 'seen' => array( 'stock_quantity' => 2 ) ) );
+	fs_eq( 409, $st, 'the seen check still runs' );
+	list( $st, $row ) = fs_api( 'POST', '/products/' . $p->get_id() . '/quick', array( 'fields' => array( 'stock_quantity' => '0' ), 'seen' => array( 'stock_quantity' => 3 ) ) );
+	fs_eq( 200, $st, wp_json_encode( $row ) );
+	$live = wc_get_product( $p->get_id() );
+	fs_false( $live->get_manage_stock( 'edit' ) );
+	fs_eq( 'outofstock', $live->get_stock_status( 'edit' ) );
+
+	$q = fs_variable( array( 's' ) );
+	$s = fs_var_id( $q, 's' );
+	fs_counted( $s, 2 );
+	$r = fisha_studio_variation_quick( $s, array( 'stock_quantity' => 0 ), array( 'stock_quantity' => 2 ) );
+	fs_true( $r instanceof WC_Product_Variation, is_wp_error( $r ) ? $r->get_error_message() : '' );
+	fs_false( wc_get_product( $s )->get_manage_stock( 'edit' ) );
+	fs_eq( 'outofstock', wc_get_product( $s )->get_stock_status( 'edit' ) );
+} );
+
+fs_test( 'stock choice: an editor draft with Fixed amount 0 publishes as Sold out', function () {
+	$p = fs_product( array( 'image_id' => fs_image(), 'category_ids' => array( fs_term( 'zero-' . wp_rand() )->term_id ), 'stock_status' => 'instock' ) );
+	fisha_studio_product_edit( $p, array( 'manage_stock' => true, 'backorders' => 'no', 'stock_quantity' => 0 ) );
+	$r = fisha_studio_publish_product( $p->get_id() );
+	fs_false( is_wp_error( $r ), is_wp_error( $r ) ? wp_json_encode( $r->get_error_data() ) : '' );
+	$live = wc_get_product( $p->get_id() );
+	fs_false( $live->get_manage_stock( 'edit' ) );
+	fs_eq( 'outofstock', $live->get_stock_status( 'edit' ) );
+
+	$q = fs_ready_variable( array( 's' ) );
+	$s = fs_var_id( $q, 's' );
+	fisha_studio_product_edit( $q, array( "var:$s:manage_stock" => true, "var:$s:stock_quantity" => 0 ) );
+	$r = fisha_studio_publish_product( $q->get_id() );
+	fs_false( is_wp_error( $r ), is_wp_error( $r ) ? wp_json_encode( $r->get_error_data() ) : '' );
+	fs_false( wc_get_product( $s )->get_manage_stock( 'edit' ) );
+	fs_eq( 'outofstock', wc_get_product( $s )->get_stock_status( 'edit' ) );
+
+	$n = fisha_studio_product_create( 'zz-test Zero New' );
+	fs_on_cleanup( function () use ( $n ) { fs_delete_product( $n->get_id() ); } );
+	fisha_studio_product_edit( wc_get_product( $n->get_id() ), array( 'stock_quantity' => 0 ) );
+	fs_false( wc_get_product( $n->get_id() )->get_manage_stock( 'edit' ), 'a new product takes it directly' );
+	fs_eq( 'outofstock', wc_get_product( $n->get_id() )->get_stock_status( 'edit' ) );
+} );
+
+fs_test( 'stock choice: a counted item sold down to 0 still publishes a price change', function () {
+	$p = fs_product( array( 'image_id' => fs_image(), 'category_ids' => array( fs_term( 'zero-' . wp_rand() )->term_id ), 'manage_stock' => true, 'stock_quantity' => 2 ) );
+	wc_update_product_stock( $p->get_id(), 0, 'set' );
+	fisha_studio_product_edit( wc_get_product( $p->get_id() ), array( 'regular_price' => '130' ) );
+	$r = fisha_studio_publish_product( $p->get_id() );
+	fs_false( is_wp_error( $r ), is_wp_error( $r ) ? wp_json_encode( $r->get_error_data() ) : '' );
+	$live = wc_get_product( $p->get_id() );
+	fs_eq( '130', $live->get_regular_price() );
+	fs_true( $live->get_manage_stock( 'edit' ), 'left as it is' );
+	fs_eq( 0, $live->get_stock_quantity() );
+} );

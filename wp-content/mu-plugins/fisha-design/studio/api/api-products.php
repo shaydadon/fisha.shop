@@ -305,6 +305,7 @@ function fisha_studio_rest_products_quick( WP_REST_Request $r ) {
 		}
 	}
 	if ( $conflicts ) return new WP_Error( 'fisha_studio_conflict', 'This changed on the site since the list was loaded, so nothing was changed.', array( 'status' => 409, 'conflicts' => $conflicts ) );
+	$values = fisha_studio_zero_is_sold_out( $p, $values ); // 0 under Fixed amount means Sold out
 	fisha_studio_draft_save( $p, $values, $seen );
 	$res = fisha_studio_publish_product( $p->get_id() );
 	if ( is_wp_error( $res ) ) {

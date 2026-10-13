@@ -97,7 +97,7 @@ export function inventoryView( main ) {
 		const refresh = () => { save.hidden = ! Object.keys( fieldsNow() ).length; };
 		const stock = r.stock_only
 			? { el: h( 'input.fs-input.fs-inline.fs-inline--short', { inputmode: 'numeric', value: r.stock_quantity ?? '', 'aria-label': `Stock of ${ title }` } ) }
-			: stockControl( { name: title, choice: stockChoiceOf( r.counted, r.stock_status ), qty: r.stock_quantity, onChoice: refresh, onQty: refresh } );
+			: stockControl( { name: title, choice: stockChoiceOf( r.counted, r.stock_status, r.stock_quantity ), qty: r.stock_quantity, onChoice: refresh, onQty: refresh } );
 		if ( r.stock_only ) Object.assign( stock, { select: { value: 'fixed' }, input: stock.el } );
 		// A product with sizes whose stock is counted as a whole: only its count is edited here, prices are per size.
 		const price = r.stock_only
@@ -106,14 +106,16 @@ export function inventoryView( main ) {
 		const save = h( 'button.fs-btn.fs-btn--small.fs-btn--primary', { type: 'button', hidden: true, onclick: () => commit() }, 'Save' );
 		// What the owner saw; an uncounted item was seen with no number (null).
 		const was = { stock_quantity: r.counted ? r.stock_quantity : null, stock_status: r.stock_status, regular_price: r.regular_price };
+		// The choice shown when the row loaded: a counted item at 0 shows Sold out.
+		const initial = r.stock_only ? 'fixed' : stockChoiceOf( r.counted, r.stock_status, r.stock_quantity );
 		const fieldsNow = () => {
 			const f = {};
 			const choice = stock.select.value;
 			const qty = stock.input.value.trim();
 			if ( choice === 'fixed' ) {
 				// A number turns counting on (the server then never sells beyond it); no number yet means nothing to save.
-				if ( qty !== '' && ( ! r.counted || qty !== String( r.stock_quantity ?? '' ) ) ) f.stock_quantity = qty;
-			} else if ( r.counted || choice !== r.stock_status ) {
+				if ( qty !== '' && ( initial !== 'fixed' || qty !== String( r.stock_quantity ?? '' ) ) ) f.stock_quantity = qty;
+			} else if ( choice !== initial ) {
 				f.stock_status = choice;
 			}
 			if ( ! r.stock_only && price.value !== r.regular_price ) f.regular_price = price.value;

@@ -138,9 +138,43 @@ function fisha_studio_clean_seen( $seen, ?WC_Product $p = null ): array {
 	return array_diff_key( $values, $errors );
 }
 
+/**
+ * Owner rule: a fixed amount is 1 or more, and 0 under "Fixed amount" means Sold out. Rewrites a stock count of 0 in an
+ * edit (the product's or a size's) whose item would still count stock into Sold out: counting off, status outofstock.
+ * A product with sizes that counts its stock as a whole keeps 0, as it has no Sold out of its own.
+ */
+function fisha_studio_zero_is_sold_out( WC_Product $p, array $values ): array {
+	$current = null;
+	foreach ( array_keys( $values ) as $k ) {
+		$k = (string) $k;
+		if ( 'stock_quantity' === $k ) {
+			if ( $p->is_type( 'variable' ) ) continue;
+			$prefix = '';
+		} elseif ( ( $parsed = fisha_studio_parse_var_key( $k ) ) && 'stock_quantity' === $parsed[1] ) {
+			$prefix = "var:{$parsed[0]}:";
+		} else {
+			continue;
+		}
+		if ( 0 !== $values[ $k ] ) continue;
+		$mk = $prefix . 'manage_stock';
+		if ( array_key_exists( $mk, $values ) ) {
+			$manage = $values[ $mk ];
+		} else {
+			if ( null === $current ) $current = array_merge( fisha_studio_product_values( $p ), fisha_studio_draft_get( $p->get_id() )['fields'] );
+			$manage = $current[ $mk ] ?? false;
+		}
+		if ( empty( $manage ) ) continue;
+		unset( $values[ $k ] );
+		$values[ $mk ]                    = false;
+		$values[ $prefix . 'stock_status' ] = 'outofstock';
+	}
+	return $values;
+}
+
 /** The one entry point for an edit coming from the Studio. $values and $seen must already be cleaned. */
 function fisha_studio_product_edit( WC_Product $p, array $values, array $seen = array() ): void {
 	if ( isset( $values['category_ids'] ) && is_array( $values['category_ids'] ) ) $values['category_ids'] = fisha_studio_drop_default_cat( $values['category_ids'] );
+	$values = fisha_studio_zero_is_sold_out( $p, $values );
 	if ( ! fisha_studio_is_new( $p ) ) {
 		fisha_studio_draft_save( $p, $values, $seen );
 		return;

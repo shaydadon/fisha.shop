@@ -5,7 +5,7 @@
  */
 import { h, toast, modal, confirmDialog, debounce } from '../ui.js';
 import { api } from '../api.js';
-import { textField, selectField, toggleField, categoriesField, tagsField, STOCK_CHOICES, stockChoiceOf } from '../fields.js';
+import { textField, selectField, toggleField, categoriesField, tagsField, STOCK_CHOICES, stockChoiceOf, isNoneLeft } from '../fields.js';
 import { variationsPanel } from './product-variations.js';
 import { richText } from '../richtext.js';
 import { imagesField } from '../images.js';
@@ -387,8 +387,12 @@ export function productEditor( main, id ) {
 		showIf( W.date_on_sale_to, ( x ) => ! onRequest && x.sale_price !== '' );
 
 		W.sku = textField( 'SKU', v.sku, on( 'sku' ), { max: 64, help: 'Your own stock code. Optional.' } );
-		// One "Stock" choice: Fixed amount (counted, the shop never sells more than that), In stock, Made to order, Sold out.
+		// One "Stock" choice: Fixed amount (1 or more; the shop never sells more than that), In stock, Made to order, Sold out.
+		// A counted item at 0 shows Sold out; picking Fixed amount for it waits for a number of 1 or more.
+		let wantFixed = false;
+		const choiceNow = ( x ) => ( wantFixed && x.manage_stock ? 'fixed' : stockChoiceOf( x.manage_stock, x.stock_status, x.stock_quantity ) );
 		const setChoice = ( c ) => {
+			wantFixed = c === 'fixed';
 			if ( c === 'fixed' ) {
 				change( 'manage_stock', true );
 				change( 'backorders', 'no' );
@@ -397,28 +401,38 @@ export function productEditor( main, id ) {
 				change( 'stock_status', c );
 			}
 			W.stock_choice.set( c );
-			if ( c === 'fixed' && ( ed.data.values.stock_quantity ?? '' ) === '' ) W.stock_quantity.focus();
+			if ( c === 'fixed' ) {
+				if ( isNoneLeft( ed.data.values.stock_quantity ) ) W.stock_quantity.set( '' );
+				if ( ( ed.data.values.stock_quantity ?? '' ) === '' || isNoneLeft( ed.data.values.stock_quantity ) ) W.stock_quantity.focus();
+			}
 		};
-		W.stock_choice = selectField( 'Stock', stockChoiceOf( v.manage_stock, v.stock_status ), STOCK_CHOICES, setChoice, { help: 'Fixed amount: the shop sells at most this many, then shows it as sold out. In stock: no limit.' } );
-		derived.push( ( x ) => W.stock_choice.set( stockChoiceOf( x.manage_stock, x.stock_status ) ) );
+		W.stock_choice = selectField( 'Stock', choiceNow( v ), STOCK_CHOICES, setChoice, { help: 'Fixed amount: the shop sells at most this many (1 or more), then shows it as sold out. In stock: no limit.' } );
+		derived.push( ( x ) => W.stock_choice.set( choiceNow( x ) ) );
 		// A product with sizes can count its stock as a whole; otherwise each size has its own stock choice.
 		W.manage_stock = toggleField( 'Count stock for the whole product', v.manage_stock, ( yes ) => {
 			change( 'manage_stock', yes );
 			if ( yes ) change( 'backorders', 'no' );
 		}, { help: 'Switch it off to set the stock of each size in Sizes & options.' } );
-		W.stock_quantity = textField( sizes ? 'In stock' : 'How many', v.stock_quantity ?? '', on( 'stock_quantity' ), { inputmode: 'numeric', placeholder: 'Enter a number' } );
+		// One item: 0 (or less) under Fixed amount means Sold out. A product counted as a whole keeps its number as typed.
+		W.stock_quantity = textField( sizes ? 'In stock' : 'How many', sizes || ! isNoneLeft( v.stock_quantity ) ? v.stock_quantity ?? '' : '', ( x ) => {
+			if ( ! sizes && isNoneLeft( x ) ) {
+				setChoice( 'outofstock' );
+				W.stock_choice.focus();
+				return;
+			}
+			change( 'stock_quantity', x );
+		}, { inputmode: 'numeric', placeholder: 'Enter a number' } );
 		const notCounted = h( 'p.fs-field__help.fs-stock-note', {}, 'Not counted yet. Enter how many you have.' );
-		derived.push( ( x ) => { notCounted.hidden = ! x.manage_stock || ( x.stock_quantity ?? '' ) !== ''; } );
+		const fixedShown = ( x ) => ( sizes ? x.manage_stock : choiceNow( x ) === 'fixed' );
+		derived.push( ( x ) => { notCounted.hidden = ! fixedShown( x ) || ( ( x.stock_quantity ?? '' ) !== '' && ( sizes || ! isNoneLeft( x.stock_quantity ) ) ); } );
 		W.low_stock_amount = textField( 'Low stock alert at', v.low_stock_amount ?? '', on( 'low_stock_amount' ), { inputmode: 'numeric', help: 'The Studio flags it as low stock at this count (2 when empty).' } );
 		W.sold_individually = toggleField( 'One per order', v.sold_individually, on( 'sold_individually' ), { help: 'For one-of-a-kind pieces.' } );
-		showIf( W.stock_quantity, ( x ) => x.manage_stock );
-		showIf( W.low_stock_amount, ( x ) => x.manage_stock );
-		const soldOut = h( 'button.fs-btn', { type: 'button', onclick: () => {
-			if ( ed.data.values.manage_stock ) { change( 'stock_quantity', 0 ); W.stock_quantity.set( 0 ); }
-			else setChoice( 'outofstock' );
-		} }, 'Mark sold out' );
+		showIf( W.stock_quantity, fixedShown );
+		showIf( W.low_stock_amount, fixedShown );
+		const soldOut = h( 'button.fs-btn', { type: 'button', onclick: () => setChoice( 'outofstock' ) }, 'Mark sold out' );
+		// A counted item goes back to a fixed amount (the owner types how many); otherwise back to In stock.
 		const backIn = h( 'button.fs-btn', { type: 'button', onclick: () => {
-			if ( ed.data.values.manage_stock ) { openTab( 'inventory' ); W.stock_quantity.focus(); }
+			if ( ed.data.values.manage_stock ) { openTab( 'inventory' ); setChoice( 'fixed' ); W.stock_quantity.focus(); }
 			else setChoice( 'instock' );
 		} }, 'Back in stock' );
 

@@ -179,12 +179,18 @@ export function variationsPanel( ctx ) {
 		const price = h( 'input.fs-input.fs-inline', { inputmode: 'decimal', value: v[ k( 'regular_price' ) ] ?? '', 'aria-label': `${ s.label } price`, oninput: () => ctx.change( k( 'regular_price' ), price.value ) } );
 		const sale = h( 'input.fs-input.fs-inline', { inputmode: 'decimal', value: v[ k( 'sale_price' ) ] ?? '', placeholder: 'Sale', 'aria-label': `${ s.label } sale price`, oninput: () => ctx.change( k( 'sale_price' ), sale.value ) } );
 		// The size's stock choice; "Fixed amount" shows its number (the server then never sells beyond it).
-		const choiceNow = () => stockChoiceOf( ctx.values()[ k( 'manage_stock' ) ], ctx.values()[ k( 'stock_status' ) ] );
+		// A counted size at 0 shows Sold out; picking Fixed amount for it shows an empty number to fill in.
+		let wantFixed = false;
+		const choiceNow = () => {
+			const x = ctx.values();
+			return wantFixed && x[ k( 'manage_stock' ) ] ? 'fixed' : stockChoiceOf( x[ k( 'manage_stock' ) ], x[ k( 'stock_status' ) ], x[ k( 'stock_quantity' ) ] );
+		};
 		const stock = stockControl( {
 			name: s.label,
 			choice: choiceNow(),
 			qty: v[ k( 'stock_quantity' ) ],
 			onChoice: ( c ) => {
+				wantFixed = c === 'fixed';
 				if ( c === 'fixed' ) {
 					ctx.change( k( 'manage_stock' ), true );
 				} else {

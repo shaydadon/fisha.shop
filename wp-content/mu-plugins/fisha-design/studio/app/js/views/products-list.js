@@ -5,7 +5,7 @@
 import { h, toast, debounce } from '../ui.js';
 import { api } from '../api.js';
 import { pendingCleanup } from './product-editor.js';
-import { stockText } from '../fields.js';
+import { stockText, isNoneLeft } from '../fields.js';
 
 export function productsList( main ) {
 	const state = { search: '', category: '', state: 'all', stock: 'all', page: 1 };
@@ -100,9 +100,9 @@ export function productsList( main ) {
 			: h( 'span', {}, r.price_text || 'Price on request' );
 		const stock = r.sizes
 			? h( 'span', {}, r.stock_text )
-			: quick && r.counted
+			: quick && r.counted && ! isNoneLeft( r.stock_quantity )
 			? h( 'input.fs-input.fs-inline.fs-inline--short', { inputmode: 'numeric', value: r.stock_quantity ?? '', 'aria-label': `Stock of ${ r.name }` } )
-			: h( 'span', {}, r.counted && r.stock_quantity === null ? 'Fixed amount, no number yet' : stockText( r.counted, r.stock_quantity, r.stock_status ) );
+			: h( 'span', {}, stockText( r.counted, r.stock_quantity, r.stock_status ) );
 		const save = h( 'button.fs-btn.fs-btn--small.fs-btn--primary', { type: 'button', hidden: true, onclick: () => quickSave() }, 'Publish' );
 		const tr = h( 'tr', {},
 			h( 'td.fs-table__thumb', {}, r.thumb ? h( 'img', { src: r.thumb, alt: '', width: 48, height: 48, loading: 'lazy' } ) : h( 'span.fs-thumb-empty' ) ),

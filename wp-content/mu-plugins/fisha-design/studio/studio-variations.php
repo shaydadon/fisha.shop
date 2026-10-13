@@ -527,7 +527,14 @@ function fisha_studio_variation_quick( int $vid, array $input, array $seen_input
 	$counting = null;
 	if ( array_key_exists( 'stock_quantity', $values ) ) {
 		if ( null === $values['stock_quantity'] ) return $invalid( 'stock_quantity', 'Enter how many are in stock.' );
-		if ( true !== $v->get_manage_stock( 'edit' ) ) $counting = true;
+		if ( 0 === $values['stock_quantity'] ) {
+			// A fixed amount is 1 or more: 0 means Sold out (counting off).
+			unset( $values['stock_quantity'] );
+			$values['stock_status'] = 'outofstock';
+			if ( true === $v->get_manage_stock( 'edit' ) ) $counting = false;
+		} elseif ( true !== $v->get_manage_stock( 'edit' ) ) {
+			$counting = true;
+		}
 	} elseif ( array_key_exists( 'stock_status', $values ) && true === $v->get_manage_stock( 'edit' ) ) {
 		$counting = false;
 	}
