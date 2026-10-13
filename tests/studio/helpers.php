@@ -201,3 +201,16 @@ function fs_hiding(): void {
 		fisha_cat_cache_reset();
 	} );
 }
+
+/** A never-published category made by the Studio (removed with its audit rows after the test). */
+function fs_studio_cat( string $name = '', int $parent = 0 ): WP_Term {
+	$t = fisha_studio_category_create( $name, $parent );
+	if ( is_wp_error( $t ) ) throw new Fs_Fail( $t->get_error_message() );
+	$id = $t->term_id;
+	fs_on_cleanup( function () use ( $id ) {
+		global $wpdb;
+		$wpdb->delete( $wpdb->prefix . 'fisha_studio_log', array( 'item_type' => 'category', 'item_id' => $id ) );
+		wp_delete_term( $id, 'product_cat' );
+	} );
+	return $t;
+}

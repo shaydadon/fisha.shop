@@ -32,27 +32,28 @@ add_action( 'transition_post_status', function ( $new, $old, $post ) {
 	}
 }, 10, 3 );
 
-function fisha_studio_draft_get( int $id ): array {
-	$d = get_post_meta( $id, FISHA_STUDIO_DRAFT_META, true );
+/** The draft of a product (meta type 'post') or a category ('term'). */
+function fisha_studio_draft_get( int $id, string $meta_type = 'post' ): array {
+	$d = get_metadata( $meta_type, $id, FISHA_STUDIO_DRAFT_META, true );
 	$empty = array( 'fields' => array(), 'base' => array(), 'user' => 0, 'updated' => 0 );
 	return ( is_array( $d ) && isset( $d['fields'] ) && is_array( $d['fields'] ) ) ? array_merge( $empty, $d ) : $empty;
 }
 
 /** Stores a draft (or removes it when it has no fields). */
-function fisha_studio_draft_put( int $id, array $d ): array {
+function fisha_studio_draft_put( int $id, array $d, string $meta_type = 'post' ): array {
 	if ( empty( $d['fields'] ) ) {
-		delete_post_meta( $id, FISHA_STUDIO_DRAFT_META );
-		return fisha_studio_draft_get( $id );
+		delete_metadata( $meta_type, $id, FISHA_STUDIO_DRAFT_META );
+		return fisha_studio_draft_get( $id, $meta_type );
 	}
-	update_post_meta( $id, FISHA_STUDIO_DRAFT_META, wp_slash( $d ) );
+	update_metadata( $meta_type, $id, FISHA_STUDIO_DRAFT_META, wp_slash( $d ) );
 	return $d;
 }
 
-/** $seen: cleaned values the owner had on screen, keyed by field; the base of a field entering the draft. */
-function fisha_studio_draft_save( WC_Product $p, array $values, array $seen = array() ): array {
-	$id   = $p->get_id();
-	$d    = fisha_studio_draft_get( $id );
-	$live = fisha_studio_product_values( $p );
+/**
+ * Puts edited values into a draft. Each field keeps the value the owner saw when it first entered the draft (its base:
+ * $seen, else the live value); a field set back to its live value while live did not move leaves the draft.
+ */
+function fisha_studio_draft_merge( array $d, array $live, array $values, array $seen ): array {
 	foreach ( $values as $k => $v ) {
 		if ( ! array_key_exists( $k, $live ) ) continue;
 		if ( ! array_key_exists( $k, $d['base'] ) ) $d['base'][ $k ] = array_key_exists( $k, $seen ) ? $seen[ $k ] : $live[ $k ];
@@ -63,7 +64,23 @@ function fisha_studio_draft_save( WC_Product $p, array $values, array $seen = ar
 	}
 	$d['user']    = get_current_user_id();
 	$d['updated'] = time();
-	return fisha_studio_draft_put( $id, $d );
+	return $d;
+}
+
+/** Draft fields whose live value moved since the owner saw it and differs from theirs; $label names a field for the owner. */
+function fisha_studio_draft_conflicts( array $draft, array $live, callable $label ): array {
+	$out = array();
+	foreach ( $draft['fields'] as $k => $mine ) {
+		if ( ! array_key_exists( $k, $draft['base'] ) || ! array_key_exists( $k, $live ) ) continue;
+		if ( fisha_studio_same( $draft['base'][ $k ], $live[ $k ] ) || fisha_studio_same( $mine, $live[ $k ] ) ) continue;
+		$out[] = array( 'field' => $k, 'label' => $label( (string) $k ), 'base' => $draft['base'][ $k ], 'live' => $live[ $k ], 'mine' => $mine );
+	}
+	return $out;
+}
+
+/** $seen: cleaned values the owner had on screen, keyed by field; the base of a field entering the draft. */
+function fisha_studio_draft_save( WC_Product $p, array $values, array $seen = array() ): array {
+	return fisha_studio_draft_put( $p->get_id(), fisha_studio_draft_merge( fisha_studio_draft_get( $p->get_id() ), fisha_studio_product_values( $p ), $values, $seen ) );
 }
 
 function fisha_studio_draft_discard( int $id ): void {
@@ -72,14 +89,7 @@ function fisha_studio_draft_discard( int $id ): void {
 }
 
 function fisha_studio_conflicts( WC_Product $p, array $draft ): array {
-	$live   = fisha_studio_product_values( $p );
-	$out    = array();
-	foreach ( $draft['fields'] as $k => $mine ) {
-		if ( ! array_key_exists( $k, $draft['base'] ) || ! array_key_exists( $k, $live ) ) continue;
-		if ( fisha_studio_same( $draft['base'][ $k ], $live[ $k ] ) || fisha_studio_same( $mine, $live[ $k ] ) ) continue;
-		$out[] = array( 'field' => $k, 'label' => fisha_studio_value_label( $p, (string) $k ), 'base' => $draft['base'][ $k ], 'live' => $live[ $k ], 'mine' => $mine );
-	}
-	return $out;
+	return fisha_studio_draft_conflicts( $draft, fisha_studio_product_values( $p ), function ( string $k ) use ( $p ) { return fisha_studio_value_label( $p, $k ); } );
 }
 
 function fisha_studio_target_status( WC_Product $p ): string {
