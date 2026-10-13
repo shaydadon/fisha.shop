@@ -264,7 +264,7 @@ function fisha_studio_rest_products_publish( WP_REST_Request $r ) {
 	$p = fisha_studio_rest_product( $r );
 	if ( is_wp_error( $p ) ) return $p;
 	$b   = fisha_studio_body( $r );
-	$res = fisha_studio_publish_product( $p->get_id(), array_map( 'strval', (array) ( $b['resolutions'] ?? array() ) ), ! empty( $b['change_url'] ) );
+	$res = fisha_studio_publish_product( $p->get_id(), is_array( $b['resolutions'] ?? null ) ? $b['resolutions'] : array(), ! empty( $b['change_url'] ) );
 	if ( is_wp_error( $res ) ) return $res;
 	return array_merge( fisha_studio_product_payload( wc_get_product( $p->get_id() ) ), array( 'published_url' => $res['url'] ) );
 }

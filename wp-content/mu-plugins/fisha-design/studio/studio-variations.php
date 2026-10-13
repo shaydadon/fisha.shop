@@ -377,7 +377,9 @@ function fisha_studio_variation_remove( WC_Product $p, int $vid ) {
 /** Deletes the sizes added in the Studio that were never published (on Discard). */
 function fisha_studio_variation_discard_pending( int $pid ): void {
 	$ids = get_posts( array( 'post_type' => 'product_variation', 'post_parent' => $pid, 'post_status' => array( 'publish', 'private' ), 'numberposts' => -1, 'fields' => 'ids', 'meta_key' => FISHA_STUDIO_PENDING_META, 'meta_value' => '1' ) );
-	foreach ( $ids as $vid ) wp_delete_post( (int) $vid, true );
+	foreach ( $ids as $vid ) {
+		if ( ! fisha_studio_has_orders( $pid, (int) $vid ) ) wp_delete_post( (int) $vid, true ); // a sold size is never deleted
+	}
 }
 
 /** Switches a product that was never live between "one item" (simple) and "with sizes" (variable). @return WC_Product|WP_Error */

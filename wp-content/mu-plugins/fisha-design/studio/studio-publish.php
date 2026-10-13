@@ -5,6 +5,26 @@
  */
 if ( ! defined( 'ABSPATH' ) ) exit;
 
+/**
+ * The owner's answer to one conflict: 'mine', 'live' or '' (not answered). An answer is either the old string form or
+ * { choice: 'mine'|'live', live: <the site value shown> }; 'mine' with a shown value only counts while the site still
+ * has that value, so an order that lands after the owner chose asks again.
+ */
+function fisha_studio_resolution( array $conflict, array $resolutions ): string {
+	$r = $resolutions[ $conflict['field'] ] ?? '';
+	if ( is_array( $r ) ) {
+		$choice = (string) ( $r['choice'] ?? '' );
+		if ( 'mine' === $choice && array_key_exists( 'live', $r ) && ! fisha_studio_same( $r['live'], $conflict['live'] ) ) return '';
+		$r = $choice;
+	}
+	return in_array( $r, array( 'mine', 'live' ), true ) ? $r : '';
+}
+
+/** The conflicts the owner has not answered (for the value now on the site). */
+function fisha_studio_open_conflicts( array $conflicts, array $resolutions ): array {
+	return array_values( array_filter( $conflicts, function ( $c ) use ( $resolutions ) { return '' === fisha_studio_resolution( $c, $resolutions ); } ) );
+}
+
 /** @return array{id:int,url:string}|WP_Error */
 function fisha_studio_publish_product( int $id, array $resolutions = array(), bool $change_url = false ) {
 	$p = wc_get_product( $id );
@@ -18,12 +38,10 @@ function fisha_studio_publish_product( int $id, array $resolutions = array(), bo
 
 	if ( ! $is_new ) {
 		$conflicts = fisha_studio_conflicts( $p, $draft );
-		$open      = array_values( array_filter( $conflicts, function ( $c ) use ( $resolutions ) {
-			return ! in_array( $resolutions[ $c['field'] ] ?? '', array( 'mine', 'live' ), true );
-		} ) );
+		$open      = fisha_studio_open_conflicts( $conflicts, $resolutions );
 		if ( $open ) return new WP_Error( 'fisha_studio_conflict', 'Some details changed on the site while you were editing.', array( 'status' => 409, 'conflicts' => $open ) );
 		foreach ( $conflicts as $c ) {
-			if ( 'live' === $resolutions[ $c['field'] ] ) unset( $changes[ $c['field'] ] );
+			if ( 'live' === fisha_studio_resolution( $c, $resolutions ) ) unset( $changes[ $c['field'] ] );
 		}
 		if ( isset( $changes['slug'] ) && $changes['slug'] !== $before['slug'] && ! $change_url ) {
 			return new WP_Error( 'fisha_studio_invalid', 'Please check the highlighted fields.', array( 'status' => 422, 'fields' => array( 'slug' => 'This product is live. Use "Change address" to change its URL.' ) ) );
@@ -115,9 +133,7 @@ function fisha_studio_lock_and_recheck_stock( WC_Product $p, array $draft, array
 		wc_delete_product_transients( $x );
 		if ( class_exists( 'WC_Cache_Helper' ) ) WC_Cache_Helper::invalidate_cache_group( 'product_' . $x );
 	}
-	$open = array_values( array_filter( fisha_studio_conflicts( wc_get_product( $id ), $draft ), function ( $c ) use ( $resolutions ) {
-		return ! in_array( $resolutions[ $c['field'] ] ?? '', array( 'mine', 'live' ), true );
-	} ) );
+	$open = fisha_studio_open_conflicts( fisha_studio_conflicts( wc_get_product( $id ), $draft ), $resolutions );
 	return $open ? new WP_Error( 'fisha_studio_conflict', 'Some details changed on the site while you were editing.', array( 'status' => 409, 'conflicts' => $open ) ) : null;
 }
 

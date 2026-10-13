@@ -16,9 +16,20 @@ function fisha_studio_is_new( WC_Product $p ): bool {
 	return in_array( get_post_status( $p->get_id() ), array( 'draft', 'auto-draft', 'pending' ), true );
 }
 
-/** A product that goes live by any route (WP admin too) is marked, so moving it back to Draft never makes it "never live". */
+/**
+ * A product that goes live by any route (WP admin too) is marked, so moving it back to Draft never makes it "never live".
+ * Its sizes that are on go live with it, so they stop being pending (Discard or Delete must never remove them); the same
+ * for a size switched on while its product is live.
+ */
 add_action( 'transition_post_status', function ( $new, $old, $post ) {
-	if ( 'product' === $post->post_type && in_array( $new, array( 'publish', 'private' ), true ) ) update_post_meta( $post->ID, FISHA_STUDIO_PUBLISHED_META, '1' );
+	$live = array( 'publish', 'private' );
+	if ( 'product' === $post->post_type && in_array( $new, $live, true ) ) {
+		update_post_meta( $post->ID, FISHA_STUDIO_PUBLISHED_META, '1' );
+		$on = get_posts( array( 'post_type' => 'product_variation', 'post_parent' => $post->ID, 'post_status' => 'publish', 'numberposts' => -1, 'fields' => 'ids', 'meta_key' => FISHA_STUDIO_PENDING_META, 'meta_value' => '1' ) );
+		foreach ( $on as $vid ) delete_post_meta( (int) $vid, FISHA_STUDIO_PENDING_META );
+	} elseif ( 'product_variation' === $post->post_type && 'publish' === $new && $post->post_parent && in_array( get_post_status( $post->post_parent ), $live, true ) ) {
+		delete_post_meta( $post->ID, FISHA_STUDIO_PENDING_META );
+	}
 }, 10, 3 );
 
 function fisha_studio_draft_get( int $id ): array {
