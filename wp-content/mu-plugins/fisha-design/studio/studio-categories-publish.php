@@ -41,6 +41,7 @@ function fisha_studio_publish_category( int $id, array $resolutions = array(), b
 	$old_paths = $is_new ? array() : fisha_studio_category_paths_below( $t );
 	$was_top   = 0 === (int) $before['parent'];
 
+	$claimed = array();
 	global $wpdb;
 	$wpdb->query( 'START TRANSACTION' );
 	try {
@@ -64,6 +65,7 @@ function fisha_studio_publish_category( int $id, array $resolutions = array(), b
 		} else {
 			fisha_studio_category_remember_paths( $old_paths );
 		}
+		if ( $is_new || isset( $args['slug'] ) || isset( $args['parent'] ) ) $claimed = fisha_studio_category_claim_path( get_term( $id, 'product_cat' ) );
 		delete_term_meta( $id, FISHA_STUDIO_DRAFT_META );
 		do_action( 'fisha_studio_before_category_commit', $id );
 		if ( ! fisha_studio_log( 'category', $id, $is_new ? 'create' : 'publish', $is_new ? null : $before, fisha_studio_category_values( get_term( $id, 'product_cat' ) ) ) ) {
@@ -75,7 +77,7 @@ function fisha_studio_publish_category( int $id, array $resolutions = array(), b
 		wp_cache_delete( 'alloptions', 'options' );
 		wp_cache_delete( 'notoptions', 'options' );
 		clean_term_cache( array_keys( $old_paths ) ?: array( $id ), 'product_cat' );
-		foreach ( array_merge( array( $id ), array_keys( $old_paths ) ) as $tid ) wp_cache_delete( $tid, 'term_meta' );
+		foreach ( array_merge( array( $id ), array_keys( $old_paths ), $claimed ) as $tid ) wp_cache_delete( $tid, 'term_meta' );
 		fisha_cat_cache_reset();
 		fisha_studio_log_error( 'publish category ' . $id, $e );
 		return new WP_Error( 'fisha_studio_publish_failed', 'Publishing failed, so nothing was changed. Please try again.', array( 'status' => 500 ) );
@@ -109,6 +111,23 @@ function fisha_studio_category_remember_paths( array $old ): void {
 		if ( ! $t || '' === $path || fisha_cat_path( $t ) === $path ) continue;
 		if ( ! in_array( $path, get_term_meta( (int) $tid, FISHA_CAT_OLD_PATHS ), true ) ) add_term_meta( (int) $tid, FISHA_CAT_OLD_PATHS, $path );
 	}
+}
+
+/**
+ * A category going live at an address takes it back: the address stops being a deleted category's address or another
+ * category's old address, so it no longer redirects. @return int[] ids of the categories that had it as an old address
+ */
+function fisha_studio_category_claim_path( WP_Term $t ): array {
+	$path = fisha_cat_path( $t );
+	if ( '' === $path ) return array();
+	$deleted = get_option( 'fisha_deleted_cat_paths', array() );
+	if ( is_array( $deleted ) && array_key_exists( $path, $deleted ) ) {
+		unset( $deleted[ $path ] );
+		update_option( 'fisha_deleted_cat_paths', $deleted, false );
+	}
+	$held = get_terms( array( 'taxonomy' => 'product_cat', 'hide_empty' => false, 'fields' => 'ids', 'meta_query' => array( array( 'key' => FISHA_CAT_OLD_PATHS, 'value' => $path ) ) ) );
+	delete_metadata( 'term', 0, FISHA_CAT_OLD_PATHS, $path, true );
+	return is_wp_error( $held ) ? array() : array_map( 'intval', $held );
 }
 
 /**
@@ -232,6 +251,7 @@ function fisha_studio_category_delete( int $id, int $move_to = 0 ) {
 		foreach ( is_wp_error( $kids ) ? array() : $kids as $cid ) {
 			$r = wp_update_term( (int) $cid, 'product_cat', array( 'parent' => $parent ) );
 			if ( is_wp_error( $r ) ) throw new RuntimeException( $r->get_error_message() );
+			update_term_meta( (int) $cid, 'order', fisha_studio_category_next_order( $parent, (int) $cid ) );
 		}
 		$r = wp_delete_term( $id, 'product_cat' );
 		if ( true !== $r ) throw new RuntimeException( is_wp_error( $r ) ? $r->get_error_message() : 'delete failed' );

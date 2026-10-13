@@ -186,3 +186,59 @@ fs_test( 'categories delete: a failure rolls everything back', function () {
 	$want = array( $gone->term_id, $other->term_id ); sort( $want );
 	fs_eq( $want, $ids );
 } );
+
+fs_test( 'categories publish: a new category at a deleted category\'s address takes it back', function () {
+	fs_as( FISHA_STUDIO_ROLE );
+	fs_keep_deleted_paths();
+	$old = fs_ready_cat( 'zz-test Reborn' );
+	fisha_studio_publish_category( $old->term_id );
+	$path = fisha_cat_path( get_term( $old->term_id, 'product_cat' ) );
+	fs_true( true === fisha_studio_category_delete( $old->term_id ) );
+	fs_true( array_key_exists( $path, (array) get_option( 'fisha_deleted_cat_paths', array() ) ), 'deleted address remembered' );
+	$new = fs_ready_cat( 'zz-test Reborn' );
+	fs_false( is_wp_error( fisha_studio_publish_category( $new->term_id ) ) );
+	fs_eq( $path, fisha_cat_path( get_term( $new->term_id, 'product_cat' ) ), 'same address' );
+	fs_false( array_key_exists( $path, (array) get_option( 'fisha_deleted_cat_paths', array() ) ), 'no longer a deleted address' );
+	fs_eq( null, fisha_cat_redirect_target( $path ) );
+} );
+
+fs_test( 'categories publish: a category published at another one\'s old address takes it over', function () {
+	fs_as( FISHA_STUDIO_ROLE );
+	$a = fs_ready_cat( 'zz-test Claim A' );
+	fisha_studio_publish_category( $a->term_id );
+	$p = fisha_cat_path( get_term( $a->term_id, 'product_cat' ) );
+	fisha_studio_category_edit( get_term( $a->term_id, 'product_cat' ), array( 'slug' => 'zz-test-claim-moved' ) );
+	fs_false( is_wp_error( fisha_studio_publish_category( $a->term_id, array(), true ) ) );
+	fs_eq( array( $p ), get_term_meta( $a->term_id, 'fisha_old_paths' ), 'old address recorded' );
+	$b = fs_ready_cat( 'zz-test Claim B' );
+	fisha_studio_category_edit( $b, array( 'slug' => 'zz-test-claim-a' ) );
+	fs_false( is_wp_error( fisha_studio_publish_category( $b->term_id ) ) );
+	fs_eq( $p, fisha_cat_path( get_term( $b->term_id, 'product_cat' ) ) );
+	wp_cache_delete( $a->term_id, 'term_meta' );
+	fs_eq( array(), get_term_meta( $a->term_id, 'fisha_old_paths' ), 'old address released' );
+	fs_eq( null, fisha_cat_redirect_target( $p ) );
+} );
+
+fs_test( 'categories: a live address never redirects; a moved category\'s old address still does', function () {
+	$a = fs_cat( 'should-a' );
+	$b = fs_cat( 'should-b' );
+	$pb = fisha_cat_path( $b );
+	add_term_meta( $a->term_id, 'fisha_old_paths', $pb );
+	fs_true( null !== fisha_cat_redirect_target( $pb ), 'the stale record alone would redirect' );
+	fs_eq( null, fisha_cat_should_redirect( '/' . $pb . '/', $b ), 'the page that lives there wins' );
+	add_term_meta( $a->term_id, 'fisha_old_paths', 'product-category/zz-test-should-old' );
+	fs_eq( get_term_link( $a ), fisha_cat_should_redirect( '/product-category/zz-test-should-old/', $a ), 'old address of a moved category' );
+	fs_eq( get_term_link( $a ), fisha_cat_should_redirect( '/product-category/zz-test-should-old/', null ), 'on a 404' );
+} );
+
+fs_test( 'categories delete: children of a deleted top-level category go last among the top level', function () {
+	fs_as( FISHA_STUDIO_ROLE );
+	fs_keep_deleted_paths();
+	$gone = fs_cat( 'delord-gone' );
+	$kid  = fs_cat( 'delord-kid', $gone->term_id );
+	update_term_meta( $kid->term_id, 'order', 1 );
+	fs_true( true === fisha_studio_category_delete( $gone->term_id ) );
+	$max = 0;
+	foreach ( get_terms( array( 'taxonomy' => 'product_cat', 'parent' => 0, 'hide_empty' => false, 'exclude' => array( $kid->term_id ) ) ) as $s ) $max = max( $max, (int) get_term_meta( $s->term_id, 'order', true ) );
+	fs_true( (int) get_term_meta( $kid->term_id, 'order', true ) > $max, 'child order ' . get_term_meta( $kid->term_id, 'order', true ) . ' vs max ' . $max );
+} );

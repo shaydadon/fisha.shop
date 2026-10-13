@@ -265,12 +265,21 @@ function fisha_cat_redirect_target( string $path ): ?string {
 	return is_wp_error( $url ) || ! $url ? null : $url;
 }
 
-// Old addresses answer with a permanent redirect. A moved category's old address can still open its page (WordPress reads
-// only the last part), so category pages are checked too, not only 404s.
+/**
+ * Where a request for $path goes, or null. $queried is the category page the request opened (null on a 404). A live
+ * address always wins over an old record; a moved category's old address still opens its page (WordPress reads only the
+ * last part), and there the queried category's address differs from the request, so it redirects.
+ */
+function fisha_cat_should_redirect( string $path, $queried ): ?string {
+	if ( $queried instanceof WP_Term && fisha_cat_path( $queried ) === trim( $path, '/' ) ) return null;
+	return fisha_cat_redirect_target( $path );
+}
+
+// Old addresses answer with a permanent redirect; category pages are checked too, not only 404s.
 add_action( 'template_redirect', function () {
 	if ( ! is_404() && ! is_tax( 'product_cat' ) ) return;
 	$path = rawurldecode( (string) wp_parse_url( (string) ( $_SERVER['REQUEST_URI'] ?? '' ), PHP_URL_PATH ) );
-	$to   = fisha_cat_redirect_target( $path );
+	$to   = fisha_cat_should_redirect( $path, is_tax( 'product_cat' ) ? get_queried_object() : null );
 	if ( $to ) {
 		wp_safe_redirect( $to, 301, 'Fisha' );
 		exit;

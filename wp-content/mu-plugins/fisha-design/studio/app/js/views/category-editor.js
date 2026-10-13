@@ -128,9 +128,9 @@ export function categoryEditor( main, id ) {
 	/** A live category whose parent or address changed asks once before it moves; old links will redirect. */
 	async function confirmMove() {
 		const d = ed.data;
-		if ( d.state === 'new' || ed.changeUrl || ( d.values.parent === d.live.parent && d.values.slug === d.live.slug ) ) return true;
+		if ( d.state === 'new' || ( d.values.parent === d.live.parent && d.values.slug === d.live.slug ) || ed.changeUrl === newUrl() ) return true;
 		const ok = await confirmDialog( 'Change the address?', `The address changes from ${ d.url } to ${ newUrl() }. Old links, also to its sub-categories, will send visitors to the new address.`, 'Change address' );
-		if ( ok ) ed.changeUrl = true;
+		if ( ok ) ed.changeUrl = newUrl();
 		return ok;
 	}
 
@@ -151,7 +151,7 @@ export function categoryEditor( main, id ) {
 						status.textContent = 'Not published';
 						return;
 					}
-					const d = await api( 'POST', `categories/${ id }/publish`, { resolutions, change_url: ed.changeUrl } );
+					const d = await api( 'POST', `categories/${ id }/publish`, { resolutions, change_url: !! ed.changeUrl } );
 					ed.changeUrl = false;
 					clearErrors();
 					apply( d );
@@ -197,6 +197,7 @@ export function categoryEditor( main, id ) {
 		if ( ! ( await confirmDialog( 'Discard changes?', 'Your unpublished changes to this category will be thrown away. The live category stays exactly as it is.', 'Discard', 'danger' ) ) ) return;
 		autosave.cancel();
 		ed.pending = {};
+		ed.changeUrl = false;
 		if ( ed.saving ) await ed.saving;
 		try {
 			const d = await api( 'DELETE', `categories/${ id }/draft` );
@@ -222,7 +223,7 @@ export function categoryEditor( main, id ) {
 			actions: [ { label: 'Cancel', value: null }, { label: 'Use this address', kind: 'primary', submit: true, value: ( f ) => f.elements.slug.value.trim() } ],
 		} );
 		if ( ! slug || slug === d.values.slug ) return;
-		if ( d.state !== 'new' ) ed.changeUrl = true;
+		if ( d.state !== 'new' ) ed.changeUrl = d.base_url + slug + '/';
 		change( 'slug', slug );
 	}
 

@@ -7,8 +7,12 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 $term     = get_queried_object();
 $children = fisha_cat_displayed_children( (int) $term->term_id );
 // every sub-category (shown or not): products sitting in a hidden one do not move into the "More" shelf
-$all_kids = get_terms( array( 'taxonomy' => 'product_cat', 'parent' => $term->term_id, 'hide_empty' => false, 'fields' => 'ids' ) );
-$all_kids = is_wp_error( $all_kids ) ? array() : array_map( 'intval', $all_kids );
+// (never-published ones too: get_term_children() reads the hierarchy, which the public-page term filter does not touch)
+$all_kids = get_term_children( (int) $term->term_id, 'product_cat' );
+$all_kids = is_wp_error( $all_kids ) ? array() : array_values( array_map( 'intval', array_filter( $all_kids, function ( $id ) use ( $term ) {
+	$c = get_term( (int) $id, 'product_cat' );
+	return $c instanceof WP_Term && (int) $c->parent === (int) $term->term_id;
+} ) ) );
 $parent   = $term->parent ? get_term( $term->parent, 'product_cat' ) : null;
 $shop_url = get_permalink( wc_get_page_id( 'shop' ) );
 
