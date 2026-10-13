@@ -195,7 +195,14 @@ export function stockText( manage, qty, status ) {
  * onQty( text ) report edits; set( choice, qty ) never overwrites the number while the owner types in it.
  */
 export function stockControl( { name, choice, qty, onChoice, onQty } ) {
+	let shown = choice; // the choice before the owner's change
 	const sel = h( 'select.fs-input.fs-input--small.fs-stock__choice', { 'aria-label': `Stock of ${ name }`, onchange: () => {
+		// Coming to Fixed amount from another choice always starts from an empty number (on screen and for the caller).
+		if ( sel.value === 'fixed' && shown !== 'fixed' ) {
+			input.value = '';
+			onQty( '' );
+		}
+		shown = sel.value;
 		paint();
 		onChoice( sel.value );
 		if ( sel.value === 'fixed' && input.value === '' ) input.focus();
@@ -203,8 +210,10 @@ export function stockControl( { name, choice, qty, onChoice, onQty } ) {
 	const input = h( 'input.fs-input.fs-inline.fs-inline--short.fs-stock__qty', { inputmode: 'numeric', placeholder: 'How many', 'aria-label': `How many of ${ name }`, value: isNoneLeft( qty ) ? '' : qty ?? '', oninput: () => {
 		// A fixed amount is 1 or more: typing 0 (or less) switches the choice to Sold out.
 		if ( isNoneLeft( input.value ) ) {
+			// The 0 is not kept: the number is emptied (also for the caller) and the choice becomes Sold out.
 			input.value = '';
-			sel.value = 'outofstock';
+			onQty( '' );
+			sel.value = shown = 'outofstock';
 			paint();
 			onChoice( 'outofstock' );
 			sel.focus();
@@ -224,7 +233,7 @@ export function stockControl( { name, choice, qty, onChoice, onQty } ) {
 		select: sel,
 		input,
 		set( c, q ) {
-			sel.value = c;
+			sel.value = shown = c;
 			if ( document.activeElement !== input ) input.value = isNoneLeft( q ) ? '' : q ?? '';
 			paint();
 		},

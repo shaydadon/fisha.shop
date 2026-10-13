@@ -392,7 +392,13 @@ export function productEditor( main, id ) {
 		let wantFixed = false;
 		const choiceNow = ( x ) => ( wantFixed && x.manage_stock ? 'fixed' : stockChoiceOf( x.manage_stock, x.stock_status, x.stock_quantity ) );
 		const setChoice = ( c ) => {
+			// Coming to Fixed amount from another choice always starts from an empty number, on screen and in the draft.
+			const switching = c === 'fixed' && choiceNow( ed.data.values ) !== 'fixed';
 			wantFixed = c === 'fixed';
+			if ( switching ) {
+				change( 'stock_quantity', '' );
+				clearQty();
+			}
 			if ( c === 'fixed' ) {
 				change( 'manage_stock', true );
 				change( 'backorders', 'no' );
@@ -401,10 +407,7 @@ export function productEditor( main, id ) {
 				change( 'stock_status', c );
 			}
 			W.stock_choice.set( c );
-			if ( c === 'fixed' ) {
-				if ( isNoneLeft( ed.data.values.stock_quantity ) ) W.stock_quantity.set( '' );
-				if ( ( ed.data.values.stock_quantity ?? '' ) === '' || isNoneLeft( ed.data.values.stock_quantity ) ) W.stock_quantity.focus();
-			}
+			if ( c === 'fixed' && ( ed.data.values.stock_quantity ?? '' ) === '' ) W.stock_quantity.focus();
 		};
 		W.stock_choice = selectField( 'Stock', choiceNow( v ), STOCK_CHOICES, setChoice, { help: 'Fixed amount: the shop sells at most this many (1 or more), then shows it as sold out. In stock: no limit.' } );
 		derived.push( ( x ) => W.stock_choice.set( choiceNow( x ) ) );
@@ -416,12 +419,17 @@ export function productEditor( main, id ) {
 		// One item: 0 (or less) under Fixed amount means Sold out. A product counted as a whole keeps its number as typed.
 		W.stock_quantity = textField( sizes ? 'In stock' : 'How many', sizes || ! isNoneLeft( v.stock_quantity ) ? v.stock_quantity ?? '' : '', ( x ) => {
 			if ( ! sizes && isNoneLeft( x ) ) {
+				// The 0 is not kept anywhere: the field and the draft quantity are emptied, and the choice becomes Sold out.
+				change( 'stock_quantity', '' );
+				clearQty();
 				setChoice( 'outofstock' );
 				W.stock_choice.focus();
 				return;
 			}
 			change( 'stock_quantity', x );
 		}, { inputmode: 'numeric', placeholder: 'Enter a number' } );
+		// Empties the number on screen even while the owner is typing in it (textField.set() leaves a focused field alone).
+		const clearQty = () => { W.stock_quantity.el.querySelector( 'input' ).value = ''; };
 		const notCounted = h( 'p.fs-field__help.fs-stock-note', {}, 'Not counted yet. Enter how many you have.' );
 		const fixedShown = ( x ) => ( sizes ? x.manage_stock : choiceNow( x ) === 'fixed' );
 		derived.push( ( x ) => { notCounted.hidden = ! fixedShown( x ) || ( ( x.stock_quantity ?? '' ) !== '' && ( sizes || ! isNoneLeft( x.stock_quantity ) ) ); } );

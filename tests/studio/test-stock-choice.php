@@ -231,3 +231,16 @@ fs_test( 'stock choice: a counted item sold down to 0 still publishes a price ch
 	fs_true( $live->get_manage_stock( 'edit' ), 'left as it is' );
 	fs_eq( 0, $live->get_stock_quantity() );
 } );
+
+fs_test( 'stock choice: a product with sizes counted as a whole keeps counting at 0', function () {
+	$p = fs_parent_counted( array( 's' ) );
+	fisha_studio_product_edit( $p, array( 'stock_quantity' => 0 ), array( 'stock_quantity' => 5 ) );
+	$d = fisha_studio_draft_get( $p->get_id() )['fields'];
+	fs_eq( 0, $d['stock_quantity'] ?? 'missing' );
+	fs_false( array_key_exists( 'manage_stock', $d ), 'not switched to Sold out' );
+	$r = fisha_studio_publish_product( $p->get_id() );
+	fs_false( is_wp_error( $r ), is_wp_error( $r ) ? wp_json_encode( $r->get_error_data() ) : '' );
+	$live = wc_get_product( $p->get_id() );
+	fs_true( true === $live->get_manage_stock( 'edit' ) );
+	fs_eq( 0, $live->get_stock_quantity() );
+} );
