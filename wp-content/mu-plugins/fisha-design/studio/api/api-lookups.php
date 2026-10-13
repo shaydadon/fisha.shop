@@ -51,6 +51,7 @@ function fisha_studio_rest_lookups(): array {
 		'palette'          => $palette,
 		'shipping_classes' => $shipping,
 		'tax_classes'      => $tax,
+		'attributes'       => fisha_studio_attributes_catalog(),
 		'product_base'     => trailingslashit( home_url( wc_get_permalink_structure()['product_rewrite_slug'] ) ),
 		'currency'         => html_entity_decode( get_woocommerce_currency_symbol(), ENT_QUOTES, 'UTF-8' ),
 	);

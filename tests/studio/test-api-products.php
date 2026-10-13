@@ -91,11 +91,11 @@ fs_test( 'api products: discard and trash', function () {
 	fs_eq( 404, $s, 'trashed products are gone from the Studio' );
 } );
 
-fs_test( 'api products: variable products are read-only for now', function () {
-	$v = new WC_Product_Variable();
-	$v->set_name( 'zz-test api variable' );
-	$v->set_status( 'publish' );
-	$id = $v->save();
+fs_test( 'api products: kinds of product the Studio does not edit stay read-only', function () {
+	$g = new WC_Product_Grouped();
+	$g->set_name( 'zz-test api grouped' );
+	$g->set_status( 'publish' );
+	$id = $g->save();
 	fs_on_cleanup( function () use ( $id ) { wp_delete_post( $id, true ); } );
 	fs_as( FISHA_STUDIO_ROLE );
 	list( $s, $d ) = fs_api( 'GET', "/products/$id" );

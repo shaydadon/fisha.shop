@@ -19,6 +19,9 @@ add_action( 'rest_api_init', function () {
 	register_rest_route( FISHA_STUDIO_NS, $id . '/publish', array( 'methods' => 'POST', 'callback' => 'fisha_studio_rest_products_publish', 'permission_callback' => fisha_studio_permission( 'publish_products' ) ) );
 	register_rest_route( FISHA_STUDIO_NS, $id . '/quick', array( 'methods' => 'POST', 'callback' => 'fisha_studio_rest_products_quick', 'permission_callback' => fisha_studio_permission( 'publish_products' ) ) );
 	register_rest_route( FISHA_STUDIO_NS, $id . '/trash', array( 'methods' => 'POST', 'callback' => 'fisha_studio_rest_products_trash', 'permission_callback' => fisha_studio_permission( 'delete_products' ) ) );
+	register_rest_route( FISHA_STUDIO_NS, $id . '/type', array( 'methods' => 'POST', 'callback' => 'fisha_studio_rest_products_type', 'permission_callback' => fisha_studio_permission( 'edit_products' ) ) );
+	register_rest_route( FISHA_STUDIO_NS, $id . '/variations/generate', array( 'methods' => 'POST', 'callback' => 'fisha_studio_rest_sizes_generate', 'permission_callback' => fisha_studio_permission( 'edit_products' ) ) );
+	register_rest_route( FISHA_STUDIO_NS, $id . '/variations/(?P<vid>\d+)', array( 'methods' => 'DELETE', 'callback' => 'fisha_studio_rest_sizes_delete', 'permission_callback' => fisha_studio_permission( 'edit_products' ) ) );
 } );
 
 /** @return WC_Product|WP_Error */
@@ -35,20 +38,24 @@ function fisha_studio_product_state( WC_Product $p ): string {
 
 function fisha_studio_product_payload( WC_Product $p ): array {
 	$id     = $p->get_id();
-	$live   = fisha_studio_product_read( $p );
+	$live   = fisha_studio_product_values( $p );
 	$draft  = fisha_studio_draft_get( $id );
 	$is_new = fisha_studio_is_new( $p );
 	if ( $is_new ) $live['status'] = fisha_studio_target_status( $p );
 	$values = array_merge( $live, $draft['fields'] );
 	$images = array();
-	foreach ( array_merge( array( (int) $values['image_id'] ), $values['gallery_image_ids'] ) as $aid ) {
+	$image_ids = array_merge( array( (int) $values['image_id'] ), $values['gallery_image_ids'] );
+	foreach ( $values as $k => $x ) {
+		if ( $x && preg_match( '/^var:\d+:image_id$/', (string) $k ) ) $image_ids[] = (int) $x;
+	}
+	foreach ( array_unique( $image_ids ) as $aid ) {
 		$img = fisha_studio_image_payload( (int) $aid );
 		if ( $img ) $images[ $aid ] = $img;
 	}
 	return array(
 		'id'           => $id,
 		'type'         => $p->get_type(),
-		'editable'     => $p->is_type( 'simple' ),
+		'editable'     => $p->is_type( array( 'simple', 'variable' ) ),
 		'state'        => fisha_studio_product_state( $p ),
 		'values'       => $values,
 		'live'         => $live,
@@ -58,12 +65,57 @@ function fisha_studio_product_payload( WC_Product $p ): array {
 		'previews'     => fisha_studio_preview_targets( $p, $values['category_ids'] ),
 		'images'       => (object) $images,
 		'conflicts'    => $is_new ? array() : fisha_studio_conflicts( $p, $draft ),
+		'variations'   => fisha_studio_variations_payload( $p ),
 	);
 }
 
+function fisha_studio_low_threshold( WC_Product $p ): int {
+	return '' !== (string) $p->get_low_stock_amount() ? (int) $p->get_low_stock_amount() : (int) get_option( 'woocommerce_notify_low_stock_amount', 2 );
+}
+
+/** "S 3 · M 0 · L 2" when sizes count stock, else "3 of 4 in stock". */
+function fisha_studio_sizes_stock_text( WC_Product $p ): string {
+	$parts   = array();
+	$counted = false;
+	$in      = 0;
+	$n       = 0;
+	foreach ( fisha_studio_variation_ids( $p ) as $vid ) {
+		$v = wc_get_product( $vid );
+		if ( ! $v || 'publish' !== $v->get_status( 'edit' ) ) continue;
+		$n++;
+		if ( $v->is_in_stock() ) $in++;
+		if ( true === $v->get_manage_stock( 'edit' ) ) {
+			$counted = true;
+			$parts[] = fisha_studio_variation_label( $v ) . ' ' . (int) $v->get_stock_quantity();
+		}
+	}
+	if ( ! $n ) return 'No sizes on';
+	return $counted ? implode( ' · ', $parts ) : sprintf( '%d of %d in stock', $in, $n );
+}
+
+function fisha_studio_variations_payload( WC_Product $p ): array {
+	$out = array();
+	foreach ( fisha_studio_variation_ids( $p ) as $vid ) {
+		$v = wc_get_product( $vid );
+		if ( ! $v ) continue;
+		$out[] = array( 'id' => $vid, 'label' => fisha_studio_variation_label( $v ), 'attrs' => (object) $v->get_attributes( 'edit' ), 'pending' => '1' === get_post_meta( $vid, FISHA_STUDIO_PENDING_META, true ) );
+	}
+	return $out;
+}
+
 function fisha_studio_product_row( WC_Product $p ): array {
-	$qty   = $p->get_manage_stock() ? $p->get_stock_quantity() : null;
-	$alert = '' !== (string) $p->get_low_stock_amount() ? (int) $p->get_low_stock_amount() : 2;
+	$sizes = $p->is_type( 'variable' );
+	$qty   = ( ! $sizes && $p->get_manage_stock() ) ? $p->get_stock_quantity() : null;
+	$low   = null !== $qty && $qty > 0 && $qty <= fisha_studio_low_threshold( $p );
+	if ( $sizes ) {
+		foreach ( fisha_studio_variation_ids( $p ) as $vid ) {
+			$v = wc_get_product( $vid );
+			if ( $v && 'publish' === $v->get_status( 'edit' ) && true === $v->get_manage_stock( 'edit' ) ) {
+				$q = (int) $v->get_stock_quantity();
+				if ( $q > 0 && $q <= fisha_studio_low_threshold( $v ) ) $low = true;
+			}
+		}
+	}
 	$names = array();
 	foreach ( $p->get_category_ids() as $cid ) {
 		$t = get_term( $cid, 'product_cat' );
@@ -74,7 +126,9 @@ function fisha_studio_product_row( WC_Product $p ): array {
 		'name'           => $p->get_name( 'edit' ),
 		'sku'            => $p->get_sku( 'edit' ),
 		'type'           => $p->get_type(),
-		'editable'       => $p->is_type( 'simple' ),
+		'editable'       => $p->is_type( array( 'simple', 'variable' ) ),
+		'sizes'          => $sizes,
+		'stock_text'     => $sizes ? fisha_studio_sizes_stock_text( $p ) : '',
 		'state'          => fisha_studio_product_state( $p ),
 		'hidden'         => 'private' === get_post_status( $p->get_id() ),
 		'regular_price'  => (string) $p->get_regular_price( 'edit' ),
@@ -83,7 +137,7 @@ function fisha_studio_product_row( WC_Product $p ): array {
 		'manage_stock'   => (bool) $p->get_manage_stock(),
 		'stock_quantity' => $qty,
 		'stock_status'   => $p->get_stock_status( 'edit' ),
-		'low'            => null !== $qty && $qty > 0 && $qty <= $alert,
+		'low'            => (bool) $low,
 		'thumb'          => $p->get_image_id() ? (string) wp_get_attachment_image_url( $p->get_image_id(), 'thumbnail' ) : '',
 		'categories'     => $names,
 	);
@@ -127,12 +181,13 @@ function fisha_studio_rest_products_list( WP_REST_Request $r ): array {
 }
 
 function fisha_studio_rest_products_create( WP_REST_Request $r ) {
-	$name = trim( sanitize_text_field( (string) ( fisha_studio_body( $r )['name'] ?? '' ) ) );
-	if ( '' === $name || mb_strlen( $name ) > 120 ) {
-		return new WP_Error( 'fisha_studio_invalid', 'Give the product a name (up to 120 characters).', array( 'status' => 422, 'fields' => array( 'name' => 'Give the product a name (up to 120 characters).' ) ) );
+	$body = fisha_studio_body( $r );
+	$name = trim( sanitize_text_field( (string) ( $body['name'] ?? '' ) ) );
+	if ( mb_strlen( $name ) > 120 ) {
+		return new WP_Error( 'fisha_studio_invalid', 'A name can be at most 120 characters.', array( 'status' => 422, 'fields' => array( 'name' => 'A name can be at most 120 characters.' ) ) );
 	}
-	$p = fisha_studio_product_create( $name );
-	fisha_studio_log( 'product', $p->get_id(), 'new', null, array( 'name' => $name ) );
+	$p = fisha_studio_product_create( $name, 'variable' === ( $body['type'] ?? '' ) ? 'variable' : 'simple' );
+	fisha_studio_log( 'product', $p->get_id(), 'new', null, array( 'name' => $name, 'type' => $p->get_type() ) );
 	return new WP_REST_Response( fisha_studio_product_payload( $p ), 201 );
 }
 
@@ -144,11 +199,22 @@ function fisha_studio_rest_products_get( WP_REST_Request $r ) {
 function fisha_studio_rest_products_draft( WP_REST_Request $r ) {
 	$p = fisha_studio_rest_product( $r );
 	if ( is_wp_error( $p ) ) return $p;
-	if ( ! $p->is_type( 'simple' ) ) return new WP_Error( 'fisha_studio_unsupported', 'Products with sizes or options can be edited in the Studio soon.', array( 'status' => 400 ) );
+	if ( ! $p->is_type( array( 'simple', 'variable' ) ) ) return new WP_Error( 'fisha_studio_unsupported', 'This kind of product can only be edited in WP admin.', array( 'status' => 400 ) );
 	$body = fisha_studio_body( $r );
-	list( $values, $errors ) = fisha_studio_sanitize( fisha_studio_product_fields(), (array) ( $body['fields'] ?? array() ) );
+	list( $values, $errors ) = fisha_studio_sanitize_product_input( $p, (array) ( $body['fields'] ?? array() ) );
 	$values = array_diff_key( $values, $errors );
-	if ( $values ) fisha_studio_product_edit( $p, $values, fisha_studio_clean_seen( $body['seen'] ?? array() ) );
+	if ( $values ) {
+		try {
+			fisha_studio_product_edit( $p, $values, fisha_studio_clean_seen( $body['seen'] ?? array(), $p ) );
+		} catch ( WC_Data_Exception $e ) {
+			// A never-published product takes edits directly, so WooCommerce can refuse a value (a SKU already in use).
+			$key = 'sku';
+			foreach ( array_keys( $values ) as $k ) {
+				if ( 'sku' === $k || preg_match( '/^var:\d+:sku$/', (string) $k ) ) { $key = (string) $k; break; }
+			}
+			$errors[ $key ] = false !== strpos( (string) $e->getErrorCode(), 'sku' ) ? 'Another product or size already uses this SKU.' : $e->getMessage();
+		}
+	}
 	return array_merge( fisha_studio_product_payload( wc_get_product( $p->get_id() ) ), array( 'field_errors' => (object) $errors ) );
 }
 
@@ -208,4 +274,34 @@ function fisha_studio_rest_products_trash( WP_REST_Request $r ) {
 	if ( ! current_user_can( 'delete_post', $p->get_id() ) ) return new WP_Error( 'fisha_studio_forbidden', 'You do not have access to this.', array( 'status' => 403 ) );
 	$res = fisha_studio_trash_product( $p->get_id() );
 	return is_wp_error( $res ) ? $res : array( 'trashed' => true );
+}
+
+function fisha_studio_rest_products_type( WP_REST_Request $r ) {
+	$p = fisha_studio_rest_product( $r );
+	if ( is_wp_error( $p ) ) return $p;
+	$res = fisha_studio_set_product_type( $p, (string) ( fisha_studio_body( $r )['type'] ?? '' ) );
+	return is_wp_error( $res ) ? $res : fisha_studio_product_payload( $res );
+}
+
+/** @return WC_Product|WP_Error a product with sizes */
+function fisha_studio_rest_variable( WP_REST_Request $r ) {
+	$p = fisha_studio_rest_product( $r );
+	if ( is_wp_error( $p ) ) return $p;
+	return $p->is_type( 'variable' ) ? $p : new WP_Error( 'fisha_studio_invalid', 'Switch on "Comes in sizes or options" first.', array( 'status' => 409 ) );
+}
+
+function fisha_studio_rest_sizes_generate( WP_REST_Request $r ) {
+	$p = fisha_studio_rest_variable( $r );
+	if ( is_wp_error( $p ) ) return $p;
+	$values = array_merge( fisha_studio_product_values( $p ), fisha_studio_draft_get( $p->get_id() )['fields'] );
+	$new    = fisha_studio_variation_generate( $p, (array) ( $values['attributes'] ?? array() ) );
+	if ( is_wp_error( $new ) ) return $new;
+	return array_merge( fisha_studio_product_payload( wc_get_product( $p->get_id() ) ), array( 'created' => count( $new ) ) );
+}
+
+function fisha_studio_rest_sizes_delete( WP_REST_Request $r ) {
+	$p = fisha_studio_rest_variable( $r );
+	if ( is_wp_error( $p ) ) return $p;
+	$res = fisha_studio_variation_remove( $p, (int) $r['vid'] );
+	return is_wp_error( $res ) ? $res : fisha_studio_product_payload( wc_get_product( $p->get_id() ) );
 }
