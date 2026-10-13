@@ -54,3 +54,27 @@ fs_test( 'media: alt text update and library listing', function () {
 	list( $s ) = fs_api( 'PUT', "/media/$page", array( 'alt' => 'x' ) );
 	fs_eq( 404, $s, 'only images' );
 } );
+
+fs_test( 'media: library search by title', function () {
+	fs_as( FISHA_STUDIO_ROLE );
+	$img   = fs_image();
+	$title = 'zz-test unique ' . strtolower( wp_generate_password( 10, false ) );
+	wp_update_post( array( 'ID' => $img, 'post_title' => $title ) );
+	fs_image();                                                                   // a newer image that must not match
+	list( $s, $d ) = fs_api( 'GET', '/media', array( 'search' => $title ) );
+	fs_eq( 200, $s );
+	fs_eq( array( $img ), wp_list_pluck( $d['items'], 'id' ), 'only the matching image' );
+	fs_eq( 1, $d['pages'] );
+} );
+
+fs_test( 'media: a failed save shows a plain sentence and logs the WordPress detail', function () {
+	$secret = 'zz-test secret /var/www/html/detail ' . wp_rand();
+	$filter = function ( $file ) use ( $secret ) { $file['error'] = $secret; return $file; };
+	add_filter( 'wp_handle_sideload_prefilter', $filter );
+	fs_on_cleanup( function () use ( $filter ) { remove_filter( 'wp_handle_sideload_prefilter', $filter ); } );
+	$r = fisha_studio_store_image( fs_tmp_file( 'zz-test-fail.png', file_get_contents( FISHA_DESIGN_DIR . 'img/fisha-logo.png' ) ) );
+	fs_true( is_wp_error( $r ), 'refused' );
+	fs_eq( 'The photo could not be saved. Please try again.', $r->get_error_message() );
+	$log = (string) @file_get_contents( WP_CONTENT_DIR . '/fisha-studio-logs/studio.log' );
+	fs_true( false !== strpos( $log, $secret ), 'detail is in the Studio log' );
+} );

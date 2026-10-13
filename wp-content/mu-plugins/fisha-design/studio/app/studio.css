@@ -104,6 +104,7 @@ textarea.fs-input { resize: vertical; }
 .fs-library__item { padding: 0; border: 2px solid transparent; border-radius: 10px; background: none; cursor: pointer; width: 100%; }
 .fs-library__item:hover, .fs-library__item:focus-visible { border-color: var(--fs-orange); }
 .fs-library__item img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; }
+.fs-library__more { justify-self: center; }
 
 /* Editor */
 .fs-main--editor { padding: 0; }

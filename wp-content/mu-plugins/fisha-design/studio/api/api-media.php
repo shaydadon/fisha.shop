@@ -43,7 +43,11 @@ function fisha_studio_store_image( array $file ) {
 	require_once ABSPATH . 'wp-admin/includes/file.php';
 	require_once ABSPATH . 'wp-admin/includes/media.php';
 	$id = media_handle_sideload( array( 'name' => $check['proper_filename'] ?: $file['name'], 'tmp_name' => $file['tmp_name'] ), 0 );
-	if ( is_wp_error( $id ) ) return new WP_Error( 'fisha_studio_upload', 'The photo could not be saved. ' . $id->get_error_message(), array( 'status' => 422 ) );
+	if ( is_wp_error( $id ) ) {
+		// The WordPress message can name server paths; it goes to the Studio log, the owner gets a plain sentence.
+		fisha_studio_log_error( 'store image ' . sanitize_file_name( (string) $file['name'] ), new RuntimeException( $id->get_error_code() . ': ' . $id->get_error_message() ) );
+		return new WP_Error( 'fisha_studio_upload', 'The photo could not be saved. Please try again.', array( 'status' => 422 ) );
+	}
 	return (int) $id;
 }
 
@@ -56,10 +60,13 @@ add_action( 'rest_api_init', function () {
 } );
 
 function fisha_studio_rest_media_list( WP_REST_Request $r ): array {
-	$q = new WP_Query( array(
+	$args = array(
 		'post_type' => 'attachment', 'post_status' => 'inherit', 'post_mime_type' => 'image', 'fields' => 'ids',
 		'posts_per_page' => 40, 'paged' => max( 1, (int) $r['page'] ), 'orderby' => 'date', 'order' => 'DESC',
-	) );
+	);
+	$search = trim( sanitize_text_field( (string) $r['search'] ) );
+	if ( '' !== $search ) $args['s'] = $search;
+	$q = new WP_Query( $args );
 	return array( 'items' => array_values( array_filter( array_map( 'fisha_studio_image_payload', array_map( 'intval', $q->posts ) ) ) ), 'pages' => (int) $q->max_num_pages );
 }
 

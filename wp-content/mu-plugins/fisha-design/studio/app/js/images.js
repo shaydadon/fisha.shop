@@ -3,7 +3,7 @@
  * photo is the one shoppers see when they hover a product card). Uploads go to the media library at once;
  * which photos the product uses is part of the draft. Photo descriptions (alt text) save straight away.
  */
-import { h, toast, modal } from './ui.js';
+import { h, toast, modal, debounce } from './ui.js';
 import { api } from './api.js';
 
 const OK_TYPES = /^image\/(jpeg|png|webp)$/;
@@ -115,23 +115,62 @@ export function imagesField( values, images, onChange ) {
 		fileInput.value = '';
 	}
 
+	/** The media library, newest first, 40 at a time ("Load more"), with a search by photo name. */
 	async function pick() {
-		let d;
-		try {
-			d = await api( 'GET', 'media' );
-		} catch ( e ) {
-			toast( e.message, 'error' );
-			return;
+		let closeFn = null;
+		let page = 0;
+		let query = '';
+		let seq = 0;
+		const items = new Map();
+		const grid = h( 'ul.fs-library' );
+		const note = h( 'p.fs-field__help', { role: 'status' } );
+		const more = h( 'button.fs-btn.fs-library__more', { type: 'button', hidden: true, onclick: () => load( false ) }, 'Load more' );
+		const search = h( 'input.fs-input', { type: 'search', placeholder: 'Search by photo name', 'aria-label': 'Search photos', autocomplete: 'off' } );
+		search.addEventListener( 'input', debounce( () => {
+			query = search.value.trim();
+			load( true );
+		}, 300 ) );
+		grid.addEventListener( 'click', ( e ) => {
+			const b = e.target.closest( '.fs-library__item' );
+			if ( b && closeFn ) closeFn( items.get( b.dataset.id ) );
+		} );
+
+		async function load( reset ) {
+			const my = ++seq;
+			const next = reset ? 1 : page + 1;
+			more.disabled = true;
+			note.textContent = 'Loading…';
+			try {
+				const q = new URLSearchParams( { page: next } );
+				if ( query ) q.set( 'search', query );
+				const d = await api( 'GET', 'media?' + q );
+				if ( my !== seq ) return;
+				if ( reset ) {
+					grid.replaceChildren();
+					items.clear();
+				}
+				page = next;
+				for ( const img of d.items ) {
+					items.set( String( img.id ), img );
+					grid.append( h( 'li', {}, h( 'button.fs-library__item', { type: 'button', title: img.name, dataset: { id: img.id } }, h( 'img', { src: img.thumb, alt: img.alt || img.name } ) ) ) );
+				}
+				note.textContent = items.size ? '' : ( query ? 'No photos match this name.' : 'No photos uploaded yet.' );
+				more.hidden = page >= d.pages;
+			} catch ( e ) {
+				if ( my === seq ) note.textContent = e.message;
+			} finally {
+				if ( my === seq ) more.disabled = false;
+			}
 		}
+
+		load( true );
 		const chosen = await modal( {
 			title: 'Choose a photo',
-			body: d.items.length
-				? h( 'ul.fs-library', {}, d.items.map( ( img ) => h( 'li', {}, h( 'button.fs-library__item', { type: 'button', dataset: { id: img.id } }, h( 'img', { src: img.thumb, alt: img.alt || img.name } ) ) ) ) )
-				: h( 'p', {}, 'No photos uploaded yet.' ),
+			body: [ search, grid, note, more ],
 			actions: [ { label: 'Cancel', value: null } ],
-			onOpen: ( dlg, close ) => dlg.querySelectorAll( '.fs-library__item' ).forEach( ( b ) =>
-				b.addEventListener( 'click', () => close( d.items.find( ( x ) => String( x.id ) === b.dataset.id ) ) ) ),
+			onOpen: ( dlg, close ) => { closeFn = close; },
 		} );
+		seq++; // ignore answers that arrive after the window closed
 		if ( chosen ) add( chosen );
 	}
 
