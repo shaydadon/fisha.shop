@@ -1,7 +1,8 @@
 <?php
 /**
  * Fisha Studio access gates: a shop owner never reaches wp-admin, the admin bar or any REST route outside the
- * Studio's own (plus the public store/form routes the site itself uses), and their sessions last 12 hours.
+ * Studio's own (plus the public store/form routes the site itself uses), cannot sign in over XML-RPC, and their
+ * sessions last 12 hours.
  */
 if ( ! defined( 'ABSPATH' ) ) exit;
 
@@ -37,11 +38,24 @@ function fisha_studio_rest_allowed( WP_User $u, string $route ): bool {
 	}
 	return false;
 }
-add_filter( 'rest_pre_dispatch', function ( $result, $server, $request ) {
-	if ( null !== $result ) return $result;
+/** Runs first and refuses a disallowed route for the owner even when an earlier filter already produced a result. */
+function fisha_studio_rest_gate( $result, $server, $request ) {
 	if ( fisha_studio_rest_allowed( wp_get_current_user(), $request->get_route() ) ) return $result;
 	return new WP_Error( 'fisha_studio_forbidden', 'This is not available from the Studio.', array( 'status' => 403 ) );
-}, 10, 3 );
+}
+add_filter( 'rest_pre_dispatch', 'fisha_studio_rest_gate', PHP_INT_MIN, 3 );
+
+/** XML-RPC can edit products outside the Studio, so the owner's credentials never work there. */
+function fisha_studio_xmlrpc_blocked( WP_User $u ): bool {
+	return fisha_studio_is_owner( $u );
+}
+function fisha_studio_xmlrpc_gate( $user ) {
+	if ( defined( 'XMLRPC_REQUEST' ) && XMLRPC_REQUEST && $user instanceof WP_User && fisha_studio_xmlrpc_blocked( $user ) ) {
+		return new WP_Error( 'fisha_studio_xmlrpc', 'Studio accounts cannot sign in here.' );
+	}
+	return $user;
+}
+add_filter( 'authenticate', 'fisha_studio_xmlrpc_gate', 100 );
 
 $fisha_studio_landing = function ( $to, $requested = '', $user = null ) {
 	return ( $user instanceof WP_User && fisha_studio_is_owner( $user ) ) ? home_url( '/studio/' ) : $to;

@@ -40,3 +40,23 @@ fs_test( 'gates: no admin bar, short sessions and studio landing for the owner',
 	fs_eq( 2 * DAY_IN_SECONDS, apply_filters( 'auth_cookie_expiration', 2 * DAY_IN_SECONDS, $admin->ID, false ) );
 	fs_eq( admin_url(), apply_filters( 'login_redirect', admin_url(), '', $admin ) );
 } );
+
+fs_test( 'gates: owner logins are refused over XML-RPC', function () {
+	fs_true( fisha_studio_xmlrpc_blocked( fs_user( FISHA_STUDIO_ROLE ) ), 'owner blocked' );
+	fs_false( fisha_studio_xmlrpc_blocked( fs_user( 'administrator' ) ), 'admin not blocked' );
+	fs_false( fisha_studio_xmlrpc_blocked( fs_user( 'customer' ) ), 'customer not blocked' );
+	fs_true( false !== has_filter( 'authenticate', 'fisha_studio_xmlrpc_gate' ), 'wired to authenticate' );
+} );
+
+fs_test( 'gates: the REST gate runs first and wins over an earlier result', function () {
+	fs_eq( PHP_INT_MIN, has_filter( 'rest_pre_dispatch', 'fisha_studio_rest_gate' ), 'registered at PHP_INT_MIN' );
+	fs_as( FISHA_STUDIO_ROLE );
+	$req = new WP_REST_Request( 'GET', '/wp/v2/users/me' );
+	$res = fisha_studio_rest_gate( new WP_REST_Response( array( 'hijacked' => true ) ), rest_get_server(), $req );
+	fs_true( is_wp_error( $res ) && 'fisha_studio_forbidden' === $res->get_error_code(), 'owner refused even with a result' );
+	$ok  = fisha_studio_rest_gate( null, rest_get_server(), new WP_REST_Request( 'GET', '/fisha-studio/v1/products' ) );
+	fs_eq( null, $ok, 'studio routes pass through' );
+	fs_as( 'administrator' );
+	$keep = new WP_REST_Response( array( 'x' => 1 ) );
+	fs_eq( $keep, fisha_studio_rest_gate( $keep, rest_get_server(), $req ), 'others keep the earlier result' );
+} );
