@@ -4,6 +4,7 @@
  */
 import { h, toast, debounce } from '../ui.js';
 import { api } from '../api.js';
+import { pendingCleanup } from './product-editor.js';
 
 export function productsList( main ) {
 	const state = { search: '', category: '', state: 'all', stock: 'all', page: 1 };
@@ -48,6 +49,7 @@ export function productsList( main ) {
 		table.classList.add( 'is-loading' );
 		const q = new URLSearchParams( { search: state.search, category: state.category, state: state.state, stock: state.stock, page: state.page, per_page: 50 } );
 		try {
+			await pendingCleanup;
 			const d = await api( 'GET', 'products?' + q );
 			if ( alive && my === seq ) render( d );
 		} catch ( e ) {
@@ -155,6 +157,7 @@ export function productsList( main ) {
 	async function createProduct() {
 		try {
 			const p = await api( 'POST', 'products', { name: '' } );
+			try { sessionStorage.setItem( 'fs-new-' + p.id, '1' ); } catch {}
 			location.hash = '#/products/' + p.id;
 		} catch ( e ) {
 			toast( e.message, 'error' );

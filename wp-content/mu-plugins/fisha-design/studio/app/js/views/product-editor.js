@@ -23,9 +23,11 @@ const TAB_OF = {
 };
 const tabOf = ( key ) => ( 'attributes' === key || 'variations' === key || String( key ).startsWith( 'var:' ) ) ? 'variations' : ( TAB_OF[ key ] || 'basics' );
 let lookups = null;
+/** The trash request for an untouched new draft the owner just left; the list waits for it so the draft does not flash. */
+export let pendingCleanup = null;
 
 export function productEditor( main, id ) {
-	const ed = { data: null, pending: {}, saving: null, publishing: false, alive: true, changeUrl: false, widgets: {}, hooks: { loaded: [], saved: [], published: [] } };
+	const ed = { data: null, pending: {}, saving: null, publishing: false, alive: true, touched: false, changeUrl: false, widgets: {}, hooks: { loaded: [], saved: [], published: [] } };
 	let tab = sessionStorage.getItem( 'fs-tab' ) || 'basics';
 
 	const status = h( 'span.fs-save-state', { role: 'status', 'aria-live': 'polite' } );
@@ -40,7 +42,14 @@ export function productEditor( main, id ) {
 
 	const autosave = debounce( () => { if ( ! ed.publishing ) flush(); }, 600 );
 
+	/** Marks this product as edited by the owner, so leaving it never removes it. */
+	function touch() {
+		ed.touched = true;
+		try { sessionStorage.removeItem( 'fs-new-' + id ); } catch {}
+	}
+
 	function change( key, value ) {
+		touch();
 		ed.pending[ key ] = value;
 		ed.data.values[ key ] = value;
 		ed.widgets[ key ]?.setError( '' );
@@ -412,7 +421,10 @@ export function productEditor( main, id ) {
 			payload: () => ed.data,
 			change,
 			flush,
-			apply,
+			apply: ( x ) => {
+				touch();
+				apply( x );
+			},
 			saved: ( x ) => ed.hooks.saved.forEach( ( f ) => f( x ) ),
 			catalog: L.attributes || [],
 			currency: L.currency,
@@ -452,6 +464,7 @@ export function productEditor( main, id ) {
 	}
 
 	async function switchType( type ) {
+		touch();
 		if ( ! ( await flush() ) ) {
 			reload( ed.data );
 			return;
@@ -504,10 +517,16 @@ export function productEditor( main, id ) {
 		destroy() {
 			ed.alive = false;
 			autosave.cancel();
-			// "New product" makes a draft at once; one left completely empty is removed when the owner walks away.
-			const v = ed.data?.values;
-			const blank = v && ! v.name && ! v.image_id && ! v.short_description && ! v.regular_price && ! ( ed.data.variations || [] ).length;
-			if ( ed.data?.state === 'new' && blank && ! Object.keys( ed.pending ).length ) api( 'POST', `products/${ id }/trash` ).catch( () => {} );
+			// "New product" makes a draft at once; one made in this session and left untouched is removed when the owner walks away.
+			let fresh = false;
+			try {
+				fresh = sessionStorage.getItem( 'fs-new-' + id ) === '1';
+				sessionStorage.removeItem( 'fs-new-' + id );
+			} catch {}
+			const d = ed.data;
+			if ( fresh && ! ed.touched && d?.state === 'new' && ! d.values.name && ! ( d.variations || [] ).length && ! Object.keys( ed.pending ).length ) {
+				pendingCleanup = api( 'POST', `products/${ id }/trash` ).catch( () => {} ).finally( () => { pendingCleanup = null; } );
+			}
 		},
 		dirty: () => Object.keys( ed.pending ).length > 0 || !! ed.saving || ed.publishing,
 		async canLeave() {
