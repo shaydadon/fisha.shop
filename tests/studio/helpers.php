@@ -107,3 +107,67 @@ function fs_rest( string $method, string $route, array $params = array() ): arra
 function fs_api( string $method, string $path, array $params = array() ): array {
 	return fs_rest( $method, '/' . FISHA_STUDIO_NS . $path, $params );
 }
+
+/* ---------- products with sizes ---------- */
+
+/** Deletes a product, its sizes and their audit rows (fixture cleanup). */
+function fs_delete_product( int $id ): void {
+	global $wpdb;
+	$log = $wpdb->prefix . 'fisha_studio_log';
+	foreach ( get_posts( array( 'post_type' => 'product_variation', 'post_parent' => $id, 'post_status' => 'any', 'numberposts' => -1, 'fields' => 'ids' ) ) as $vid ) {
+		$wpdb->delete( $log, array( 'item_type' => 'variation', 'item_id' => $vid ) );
+		wp_delete_post( (int) $vid, true );
+	}
+	$wpdb->delete( $log, array( 'item_type' => 'product', 'item_id' => $id ) );
+	wp_delete_post( $id, true );
+}
+
+/** A variable product with the pa_size option and one published size per slug (price 100, stock not counted). */
+function fs_variable( array $sizes = array( 's', 'm', 'l' ), string $status = 'publish' ): WC_Product_Variable {
+	$term_ids = array();
+	foreach ( $sizes as $slug ) {
+		$t = get_term_by( 'slug', $slug, 'pa_size' );
+		if ( ! $t ) throw new Fs_Fail( "pa_size value $slug is missing" );
+		$term_ids[] = (int) $t->term_id;
+	}
+	$p = new WC_Product_Variable();
+	$p->set_name( 'zz-test variable ' . strtolower( wp_generate_password( 5, false ) ) );
+	$p->set_status( $status );
+	$p->set_short_description( 'Test short description.' );
+	$a = new WC_Product_Attribute();
+	$a->set_id( wc_attribute_taxonomy_id_by_name( 'pa_size' ) );
+	$a->set_name( 'pa_size' );
+	$a->set_options( $term_ids );
+	$a->set_visible( true );
+	$a->set_variation( true );
+	$p->set_attributes( array( $a ) );
+	$id = $p->save();
+	fs_on_cleanup( function () use ( $id ) { fs_delete_product( $id ); } );
+	foreach ( $sizes as $i => $slug ) {
+		$v = new WC_Product_Variation();
+		$v->set_parent_id( $id );
+		$v->set_attributes( array( 'pa_size' => $slug ) );
+		$v->set_regular_price( '100' );
+		$v->set_status( 'publish' );
+		$v->set_menu_order( $i );
+		$v->save();
+	}
+	WC_Product_Variable::sync( $id );
+	wc_delete_product_transients( $id );
+	return wc_get_product( $id );
+}
+
+function fs_var_id( WC_Product $p, string $slug ): int {
+	$ids = get_posts( array( 'post_type' => 'product_variation', 'post_parent' => $p->get_id(), 'post_status' => array( 'publish', 'private' ), 'numberposts' => 1, 'fields' => 'ids', 'meta_key' => 'attribute_pa_size', 'meta_value' => $slug ) );
+	if ( ! $ids ) throw new Fs_Fail( "no $slug size" );
+	return (int) $ids[0];
+}
+
+/** fs_variable() plus a photo and a category, so it passes publish validation. */
+function fs_ready_variable( array $sizes = array( 's', 'm', 'l' ) ): WC_Product_Variable {
+	$p = fs_variable( $sizes );
+	$p->set_image_id( fs_image() );
+	$p->set_category_ids( array( fs_term( 'sz-' . wp_rand() )->term_id ) );
+	$p->save();
+	return wc_get_product( $p->get_id() );
+}
