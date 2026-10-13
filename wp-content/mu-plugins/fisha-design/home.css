@@ -86,6 +86,12 @@
 }
 .fh-cats__all a:hover, .fh-cats__all a:focus-visible { color: var(--accent-ink); }
 
+/* other than three cards (a category was added or hidden in the Studio) */
+.fh-cats__row--n1 { grid-template-columns: minmax(0, 26rem); justify-content: center; }
+.fh-cats__row--n2 { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 54rem; margin-inline: auto; }
+.fh-cats__row--n4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 1100px) { .fh-cats__row--n4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
 /* ---------- phones: a swipeable row ---------- */
 @media (max-width: 760px) {
 	.fh-cats { border-radius: 0; padding-left: 0; padding-right: 0; }

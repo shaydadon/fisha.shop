@@ -100,3 +100,70 @@ function fisha_cat_visibility_migrate(): void {
 	fisha_cat_cache_reset();
 }
 add_action( 'init', 'fisha_cat_visibility_migrate', 20 );
+
+/* ---------- header and footer menus ---------- */
+
+/** A menu link block for a category (same attributes the block editor saves). */
+function fisha_nav_cat_link( WP_Term $t ): array {
+	return array(
+		'blockName'    => 'core/navigation-link',
+		'attrs'        => array( 'label' => $t->name, 'url' => get_term_link( $t ), 'type' => 'product_cat', 'id' => (int) $t->term_id, 'kind' => 'taxonomy' ),
+		'innerBlocks'  => array(),
+		'innerHTML'    => '',
+		'innerContent' => array(),
+	);
+}
+
+/** A menu link to a top-level category (or to one that no longer exists). */
+function fisha_nav_is_top_cat_link( array $b ): bool {
+	if ( 'core/navigation-link' !== ( $b['blockName'] ?? '' ) || 'product_cat' !== ( $b['attrs']['type'] ?? '' ) ) return false;
+	$t = get_term( (int) ( $b['attrs']['id'] ?? 0 ), 'product_cat' );
+	return ! $t instanceof WP_Term || 0 === (int) $t->parent;
+}
+
+/**
+ * Replaces the first run of top-level category links in a list of parsed menu blocks (or, when the list has none, inside
+ * its first submenu that has them) with links to the displayed top-level categories, in the owner's order.
+ */
+function fisha_nav_swap_cat_links( array $blocks, ?array $tops = null ): array {
+	$blocks = array_values( $blocks );
+	$start  = null;
+	$end    = null;
+	foreach ( $blocks as $i => $b ) {
+		if ( fisha_nav_is_top_cat_link( $b ) ) {
+			if ( null === $start ) $start = $i;
+			$end = $i;
+		} elseif ( null !== $start ) {
+			break;
+		}
+	}
+	$tops = $tops ?? fisha_displayed_top_categories();
+	if ( null !== $start ) {
+		array_splice( $blocks, $start, $end - $start + 1, array_map( 'fisha_nav_cat_link', $tops ) );
+		return $blocks;
+	}
+	foreach ( $blocks as $i => $b ) {
+		if ( 'core/navigation-submenu' !== ( $b['blockName'] ?? '' ) || empty( $b['innerBlocks'] ) ) continue;
+		$inner = fisha_nav_swap_cat_links( $b['innerBlocks'], $tops );
+		if ( $inner === array_values( $b['innerBlocks'] ) ) continue;
+		$b['innerBlocks']  = $inner;
+		$b['innerContent'] = array_fill( 0, count( $inner ), null );
+		$b['innerHTML']    = '';
+		$blocks[ $i ]      = $b;
+		return $blocks;
+	}
+	return $blocks;
+}
+
+// The header "Shop" submenu and the footer Shop column list the displayed top-level categories; the saved menus are not changed.
+add_filter( 'block_core_navigation_render_inner_blocks', function ( $inner ) {
+	if ( ! $inner instanceof WP_Block_List || is_admin() ) return $inner;
+	$parsed = array();
+	foreach ( $inner as $b ) $parsed[] = $b->parsed_block;
+	$swapped = fisha_nav_swap_cat_links( $parsed );
+	if ( $swapped === $parsed ) return $inner;
+	$n = count( $inner );
+	foreach ( $swapped as $i => $pb ) $inner[ $i ] = $pb;
+	for ( $i = count( $swapped ); $i < $n; $i++ ) unset( $inner[ $i ] );
+	return $inner;
+} );

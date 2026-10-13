@@ -5,10 +5,10 @@
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 $term     = get_queried_object();
-$children = get_terms( array( 'taxonomy' => 'product_cat', 'parent' => $term->term_id, 'hide_empty' => false, 'orderby' => 'term_order' ) );
-$children = is_wp_error( $children ) ? array() : $children;
-$by_order = function ( $a, $b ) { return (int) get_term_meta( $a->term_id, 'order', true ) <=> (int) get_term_meta( $b->term_id, 'order', true ); };
-usort( $children, $by_order );
+$children = fisha_cat_displayed_children( (int) $term->term_id );
+// every sub-category (shown or not): products sitting in a hidden one do not move into the "More" shelf
+$all_kids = get_terms( array( 'taxonomy' => 'product_cat', 'parent' => $term->term_id, 'hide_empty' => false, 'fields' => 'ids' ) );
+$all_kids = is_wp_error( $all_kids ) ? array() : array_map( 'intval', $all_kids );
 $parent   = $term->parent ? get_term( $term->parent, 'product_cat' ) : null;
 $shop_url = get_permalink( wc_get_page_id( 'shop' ) );
 
@@ -22,8 +22,8 @@ $shelves = array();
 if ( $children ) {
 	foreach ( $children as $c ) $shelves[] = array( 'term' => $c, 'products' => fisha_cat_products( $c, count( $children ) === 1 ? 24 : 8 ) );
 	// products sitting directly in the parent (not in any child)
-	$direct = array_filter( fisha_cat_products( $term, 24 ), function ( $p ) use ( $children ) {
-		return ! array_intersect( $p->get_category_ids(), wp_list_pluck( $children, 'term_id' ) );
+	$direct = array_filter( fisha_cat_products( $term, 24 ), function ( $p ) use ( $all_kids ) {
+		return ! array_intersect( $p->get_category_ids(), $all_kids );
 	} );
 	if ( $direct ) $shelves[] = array( 'term' => null, 'products' => array_values( $direct ) );
 } else {
@@ -31,8 +31,7 @@ if ( $children ) {
 }
 
 // Chips: sub-categories of a parent, or siblings of a child
-$chip_terms = $children ? $children : ( $parent ? get_terms( array( 'taxonomy' => 'product_cat', 'parent' => $parent->term_id, 'hide_empty' => false ) ) : array() );
-if ( ! $children && $chip_terms ) usort( $chip_terms, $by_order );
+$chip_terms = $children ? $children : ( $parent ? fisha_cat_displayed_children( (int) $parent->term_id ) : array() );
 
 // JSON-LD: breadcrumb + collection with its products
 $crumbs = array( array( 'Shop', $shop_url ) );

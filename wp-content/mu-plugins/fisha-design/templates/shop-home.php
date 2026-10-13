@@ -6,16 +6,14 @@
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 $shop_url  = get_permalink( wc_get_page_id( 'shop' ) );
-$top_slugs = apply_filters( 'fisha_shop_top_categories', array( 'wearables', 'collectibles', 'originals' ) );
+$top_slugs = apply_filters( 'fisha_shop_top_categories', wp_list_pluck( fisha_displayed_top_categories(), 'slug' ) );
 $per_shelf = 16;
 
 $shelves = array(); $types = array(); $all = array();
 foreach ( $top_slugs as $slug ) {
 	$term = get_term_by( 'slug', $slug, 'product_cat' );
 	if ( ! $term ) continue;
-	$children = get_terms( array( 'taxonomy' => 'product_cat', 'parent' => $term->term_id, 'hide_empty' => false ) );
-	$children = is_wp_error( $children ) ? array() : $children;
-	usort( $children, fn( $a, $b ) => (int) get_term_meta( $a->term_id, 'order', true ) <=> (int) get_term_meta( $b->term_id, 'order', true ) );
+	$children = fisha_cat_displayed_children( (int) $term->term_id );
 	// "selected" products: round-robin across sub-categories so every type shows up early
 	$pools = array();
 	foreach ( $children as $c ) { $ps = fisha_cat_products( $c, $per_shelf ); if ( $ps ) { $pools[] = $ps; $types[ $c->slug ] = $c->name; } }

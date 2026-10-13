@@ -1,17 +1,27 @@
 <?php
 /**
- * Home page — "Pick your Fisha": the three shop categories as taped photos.
+ * Home page — "Pick your Fisha": the displayed top-level shop categories as taped photos.
  *   [fisha_home_cats wearables="<img id>" collectibles="<img id>" originals="<img id>"]
  * Counts and prices come from the shop, so they stay right as pieces are added or sold.
  */
 if ( ! defined( 'ABSPATH' ) ) exit;
 
+/** Displayed top-level categories (slug => tagline): the stored Home tagline, else the category's intro. */
 function fisha_home_cat_list() {
-	return apply_filters( 'fisha_home_cats', array(
-		'wearables'    => 'T-shirts, hoodies, caps and socks carrying the hand-drawn fish.',
-		'collectibles' => 'Hand-painted Clippers and small objects, each one made once.',
-		'originals'    => 'Ink drawings and paintings, signed and framed by hand.',
-	) );
+	$list = array();
+	foreach ( fisha_displayed_top_categories() as $t ) {
+		$line = (string) get_term_meta( $t->term_id, 'fisha_home_line', true );
+		$list[ $t->slug ] = '' !== $line ? $line : wp_strip_all_tags( (string) get_term_meta( $t->term_id, 'fisha_lead', true ) );
+	}
+	return apply_filters( 'fisha_home_cats', $list );
+}
+
+/** "Three ways to take the little fish home." follows the number of cards; text the page sets itself is kept. */
+function fisha_home_cats_text( string $text, int $count ): string {
+	if ( 'Three ways to take the little fish home.' !== $text || 3 === $count ) return $text;
+	$words = array( 1 => 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten' );
+	if ( ! isset( $words[ $count ] ) ) return 'Ways to take the little fish home.';
+	return $words[ $count ] . ( 1 === $count ? ' way' : ' ways' ) . ' to take the little fish home.';
 }
 
 /** "12 pieces · from ₪89" — in-stock items and the lowest price in a category (incl. sub-categories). */
@@ -69,9 +79,9 @@ add_shortcode( 'fisha_home_cats', function ( $atts ) {
 	<header class="fh-cats__head">
 		<p class="fh-cats__eyebrow"><?php echo esc_html( $a['eyebrow'] ); ?></p>
 		<h2 id="fh-cats-h" class="fh-cats__title"><?php echo esc_html( $a['title'] ); ?></h2>
-		<p class="fh-cats__text"><?php echo esc_html( $a['text'] ); ?></p>
+		<p class="fh-cats__text"><?php echo esc_html( fisha_home_cats_text( $a['text'], count( $cards ) ) ); ?></p>
 	</header>
-	<ul class="fh-cats__row">
+	<ul class="fh-cats__row<?php echo 3 !== count( $cards ) ? ' fh-cats__row--n' . (int) min( count( $cards ), 4 ) : ''; ?>">
 		<?php foreach ( $cards as $i => $c ) : $t = $c['term']; ?>
 		<li class="fh-cat fh-cat--<?php echo (int) $i % 3 + 1; ?>">
 			<a class="fh-cat__link" href="<?php echo esc_url( get_term_link( $t ) ); ?>">
