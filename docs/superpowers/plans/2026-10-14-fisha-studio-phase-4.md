@@ -499,7 +499,7 @@ fs_test( 'restore: REST restore returns the payload and skipped list', function 
 
 - [ ] **Step 2: Run them to see them fail**
 
-Run: `bash tests/studio/run.sh restore` and `bash tests/studio/run.sh "trash:"`.\|trash:"`. The filter is a plain substring, so run `bash tests/studio/run.sh restore` and then `bash tests/studio/run.sh "trash:"`. Both FAIL with undefined functions.
+Run: `bash tests/studio/run.sh restore` and `bash tests/studio/run.sh "trash:"`. Both FAIL with undefined functions.
 
 - [ ] **Step 3: Implement** — create `studio/studio-restore.php`
 
