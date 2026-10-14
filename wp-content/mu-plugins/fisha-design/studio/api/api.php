@@ -28,3 +28,4 @@ require_once __DIR__ . '/api-categories.php';
 require_once __DIR__ . '/api-history.php';
 require_once __DIR__ . '/api-duplicate.php';
 require_once __DIR__ . '/api-account.php';
+require_once __DIR__ . '/api-dashboard.php';
