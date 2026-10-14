@@ -51,6 +51,9 @@ function fisha_studio_duplicate_product( int $id ) {
 	$copy->set_sku( '' );
 	$copy->set_featured( false );
 	$copy->update_meta_data( FISHA_STUDIO_CREATED_META, '1' );
+	// Show on site as the owner sees it on the source: its unpublished switch, else its target (never published) or live status.
+	$shown = $draft['status'] ?? ( fisha_studio_is_new( $src ) ? fisha_studio_target_status( $src ) : $src->get_status( 'edit' ) );
+	$copy->update_meta_data( '_fisha_studio_target_status', 'private' === $shown ? 'private' : 'publish' );
 	$copy->save();
 
 	// The source's unpublished edits go onto the copy (a never-published product takes them directly).
