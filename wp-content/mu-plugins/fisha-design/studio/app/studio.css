@@ -242,8 +242,8 @@ textarea.fs-input { resize: vertical; }
 	.fs-table__meta, .fs-counter, .fs-img__label, .fs-img__note, .fs-snippet__url, .fs-inv__option, .fs-btn--tiny, .fs-preview__loading, .fs-login__key small { font-size: .875rem; }
 }
 
-/* Inventory rows hold inline inputs and are too wide for a table below 900px, so they become cards there. */
-@media (max-width: 900px) {
+/* Inventory rows hold inline inputs and are too wide for a table below 1100px, so they become cards there. */
+@media (max-width: 1100px) {
 	.fs-inv thead { display: none; }
 	.fs-inv, .fs-inv tbody, .fs-inv td { display: block; }
 	.fs-inv tr { display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: .25rem .75rem; padding: .75rem; border-bottom: 1px solid var(--fs-line); }
