@@ -61,11 +61,19 @@ function fisha_studio_new_backup_codes_checked( WP_User $u, string $code, string
 	if ( ! fisha_studio_is_owner( $u ) || ! fisha_studio_2fa_enabled( $u->ID ) ) {
 		return new WP_Error( 'fisha_studio_no_2fa', '2-step sign-in is not set up for this account.', array( 'status' => 400 ) );
 	}
+	// Wrong codes here count toward the same 20-per-day limit as the sign-in's code step.
+	$day_lock = function () { return new WP_Error( 'fisha_studio_2fa_day_lock', fisha_studio_2fa_day_lock_error()->get_error_message(), array( 'status' => 429 ) ); };
+	if ( fisha_studio_2fa_day_locked( $u->ID ) ) return $day_lock();
 	if ( ! fisha_studio_login_reserve( $u->user_login, $ip ) ) {
 		return new WP_Error( 'fisha_studio_locked', 'Too many tries. Please wait 15 minutes and try again.', array( 'status' => 429 ) );
 	}
 	$code = preg_replace( '/\s+/', '', $code );
 	if ( ! preg_match( '/^\d{6}$/', $code ) || ! fisha_studio_totp_verify( $u->ID, $code ) ) {
+		$day = fisha_studio_counter_incr( 'fs_2fa_day_' . $u->ID, DAY_IN_SECONDS );
+		if ( $day >= FISHA_STUDIO_2FA_DAY_TRIES ) {
+			if ( FISHA_STUDIO_2FA_DAY_TRIES === $day ) fisha_studio_log( 'user', $u->ID, '2fa-code-lock', null, array( 'ip' => $ip ) );
+			return $day_lock();
+		}
 		return new WP_Error( 'fisha_studio_invalid', 'Please check the highlighted fields.', array( 'status' => 422, 'fields' => array( 'code' => 'That code is not right. Use the 6-digit code from your app.' ) ) );
 	}
 	fisha_studio_login_clear( $u->user_login, $ip );

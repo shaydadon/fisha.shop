@@ -71,6 +71,23 @@ fs_test( 'account: new backup codes need a valid app code and replace the old on
 	fs_true( fisha_studio_2fa_backup_use( $u->ID, $codes[0] ) );
 } );
 
+fs_test( 'account fix: wrong app codes for new backup codes count toward the 20-per-day limit', function () {
+	$u = fs_account_owner( 'Current-pass-123' );
+	$secret = random_bytes( 20 );
+	fisha_studio_2fa_enable( $u->ID, $secret );
+	fs_on_cleanup( function () use ( $u ) { fisha_studio_2fa_reset( $u->ID ); } );
+	fisha_studio_new_backup_codes_checked( $u, '000000', '10.9.8.7' );
+	fs_eq( 1, fisha_studio_counter_get( 'fs_2fa_day_' . $u->ID, DAY_IN_SECONDS ), 'counted like the sign-in' );
+	for ( $i = 0; $i < 18; $i++ ) fisha_studio_counter_incr( 'fs_2fa_day_' . $u->ID, DAY_IN_SECONDS );
+	fisha_studio_login_clear( $u->user_login, '10.9.8.7' );
+	$e = fisha_studio_new_backup_codes_checked( $u, '000000', '10.9.8.7' );
+	fs_eq( 'fisha_studio_2fa_day_lock', is_wp_error( $e ) ? $e->get_error_code() : 'ok', 'the 20th wrong code' );
+	fs_eq( 429, $e->get_error_data()['status'] );
+	fisha_studio_login_clear( $u->user_login, '10.9.8.7' );
+	$e = fisha_studio_new_backup_codes_checked( $u, fisha_studio_totp( $secret, fisha_studio_totp_counter() ), '10.9.8.7' );
+	fs_eq( 'fisha_studio_2fa_day_lock', is_wp_error( $e ) ? $e->get_error_code() : 'ok', 'even the right code' );
+} );
+
 fs_test( 'account: info and sign out of other devices', function () {
 	$u = fs_account_owner( 'Current-pass-123' );
 	$a = WP_Session_Tokens::get_instance( $u->ID )->create( time() + HOUR_IN_SECONDS );
