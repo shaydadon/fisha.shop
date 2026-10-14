@@ -232,6 +232,13 @@ textarea.fs-input { resize: vertical; }
 	.fs-table__actions { text-align: left; }
 	.fs-ed-actions { position: fixed; left: 0; right: 0; bottom: 0; z-index: 25; padding: .6rem 16px; background: var(--fs-card); border-top: 1px solid var(--fs-line); }
 	.fs-ed-actions .fs-btn { flex: 1; }
+	.fs-top { flex-wrap: wrap; gap: .25rem 1rem; }
+	.fs-page-head { flex-wrap: wrap; }
+	.fs-table__actions { white-space: normal; display: flex; flex-wrap: wrap; gap: .4rem; }
+	.fs-table__actions .fs-btn + .fs-btn { margin-left: 0; }
+	.fs-modal { max-height: calc(100dvh - 32px); overflow: auto; }
+	/* Small print rises to 14px on a phone (badges, pills and the muted time lines stay compact). */
+	.fs-table__meta, .fs-counter, .fs-img__label, .fs-img__note, .fs-snippet__url, .fs-inv__option, .fs-btn--tiny, .fs-preview__loading, .fs-login__key small { font-size: .875rem; }
 }
 
 /* Sizes & options */
@@ -289,6 +296,17 @@ textarea.fs-input { resize: vertical; }
 	.fs-nav__item { min-height: 44px; display: flex; align-items: center; }
 	.fs-cat__move .fs-btn { min-height: 44px; min-width: 44px; }
 	.fs-cat__shown { min-height: 44px; min-width: 44px; }
+	.fs-btn--tiny { min-width: 44px; }
+	.fs-brand, .fs-back, .fs-top__right > a, .fs-top__right > button, .fs-table__name, .fs-cat__name, .fs-login__forgot, .fs-login__links a, .fs-toast a, .fs-dash__list a, .fs-dash__more a, .fs-hist__row a, .fs-trash__list a, .fs-account a { display: inline-flex; align-items: center; min-height: 44px; }
+	.fs-field--toggle { min-height: 44px; }
+	.fs-check input, .fs-radio input, .fs-cat__shown input { width: 28px; height: 28px; margin: 0; }
+	/* The switch keeps its look but gets a 44px tall touch area: the track is drawn by ::before. */
+	.fs-switch { height: 44px; width: 56px; background: transparent; }
+	.fs-switch::before { content: ""; position: absolute; left: 4px; top: 8px; width: 48px; height: 28px; border-radius: 999px; background: #d6cec5; transition: background .2s; }
+	.fs-switch::after { top: 11px; left: 7px; }
+	.fs-switch:checked { background: transparent; }
+	.fs-switch:checked::before { background: var(--fs-green); }
+	.fs-switch:checked::after { transform: translateX(20px); }
 }
 
 /* ---------- categories ---------- */

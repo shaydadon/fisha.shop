@@ -10,6 +10,9 @@ $GLOBALS['fs_cleanup'] = array();
 
 function fs_test( string $name, callable $fn ): void {
 	if ( $GLOBALS['fs_filter'] && false === stripos( $name, $GLOBALS['fs_filter'] ) ) return;
+	global $wpdb;
+	$log_table = $wpdb->prefix . 'fisha_studio_log';
+	$max_id    = $wpdb->get_var( "SHOW TABLES LIKE '$log_table'" ) ? (int) $wpdb->get_var( "SELECT MAX(id) FROM $log_table" ) : null;
 	try {
 		$fn();
 		$GLOBALS['fs_results']['pass']++;
@@ -19,6 +22,7 @@ function fs_test( string $name, callable $fn ): void {
 		echo "  FAIL  $name\n        " . $e->getMessage() . ' (' . basename( $e->getFile() ) . ':' . $e->getLine() . ")\n";
 	} finally {
 		fs_cleanup();
+		if ( null !== $max_id ) $wpdb->query( $wpdb->prepare( "DELETE FROM $log_table WHERE id > %d", $max_id ) );
 	}
 }
 function fs_eq( $expected, $actual, string $msg = '' ): void {

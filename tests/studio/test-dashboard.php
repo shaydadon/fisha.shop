@@ -51,3 +51,16 @@ fs_test( 'dashboard: 11 newer rows for deleted products do not hide older existi
 	fs_true( in_array( $p->get_id(), $ids, true ) );
 	fs_true( count( $ids ) <= 10 );
 } );
+
+fs_test( 'dashboard: counts equal the matching product lists (state=published)', function () {
+	fs_as( FISHA_STUDIO_ROLE );
+	fs_product( array( 'manage_stock' => true, 'stock_quantity' => 0, 'stock_status' => 'outofstock' ) );
+	$p = fisha_studio_product_create( 'zz-test dash draft 2' );
+	fs_on_cleanup( function () use ( $p ) { fs_delete_product( $p->get_id() ); } );
+	$c = fisha_studio_dashboard()['counts'];
+	list( $s, $r ) = fs_api( 'GET', '/products', array( 'state' => 'published', 'per_page' => 100 ) );
+	fs_eq( 200, $s );
+	fs_eq( $c['live'], count( $r['items'] ), 'live count equals list' );
+	list( $s, $r ) = fs_api( 'GET', '/products', array( 'state' => 'published', 'stock' => 'outofstock', 'per_page' => 100 ) );
+	fs_eq( $c['sold_out'], count( $r['items'] ), 'sold out count equals list' );
+} );

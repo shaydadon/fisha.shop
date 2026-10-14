@@ -71,3 +71,12 @@ fs_test( 'history: REST lists for the owner only', function () {
 	fs_eq( 200, $s );
 	fs_true( isset( $d['items'], $d['total'], $d['pages'] ) );
 } );
+
+fs_test( 'history: size list rows use plain labels', function () {
+	$l = fisha_studio_history_changes( 'attribute', 999999, array( 'label' => 'zz-test Fit' ), array( 'label' => 'zz-test Cut' ) );
+	fs_eq( array( 'Name: zz-test Fit → zz-test Cut' ), $l );
+	$l = fisha_studio_history_changes( 'attribute', 999999, array( 'name' => 'S' ), array( 'name' => 'M' ) );
+	fs_eq( array( 'Name: S → M' ), $l );
+	$l = fisha_studio_history_changes( 'attribute', 999999, array( 'value' => 'a' ), array( 'value' => 'b' ) );
+	fs_eq( array( 'Value: a → b' ), $l );
+} );

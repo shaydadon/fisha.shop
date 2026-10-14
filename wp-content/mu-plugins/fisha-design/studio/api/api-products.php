@@ -180,6 +180,7 @@ function fisha_studio_rest_products_list( WP_REST_Request $r ): array {
 		if ( ! $p ) continue;
 		$row = fisha_studio_product_row( $p );
 		if ( 'hidden' === $state && ! $row['hidden'] ) continue;
+		if ( 'published' === $state && ( 'new' === $row['state'] || $row['hidden'] ) ) continue;
 		if ( in_array( $state, array( 'live', 'changed', 'new' ), true ) && $row['state'] !== $state ) continue;
 		if ( 'low' === $stock && ! $row['low'] ) continue;
 		if ( in_array( $stock, array( 'instock', 'outofstock', 'onbackorder' ), true ) && $row['stock_status'] !== $stock ) continue;

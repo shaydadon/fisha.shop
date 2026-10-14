@@ -107,6 +107,8 @@ function fisha_studio_history_changes( string $type, int $id, ?array $before, ?a
 		if ( 'variation' === $type ) {
 			$v     = wc_get_product( $id );
 			$label = ( $v ? fisha_studio_variation_label( $v ) . ': ' : '' ) . ( fisha_studio_variation_fields()[ $k ]['label'] ?? $k );
+		} elseif ( 'attribute' === $type ) {
+			$label = array( 'label' => 'Name', 'name' => 'Name', 'value' => 'Value' )[ $k ] ?? $k;
 		} elseif ( $p ) {
 			$label = fisha_studio_value_label( $p, $k );
 		} else {

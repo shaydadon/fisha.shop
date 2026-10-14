@@ -28,7 +28,7 @@ export function productsList( main ) {
 		h( 'div.fs-filters', {},
 			h( 'input.fs-input.fs-search', { type: 'search', placeholder: 'Search by name or SKU', value: state.search, 'aria-label': 'Search products', oninput: debounce( ( e ) => update( { search: e.target.value } ), 300 ) } ),
 			catSelect,
-			select( 'state', 'Status', [ [ 'all', 'Any status' ], [ 'live', 'Live' ], [ 'changed', 'Unpublished changes' ], [ 'new', 'Drafts' ], [ 'hidden', 'Hidden' ] ] ),
+			select( 'state', 'Status', [ [ 'all', 'Any status' ], [ 'published', 'On the site' ], [ 'live', 'Live' ], [ 'changed', 'Unpublished changes' ], [ 'new', 'Drafts' ], [ 'hidden', 'Hidden' ] ] ),
 			select( 'stock', 'Stock', [ [ 'all', 'Any stock' ], [ 'instock', 'In stock' ], [ 'low', 'Low stock' ], [ 'outofstock', 'Sold out' ], [ 'onbackorder', 'Made to order' ] ] ) ),
 		table,
 		pager );

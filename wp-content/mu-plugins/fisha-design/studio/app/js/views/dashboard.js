@@ -7,10 +7,10 @@ import { api } from '../api.js';
 import { ago } from '../time.js';
 
 const COUNTS = [
-	[ 'live', 'Live products', { state: 'all', stock: 'all' } ],
-	[ 'sold_out', 'Sold out', { stock: 'outofstock' } ],
-	[ 'low', 'Low stock', { stock: 'low' } ],
-	[ 'drafts', 'Drafts', { state: 'new' } ],
+	[ 'live', 'Live products', { state: 'published', stock: 'all' } ],
+	[ 'sold_out', 'Sold out', { state: 'published', stock: 'outofstock' } ],
+	[ 'low', 'Low stock', { state: 'published', stock: 'low' } ],
+	[ 'drafts', 'Drafts', { state: 'new', stock: 'all' } ],
 ];
 const STATE = { new: 'Not published yet', changed: 'Unpublished changes' };
 const link = ( x ) => `#/${ x.kind === 'category' ? 'categories' : 'products' }/${ x.id }`;
