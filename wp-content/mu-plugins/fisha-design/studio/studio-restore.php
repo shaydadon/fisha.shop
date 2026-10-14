@@ -26,9 +26,14 @@ function fisha_studio_restore( string $type, int $id, int $log_id ) {
 	$skipped = array();
 	$photos  = 0;
 	$values  = array();
+	$kept    = false;
 	foreach ( $snapshot as $k => $v ) {
 		$k = (string) $k;
 		if ( ! array_key_exists( $k, $live ) ) continue;
+		if ( fisha_studio_restore_never( $type, $k ) ) {
+			if ( ! fisha_studio_same( $v, $live[ $k ] ) ) $kept = true;
+			continue;
+		}
 		if ( preg_match( '/(^|:)image_id$/', $k ) && $v && ! wp_attachment_is_image( (int) $v ) ) { $photos++; continue; }
 		if ( preg_match( '/(^|:)(gallery_image_ids|hero_ids)$/', $k ) && is_array( $v ) ) {
 			$keep = array_values( array_filter( $v, function ( $a ) { return wp_attachment_is_image( (int) $a ); } ) );
@@ -40,10 +45,6 @@ function fisha_studio_restore( string $type, int $id, int $log_id ) {
 			if ( count( $keep ) < count( $v ) ) $skipped[] = 'A category from that version no longer exists.';
 			$v = $keep;
 		}
-		if ( 'parent' === $k && (int) $v && ! fisha_studio_category( (int) $v ) ) {
-			$skipped[] = 'The parent category from that version no longer exists.';
-			continue;
-		}
 		if ( 'attributes' === $k && ! fisha_studio_restore_options_exist( (array) $v ) ) {
 			$skipped[] = 'The size options from that version no longer exist, so they were left as they are.';
 			continue;
@@ -53,12 +54,16 @@ function fisha_studio_restore( string $type, int $id, int $log_id ) {
 	$gone_sizes = fisha_studio_restore_size_count( $snapshot, $live );
 	if ( $gone_sizes ) array_unshift( $skipped, sprintf( _n( '%d size from that version no longer exists.', '%d sizes from that version no longer exist.', $gone_sizes ), $gone_sizes ) );
 	if ( $photos ) $skipped[] = sprintf( _n( '%d photo from that version no longer exists.', '%d photos from that version no longer exist.', $photos ), $photos );
+	if ( $kept ) $skipped[] = 'product' === $type ? 'Stock, SKU and address are not restored. They stay as they are now.' : 'The address is not restored. It stays as it is now.';
 
 	$changes = array();
 	foreach ( $values as $k => $v ) {
 		if ( ! fisha_studio_same( $v, $live[ $k ] ) ) $changes[ $k ] = $v;
 	}
-	if ( ! $changes ) return new WP_Error( 'fisha_studio_same', 'This version is the same as the live one.', array( 'status' => 400 ) );
+	if ( ! $changes ) {
+		$msg = $kept ? ( 'product' === $type ? 'This version differs only in stock, SKU or address, and those are not restored.' : 'This version differs only in its address, and that is not restored.' ) : 'This version is the same as the live one.';
+		return new WP_Error( 'fisha_studio_same', $msg, array( 'status' => 400 ) );
+	}
 	$seen = array_intersect_key( $live, $changes );
 	if ( 'product' === $type ) {
 		list( $clean, $errors ) = fisha_studio_sanitize_product_input( $p, $changes );
@@ -68,6 +73,17 @@ function fisha_studio_restore( string $type, int $id, int $log_id ) {
 		fisha_studio_category_edit( $t, array_diff_key( $clean, $errors ), $seen );
 	}
 	return array( 'skipped' => $skipped );
+}
+
+/**
+ * Keys a restore never writes: stock, SKU, the address and the shop order of a product and its sizes (orders change
+ * stock and History does not see orders), and a category's address and parent (its URL path).
+ */
+function fisha_studio_restore_never( string $type, string $key ): bool {
+	if ( 'product' !== $type ) return in_array( $key, array( 'slug', 'parent' ), true );
+	$parsed = fisha_studio_parse_var_key( $key );
+	if ( $parsed ) return in_array( $parsed[1], array( 'stock_quantity', 'stock_status', 'manage_stock', 'sku' ), true );
+	return in_array( $key, array( 'stock_quantity', 'stock_status', 'manage_stock', 'sku', 'slug', 'menu_order' ), true );
 }
 
 /** How many different sizes of the snapshot are gone. */
@@ -109,12 +125,18 @@ function fisha_studio_untrash_product( int $id ) {
 	if ( 'product' !== get_post_type( $id ) || 'trash' !== get_post_status( $id ) ) {
 		return new WP_Error( 'fisha_studio_not_found', 'This product is not in the trash.', array( 'status' => 404 ) );
 	}
+	// Hidden before the trash stays Hidden: the post comes back as a draft, so its Show on site lives in the target status.
+	$was = (string) get_post_meta( $id, '_wp_trash_meta_status', true );
 	$force = function ( $status, $post_id ) use ( $id ) { return (int) $post_id === $id ? 'draft' : $status; };
 		// Only the product itself goes to draft; its sizes (untrashed by WooCommerce through the same filter) keep their own status.
 	add_filter( 'wp_untrash_post_status', $force, 10, 2 );
 	$ok = wp_untrash_post( $id );
 	remove_filter( 'wp_untrash_post_status', $force );
 	if ( ! $ok ) return new WP_Error( 'fisha_studio_untrash_failed', 'The product could not be brought back. Please try again.', array( 'status' => 500 ) );
+	update_post_meta( $id, '_fisha_studio_target_status', 'private' === $was ? 'private' : 'publish' );
+	update_post_meta( $id, '_fisha_studio_slug_manual', '1' ); // a renamed product keeps the address it had in the shop
+	// Edits left unpublished before the trash are dropped (with the sizes they added), so Publish never applies them unchecked.
+	fisha_studio_draft_discard( $id );
 	clean_post_cache( $id );
 	wc_delete_product_transients( $id );
 	fisha_studio_log( 'product', $id, 'untrash', null, array( 'status' => 'draft' ) );
