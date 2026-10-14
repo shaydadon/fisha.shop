@@ -24,6 +24,7 @@ require_once FISHA_STUDIO_DIR . 'studio-role.php';
 require_once FISHA_STUDIO_DIR . 'studio-gates.php';
 
 require_once FISHA_STUDIO_DIR . 'studio-login.php';
+require_once FISHA_STUDIO_DIR . 'studio-2fa.php';
 
 /** Per-request nonce for the one inline <script type="importmap">. */
 function fisha_studio_csp_nonce(): string {
@@ -54,24 +55,90 @@ function fisha_studio_import_map(): array {
 	return array( 'imports' => $imports );
 }
 
+/**
+ * The no-JS sign-in page. Step 1 is the password. An owner then gets the code step (app code or backup code), or the
+ * setup step (QR code and key) and then their backup codes, shown once. The pending sign-in lives in the
+ * fisha_studio_2fa cookie (see studio-2fa.php); the session starts only after the code step.
+ */
 function fisha_studio_login_page(): void {
 	if ( current_user_can( 'fisha_studio' ) ) {
 		wp_safe_redirect( home_url( '/studio/' ) );
 		exit;
 	}
-	$error = '';
+	$ip      = fisha_client_ip();
+	$ua      = fisha_studio_2fa_ua();
+	$token   = preg_replace( '/[^0-9a-f]/', '', (string) ( $_COOKIE[ FISHA_STUDIO_2FA_COOKIE ] ?? '' ) );
+	$pending = '' !== $token ? fisha_studio_2fa_pending_get( $token, $ip, $ua ) : null;
+	$error   = '';
+	$notice  = '';
+	$step    = '';
+	$codes   = array();
+	$setup   = null;
+	$mode    = ( isset( $_GET['backup'] ) || 'backup' === ( $_POST['fs_mode'] ?? '' ) ) ? 'backup' : 'code';
+	$restart = function () use ( &$pending, $token ) {
+		if ( '' !== $token ) delete_transient( fisha_studio_2fa_pending_key( $token ) );
+		fisha_studio_2fa_cookie( '' );
+		$pending = null;
+	};
+
+	if ( isset( $_GET['restart'] ) && 'POST' !== ( $_SERVER['REQUEST_METHOD'] ?? '' ) ) $restart();
 	if ( 'POST' === ( $_SERVER['REQUEST_METHOD'] ?? '' ) ) {
-		if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['_fs_nonce'] ?? '' ) ), 'fisha_studio_login' ) ) {
+		$posted = sanitize_key( $_POST['fs_step'] ?? 'password' );
+		if ( 'password' === $posted ) {
+			if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['_fs_nonce'] ?? '' ) ), 'fisha_studio_login' ) ) {
+				$error = 'This page was open for a long time. Please try again.';
+			} else {
+				$r = fisha_studio_sign_in( (string) wp_unslash( $_POST['log'] ?? '' ), (string) wp_unslash( $_POST['pwd'] ?? '' ), $ip, $ua );
+				if ( is_wp_error( $r ) ) {
+					$error = $r->get_error_message();
+				} else {
+					// An admin is signed in now; an owner goes on to the code (or setup) step, which this page shows on GET.
+					wp_safe_redirect( home_url( $r instanceof WP_User ? '/studio/' : '/studio/login/' ) );
+					exit;
+				}
+			}
+		} elseif ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['_fs_nonce'] ?? '' ) ), 'fisha_studio_2fa' ) ) {
 			$error = 'This page was open for a long time. Please try again.';
-		} else {
-			$r = fisha_studio_sign_in( (string) wp_unslash( $_POST['log'] ?? '' ), (string) wp_unslash( $_POST['pwd'] ?? '' ), fisha_client_ip() );
+		} elseif ( ! $pending ) {
+			$restart();
+			$error = fisha_studio_2fa_expired()->get_error_message();
+		} elseif ( 'saved' === $posted ) {
+			$r = fisha_studio_2fa_saved_step( $token, $ip, $ua );
 			if ( ! is_wp_error( $r ) ) {
 				wp_safe_redirect( home_url( '/studio/' ) );
 				exit;
 			}
+			$restart();
 			$error = $r->get_error_message();
+		} else {
+			$r = fisha_studio_2fa_code_step( $token, (string) wp_unslash( $_POST['code'] ?? '' ), $ip, $ua );
+			if ( is_wp_error( $r ) ) {
+				$error = $r->get_error_message();
+				if ( 'fisha_studio_2fa_wrong' !== $r->get_error_code() ) $restart();
+			} elseif ( ! empty( $r['done'] ) && null === $r['backup_left'] ) {
+				wp_safe_redirect( home_url( '/studio/' ) );
+				exit;
+			} elseif ( ! empty( $r['done'] ) ) {
+				$step   = 'done';
+				$notice = fisha_studio_2fa_backup_note( (int) $r['backup_left'] );
+			} else {
+				$step  = 'codes';
+				$codes = $r['codes'];
+			}
 		}
 	}
+
+	if ( '' === $step && $pending ) {
+		if ( empty( $pending['setup'] ) ) {
+			$step = $mode;
+		} elseif ( ! empty( $pending['confirmed'] ) ) {
+			$step = 'codes'; // reloaded: the codes were shown once and are not shown again
+		} else {
+			$setup = fisha_studio_2fa_setup_info( $token, $ip, $ua );
+			$step  = is_wp_error( $setup ) ? 'password' : 'setup';
+		}
+	}
+	if ( '' === $step ) $step = 'password';
 	status_header( 200 );
 	require FISHA_STUDIO_DIR . 'app/login.php';
 }

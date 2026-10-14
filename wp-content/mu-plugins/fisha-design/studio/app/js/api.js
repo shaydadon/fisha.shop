@@ -1,5 +1,5 @@
 /**
- * Fisha Studio API client: sends the REST nonce, asks the owner to sign in again when the session ended
+ * Fisha Studio API client: sends the REST nonce, asks the owner to sign in again (password, then the 2-step code) when the session ended
  * (then repeats the request), and keeps retrying saves while the connection is down. POSTs (publish, upload)
  * are never repeated automatically.
  */
@@ -47,6 +47,42 @@ async function send( method, path, body, form, { withNonce = true } = {} ) {
 	return data;
 }
 
+const STOP_CODES = [ 'fisha_studio_2fa_expired', 'fisha_studio_locked', 'fisha_studio_2fa_setup' ];
+
+/** Second step for an owner: the app code or a backup code. True when signed in, false to go back to the password. */
+async function askCode( token ) {
+	let backup = false;
+	for ( ;; ) {
+		const values = await modal( {
+			title: '2-step sign-in',
+			body: [
+				h( 'p', {}, backup ? 'Enter one of your backup codes. Each code works once.' : 'Enter the 6-digit code from your authenticator app.' ),
+				h( 'label.fs-field__label', {}, backup ? 'Backup code' : 'Code', backup
+					? h( 'input.fs-input', { name: 'code', autocomplete: 'off', autocapitalize: 'none', spellcheck: 'false', placeholder: 'xxxx-xxxx', maxlength: 12, required: true } )
+					: h( 'input.fs-input', { name: 'code', inputmode: 'numeric', autocomplete: 'one-time-code', pattern: '[0-9 ]{6,7}', maxlength: 7, required: true } ) ),
+			],
+			actions: [
+				{ label: backup ? 'Use the code from the app' : 'Use a backup code', value: 'switch' },
+				{ label: 'Sign in', kind: 'primary', submit: true, value: ( f ) => ( { code: f.elements.code.value } ) },
+			],
+		} );
+		if ( values === 'switch' ) {
+			backup = ! backup;
+			continue;
+		}
+		if ( ! values ) return false;
+		try {
+			const r = await send( 'POST', 'login/code', { code: values.code, token }, null, { withNonce: false } );
+			nonce = r.nonce;
+			if ( r.note ) await modal( { title: 'Backup code used', body: h( 'p', {}, r.note ) } );
+			return true;
+		} catch ( e ) {
+			await modal( { title: 'Could not sign in', body: h( 'p', {}, e.message ) } );
+			if ( ! ( e instanceof ApiError ) || STOP_CODES.includes( e.code ) ) return false;
+		}
+	}
+}
+
 function askLogin() {
 	relogin ??= ( async () => {
 		for ( ;; ) {
@@ -62,6 +98,10 @@ function askLogin() {
 			if ( ! values ) continue;
 			try {
 				const r = await send( 'POST', 'login', values, null, { withNonce: false } );
+				if ( r.step === 'code' ) {
+					if ( await askCode( r.token ) ) return;
+					continue;
+				}
 				nonce = r.nonce;
 				return;
 			} catch ( e ) {

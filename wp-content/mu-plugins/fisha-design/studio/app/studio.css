@@ -45,6 +45,18 @@ textarea.fs-input { resize: vertical; }
 .fs-login input { min-height: 44px; padding: .55rem .75rem; border: 1px solid var(--fs-line); border-radius: 10px; font: inherit; }
 .fs-login__error { background: var(--fs-red-soft); color: var(--fs-red); padding: .6rem .8rem; border-radius: 10px; }
 .fs-login__forgot { display: inline-block; margin-top: 1rem; font-size: .9rem; }
+.fs-login--wide { max-width: 440px; }
+.fs-login__code { font-size: 1.25rem; letter-spacing: .15em; text-align: center; }
+.fs-login__links { display: flex; justify-content: center; flex-wrap: wrap; gap: .5rem 1.25rem; margin-top: 1rem; font-size: .9rem; }
+.fs-login__steps { text-align: left; margin: 0 0 1rem; padding-left: 1.25rem; display: grid; gap: .3rem; }
+.fs-login__qr { display: grid; place-items: center; min-height: 220px; margin: 0 auto .75rem; color: var(--fs-muted); }
+.fs-login__qr img { width: 220px; height: 220px; image-rendering: pixelated; }
+.fs-login__key { margin: 0 0 1rem; overflow-wrap: anywhere; }
+.fs-login__key code, .fs-login__codes code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 1.05rem; letter-spacing: .05em; }
+.fs-login__key small { color: var(--fs-muted); }
+.fs-login__codes { list-style: none; padding: 0; margin: 0 0 1.25rem; display: grid; grid-template-columns: repeat( 2, 1fr ); gap: .5rem; }
+.fs-login__codes li { padding: .45rem; border: 1px solid var(--fs-line); border-radius: 10px; background: var(--fs-paper); }
+.fs-login__notice { background: var(--fs-paper); border: 1px solid var(--fs-line); padding: .6rem .8rem; border-radius: 10px; margin-bottom: 1rem; }
 
 /* Shell */
 .fs-top { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .5rem 16px; background: var(--fs-card); border-bottom: 1px solid var(--fs-line); }

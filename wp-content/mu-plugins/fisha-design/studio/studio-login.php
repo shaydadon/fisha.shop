@@ -4,6 +4,7 @@
  * (owner or admin) or an IP for 15 minutes after 5 failed tries. The lock also holds on wp-login.php and My Account
  * for Studio accounts, so it cannot be side-stepped; customers there are never counted or locked by this code.
  * The 15 minutes run from the first failure (a fixed window), so further tries do not extend a lock.
+ * A shop owner never gets a session from the password alone: see studio-2fa.php for the code step.
  */
 if ( ! defined( 'ABSPATH' ) ) exit;
 
@@ -79,14 +80,30 @@ function fisha_studio_check_credentials( string $login, string $password, string
 		fisha_studio_login_failed( $login, $ip, ! fisha_studio_login_user( $login ) || fisha_studio_login_is_studio( $login ) );
 		return new WP_Error( 'fisha_studio_invalid', 'That email/username and password do not match.' );
 	}
-	fisha_studio_login_clear( $login, $ip );
+	// An owner's counters are cleared only after the code step too, so the right password cannot reset the count of wrong codes.
+	if ( ! fisha_studio_is_owner( $user ) ) fisha_studio_login_clear( $login, $ip );
 	return $user;
 }
 
-/** Checks credentials and starts a session (sets the auth cookie). @return WP_User|WP_Error */
-function fisha_studio_sign_in( string $login, string $password, string $ip ) {
+/**
+ * Checks credentials. An admin with Studio access gets a session at once (auth cookie set, returns the WP_User).
+ * An owner never does: a pending 2-step sign-in starts instead and this returns { step: 'code' | 'setup', token, user }
+ * (the token is also set as the fisha_studio_2fa cookie on $cookie_path). With $allow_setup false (the in-app sign-in),
+ * an owner who has not set up 2-step sign-in gets an error.
+ * @return WP_User|array|WP_Error
+ */
+function fisha_studio_sign_in( string $login, string $password, string $ip, ?string $ua = null, bool $allow_setup = true, string $cookie_path = '/studio/' ) {
 	$user = fisha_studio_check_credentials( $login, $password, $ip );
 	if ( is_wp_error( $user ) ) return $user;
+	if ( fisha_studio_is_owner( $user ) ) {
+		$enabled = fisha_studio_2fa_enabled( $user->ID );
+		if ( ! $enabled && ! $allow_setup ) {
+			return new WP_Error( 'fisha_studio_2fa_setup', 'Please sign in at /studio/login/ to set up 2-step sign-in.' );
+		}
+		$token = fisha_studio_2fa_pending_start( $user, $ip, $ua ?? fisha_studio_2fa_ua(), ! $enabled );
+		fisha_studio_2fa_cookie( $token, $cookie_path );
+		return array( 'step' => $enabled ? 'code' : 'setup', 'token' => $token, 'user' => $user );
+	}
 	wp_set_auth_cookie( $user->ID, false, is_ssl() );
 	wp_set_current_user( $user->ID );
 	do_action( 'wp_login', $user->user_login, $user );

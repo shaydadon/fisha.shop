@@ -39,13 +39,32 @@ fs_test( 'login: five failures lock the account even with the right password', f
 	fs_true( fisha_studio_login_locked( 'someone-else', $ip ), 'the IP is locked too' );
 } );
 
-fs_test( 'login: success clears earlier failures', function () {
-	$u  = fs_owner_with_password( 'right-password-123' );
+// Changed with 2-step sign-in: for an owner the right password alone no longer clears the counters (else wrong codes
+// could be guessed without end); the finished code step does. An admin's right password still clears them.
+fs_test( 'login: success clears earlier failures (owner: only after the code step)', function () {
+	add_filter( 'send_auth_cookies', '__return_false' );
+	fs_on_cleanup( function () { remove_filter( 'send_auth_cookies', '__return_false' ); unset( $_COOKIE['fisha_studio_2fa'] ); } );
+	$u      = fs_owner_with_password( 'right-password-123' );
+	$secret = random_bytes( 20 );
+	fisha_studio_2fa_enable( $u->ID, $secret );
+	fs_on_cleanup( function () use ( $u ) { global $wpdb; $wpdb->delete( $wpdb->prefix . 'fisha_studio_log', array( 'item_type' => 'user', 'item_id' => $u->ID ) ); } );
 	$ip = fs_ip();
 	for ( $i = 0; $i < 4; $i++ ) fisha_studio_check_credentials( $u->user_login, 'wrong', $ip );
-	fisha_studio_check_credentials( $u->user_login, 'right-password-123', $ip );
+	$r = fisha_studio_sign_in( $u->user_login, 'right-password-123', $ip, 'zz-test-agent' );
+	fs_eq( 4, fisha_studio_login_count( fisha_studio_login_key( 'u', fisha_studio_login_account( $u->user_login ) ) ), 'the password alone keeps the count' );
+	$done = fisha_studio_2fa_code_step( $r['token'], fisha_studio_totp( $secret, fisha_studio_totp_counter() ), $ip, 'zz-test-agent' );
+	fs_true( is_array( $done ) && ! empty( $done['done'] ), 'signed in with the code' );
 	fisha_studio_check_credentials( $u->user_login, 'wrong', $ip );
-	fs_false( fisha_studio_login_locked( $u->user_login, $ip ), 'counter was reset' );
+	fs_false( fisha_studio_login_locked( $u->user_login, $ip ), 'counter was reset by the code step' );
+
+	$a = fs_user( 'administrator' );
+	wp_set_password( 'admin-pass-123', $a->ID );
+	fs_on_cleanup( function () use ( $a ) { fisha_studio_login_clear( $a->user_login, '' ); } );
+	$ip2 = fs_ip();
+	for ( $i = 0; $i < 4; $i++ ) fisha_studio_check_credentials( $a->user_login, 'wrong', $ip2 );
+	fisha_studio_check_credentials( $a->user_login, 'admin-pass-123', $ip2 );
+	fisha_studio_check_credentials( $a->user_login, 'wrong', $ip2 );
+	fs_false( fisha_studio_login_locked( $a->user_login, $ip2 ), 'admin counter was reset by the password' );
 } );
 
 fs_test( 'login: import map versions every studio module', function () {
