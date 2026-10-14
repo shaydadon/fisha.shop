@@ -33,7 +33,7 @@ export function toast( message, kind = 'ok', action = null ) {
 	setTimeout( () => t.remove(), kind === 'error' ? 8600 : 5100 );
 }
 
-export function modal( { title, body, actions = [ { label: 'OK', value: true, kind: 'primary' } ], onOpen } ) {
+export function modal( { title, body, actions = [ { label: 'OK', value: true, kind: 'primary' } ], onOpen, dismissable = true } ) {
 	return new Promise( ( resolve ) => {
 		const dlg = h( 'dialog.fs-modal', { 'aria-labelledby': 'fs-modal-title' } );
 		let done = false;
@@ -60,7 +60,7 @@ export function modal( { title, body, actions = [ { label: 'OK', value: true, ki
 		dlg.append( form );
 		dlg.addEventListener( 'cancel', ( e ) => {
 			e.preventDefault();
-			close( null );
+			if ( dismissable ) close( null );
 		} );
 		document.body.append( dlg );
 		dlg.showModal();

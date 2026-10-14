@@ -229,14 +229,22 @@ export function categoryEditor( main, id ) {
 		}
 	}
 
-	async function duplicate() {
-		if ( ! ( await flush() ) ) return;
+	let duplicating = false;
+	async function duplicate( e ) {
+		if ( duplicating ) return;
+		duplicating = true;
+		const btn = e?.currentTarget;
+		if ( btn ) btn.disabled = true;
 		try {
+			if ( ! ( await flush() ) ) return;
 			const d = await api( 'POST', `categories/${ id }/duplicate` );
 			toast( `Made "${ d.values.name }". It is not on the site yet.` );
 			location.hash = '#/categories/' + d.id;
 		} catch ( e ) {
 			toast( e.message, 'error' );
+		} finally {
+			duplicating = false;
+			if ( btn ) btn.disabled = false;
 		}
 	}
 

@@ -35,6 +35,7 @@ export function accountView( main ) {
 				const r = await api( 'POST', 'account/password', { current: val( 'current' ), new: val( 'new' ), confirm: val( 'confirm' ) } );
 				setNonce( r.nonce );
 				form.reset();
+				form.elements.username.value = a.login;
 				toast( 'Password changed. Other devices were signed out.' );
 			} catch ( err ) {
 				Object.entries( err.data?.fields || {} ).forEach( ( [ k, m ] ) => f[ k ]?.setError( m ) );
@@ -78,6 +79,7 @@ export function accountView( main ) {
 				body: [ h( 'p', {}, 'Save them somewhere safe that is not your phone. Each works once. They are shown only now.' ),
 					h( 'ol.fs-codes', {}, r.codes.map( ( c ) => h( 'li', {}, h( 'code', {}, c ) ) ) ) ],
 				actions: [ { label: 'I have saved these codes', kind: 'primary', value: true } ],
+				dismissable: false,
 			} );
 			load();
 		} catch ( e ) {
