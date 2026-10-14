@@ -161,6 +161,7 @@ export function productEditor( main, id ) {
 			actions.push( h( 'p.fs-note', {}, 'This kind of product can only be edited in WP admin.' ) );
 		} else {
 			if ( d.state === 'changed' ) actions.push( h( 'button.fs-btn', { type: 'button', onclick: discard }, 'Discard changes' ) );
+			actions.push( h( 'button.fs-btn', { type: 'button', onclick: duplicate }, 'Duplicate' ) );
 			if ( d.url ) actions.push( h( 'a.fs-btn', { href: d.url, target: '_blank', rel: 'noopener' }, 'View on site' ) );
 			actions.push( h( 'button.fs-btn.fs-btn--primary.fs-publish', { type: 'button', onclick: () => publish(), disabled: d.state === 'live' }, d.state === 'new' ? 'Publish to the shop' : 'Publish changes' ) );
 		}
@@ -262,6 +263,17 @@ export function productEditor( main, id ) {
 			( d.skipped || [] ).forEach( ( s ) => toast( s, 'warn' ) );
 		} catch ( e ) {
 			toast( e.message, e.code === 'fisha_studio_same' ? 'ok' : 'error' );
+		}
+	}
+
+	async function duplicate() {
+		if ( ! ( await flush() ) ) return;
+		try {
+			const d = await api( 'POST', `products/${ id }/duplicate` );
+			toast( `Made "${ d.values.name }". It is not on the site yet.` );
+			location.hash = '#/products/' + d.id;
+		} catch ( e ) {
+			toast( e.message, 'error' );
 		}
 	}
 

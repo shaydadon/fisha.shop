@@ -7,6 +7,10 @@ import { h, modal } from './ui.js';
 
 export const config = JSON.parse( document.getElementById( 'fs-config' ).textContent );
 let nonce = config.nonce;
+/** After a password change the server starts a new session; its REST nonce replaces the old one. */
+export function setNonce( n ) {
+	if ( n ) nonce = n;
+}
 let online = true;
 let relogin = null;
 

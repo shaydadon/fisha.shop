@@ -116,6 +116,7 @@ export function categoryEditor( main, id ) {
 			h( 'div.fs-ed-title', {}, h( 'h1', {}, d.values.name || 'Untitled' ), h( 'span.fs-pill.fs-pill--' + pill[ 1 ], {}, pill[ 0 ] ), status ),
 			h( 'div.fs-ed-actions', {},
 				d.state === 'changed' ? h( 'button.fs-btn', { type: 'button', onclick: discard }, 'Discard changes' ) : null,
+				h( 'button.fs-btn', { type: 'button', onclick: duplicate }, 'Duplicate' ),
 				d.url ? h( 'a.fs-btn', { href: d.url, target: '_blank', rel: 'noopener' }, 'View on site' ) : null,
 				h( 'button.fs-btn.fs-btn--primary.fs-publish', { type: 'button', onclick: () => publish(), disabled: d.state === 'live' && ! Object.keys( ed.pending ).length }, d.state === 'new' ? 'Publish category' : 'Publish changes' ),
 				h( 'button.fs-btn.fs-preview-toggle', { type: 'button', onclick: () => editor.classList.toggle( 'is-previewing' ) }, 'Preview' ) ) );
@@ -225,6 +226,17 @@ export function categoryEditor( main, id ) {
 			( d.skipped || [] ).forEach( ( s ) => toast( s, 'warn' ) );
 		} catch ( e ) {
 			toast( e.message, e.code === 'fisha_studio_same' ? 'ok' : 'error' );
+		}
+	}
+
+	async function duplicate() {
+		if ( ! ( await flush() ) ) return;
+		try {
+			const d = await api( 'POST', `categories/${ id }/duplicate` );
+			toast( `Made "${ d.values.name }". It is not on the site yet.` );
+			location.hash = '#/categories/' + d.id;
+		} catch ( e ) {
+			toast( e.message, 'error' );
 		}
 	}
 
