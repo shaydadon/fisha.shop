@@ -43,12 +43,13 @@ function fisha_studio_dashboard(): array {
 		return $w;
 	}, array_slice( $waiting, 0, 20 ) );
 
-	$rows = $wpdb->get_results( 'SELECT item_type, item_id, MAX(id) AS last, MAX(created) AS created FROM ' . fisha_studio_log_table() . " WHERE item_type IN ('product','category') AND action IN ('create','publish','convert') GROUP BY item_type, item_id ORDER BY last DESC LIMIT 10", ARRAY_A );
+	$rows = $wpdb->get_results( 'SELECT item_type, item_id, MAX(id) AS last, MAX(created) AS created FROM ' . fisha_studio_log_table() . " WHERE item_type IN ('product','category') AND action IN ('create','publish','convert') GROUP BY item_type, item_id ORDER BY last DESC LIMIT 50", ARRAY_A );
 	$recent = array();
 	foreach ( $rows ?: array() as $r ) {
 		$item = fisha_studio_history_item( $r['item_type'], (int) $r['item_id'], array() );
 		if ( ! $item || ! $item['exists'] ) continue;
 		$recent[] = array( 'kind' => $item['type'], 'id' => $item['id'], 'name' => $item['name'], 'when' => str_replace( ' ', 'T', $r['created'] ) . 'Z' );
+		if ( count( $recent ) >= 10 ) break;
 	}
 	return array( 'counts' => $counts, 'waiting' => $waiting, 'recent' => $recent, 'activity' => fisha_studio_history_query( array( 'per_page' => 15 ) )['items'] );
 }

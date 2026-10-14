@@ -11,10 +11,11 @@ import { richText } from '../richtext.js';
 import { imagesField } from '../images.js';
 import { previewPane } from '../preview.js';
 import { resolveConflicts } from '../conflicts.js';
+import { historyList } from '../history.js';
 
 // The owner asked for the SEO and Fisha design tabs to be removed; the server keeps filling those fields with defaults.
-const TABS = [ [ 'basics', 'Basics' ], [ 'price', 'Price' ], [ 'inventory', 'Inventory' ], [ 'images', 'Photos' ], [ 'shipping', 'Shipping & tax' ] ];
-const TABS_SIZES = [ [ 'basics', 'Basics' ], [ 'variations', 'Sizes & options' ], [ 'inventory', 'Inventory' ], [ 'images', 'Photos' ], [ 'shipping', 'Shipping & tax' ] ];
+const TABS = [ [ 'basics', 'Basics' ], [ 'price', 'Price' ], [ 'inventory', 'Inventory' ], [ 'images', 'Photos' ], [ 'shipping', 'Shipping & tax' ], [ 'history', 'History' ] ];
+const TABS_SIZES = [ [ 'basics', 'Basics' ], [ 'variations', 'Sizes & options' ], [ 'inventory', 'Inventory' ], [ 'images', 'Photos' ], [ 'shipping', 'Shipping & tax' ], [ 'history', 'History' ] ];
 const TAB_OF = {
 	name: 'basics', slug: 'basics', status: 'basics', category_ids: 'basics', tag_ids: 'basics', short_description: 'basics', description: 'basics', catalog_visibility: 'basics', featured: 'basics', reviews_allowed: 'basics', menu_order: 'basics',
 	regular_price: 'price', sale_price: 'price', date_on_sale_from: 'price', date_on_sale_to: 'price',
@@ -252,6 +253,18 @@ export function productEditor( main, id ) {
 		}
 	}
 
+	async function restoreVersion( entry ) {
+		if ( ! ( await flush() ) ) return;
+		try {
+			const d = await api( 'POST', `products/${ id }/restore`, { log_id: entry.id } );
+			reload( d );
+			toast( 'That version is now in your draft. Check the preview, then publish.' );
+			( d.skipped || [] ).forEach( ( s ) => toast( s, 'warn' ) );
+		} catch ( e ) {
+			toast( e.message, e.code === 'fisha_studio_same' ? 'ok' : 'error' );
+		}
+	}
+
 	async function trash() {
 		const isNew = ed.data.state === 'new';
 		if ( ! ( await confirmDialog( isNew ? 'Delete this draft?' : 'Move to trash?', isNew ? 'This product was never published. It will be moved to the trash.' : 'The product disappears from the shop. It stays in the trash for 30 days, and the site admin can restore it.', isNew ? 'Delete draft' : 'Move to trash', 'danger' ) ) ) return;
@@ -458,6 +471,9 @@ export function productEditor( main, id ) {
 		const panel = ( key, ...children ) => h( 'section.fs-panel', { role: 'tabpanel', id: 'fs-panel-' + key, 'aria-labelledby': 'fs-tab-' + key, dataset: { tab: key }, hidden: key !== tab }, children );
 		tabBar.replaceChildren( ...tabs.map( ( [ key, label ] ) => h( 'button.fs-tab', { type: 'button', role: 'tab', id: 'fs-tab-' + key, 'aria-controls': 'fs-panel-' + key, 'aria-selected': String( key === tab ), dataset: { tab: key }, onclick: () => openTab( key ) }, label ) ) );
 		const readOnly = ! d.editable;
+		const historyBox = h( 'div', {},
+			h( 'p.fs-field__help', {}, 'Restoring puts that version into your draft. Check it in the preview, then publish.' ),
+			historyList( { query: { item_type: 'product', item_id: id, per_page: 20 }, onRestore: restoreVersion } ).el );
 		panels.replaceChildren(
 			panel( 'basics', W.name.el, typeField?.el, W.slug.el, W.status.el, W.category_ids.el, W.short_description.el, W.description.el, W.tag_ids.el,
 				h( 'div.fs-grid-2', {}, W.catalog_visibility.el, h( 'div', {}, W.featured.el, W.reviews_allowed.el ) ),
@@ -469,7 +485,8 @@ export function productEditor( main, id ) {
 				? panel( 'inventory', W.manage_stock.el, h( 'div.fs-grid-2', {}, W.stock_quantity.el, W.low_stock_amount.el ), notCounted, W.sold_individually.el, W.sku.el )
 				: panel( 'inventory', h( 'div.fs-stock-actions', {}, soldOut, backIn ), h( 'div.fs-grid-2', {}, W.stock_choice.el, W.stock_quantity.el ), notCounted, W.low_stock_amount.el, W.sold_individually.el, W.sku.el ),
 			panel( 'images', W.images.el ),
-			panel( 'shipping', h( 'div.fs-grid-4', {}, W.weight.el, W.length.el, W.width.el, W.height.el ), W.shipping_class_id.el, h( 'div.fs-grid-2', {}, W.tax_status.el, W.tax_class.el ) ) );
+			panel( 'shipping', h( 'div.fs-grid-4', {}, W.weight.el, W.length.el, W.width.el, W.height.el ), W.shipping_class_id.el, h( 'div.fs-grid-2', {}, W.tax_status.el, W.tax_class.el ) ),
+			panel( 'history', historyBox ) );
 		if ( readOnly ) panels.querySelectorAll( 'input, select, textarea, button, [contenteditable]' ).forEach( ( x ) => {
 			if ( x.hasAttribute( 'contenteditable' ) ) x.setAttribute( 'contenteditable', 'false' );
 			else x.disabled = true;

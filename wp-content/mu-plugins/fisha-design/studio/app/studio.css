@@ -319,3 +319,16 @@ textarea.fs-input { resize: vertical; }
 .fs-dash__more { margin-top: 1rem; }
 @media (max-width: 1100px) { .fs-dash__grid { grid-template-columns: 1fr; } }
 @media (max-width: 760px) { .fs-dash__counts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* ---------- history ---------- */
+.fs-hist { list-style: none; margin: 0; padding: 0; display: grid; gap: .5rem; }
+.fs-hist__row { background: var(--fs-card); border: 1px solid var(--fs-line); border-radius: 10px; padding: .7rem .8rem; display: grid; gap: .35rem; justify-items: start; }
+.fs-hist__head { display: flex; flex-wrap: wrap; gap: .25rem .5rem; align-items: baseline; overflow-wrap: anywhere; }
+.fs-hist__when { color: var(--fs-muted); font-size: .85rem; margin-left: auto; }
+.fs-hist__changes { margin: 0; padding-left: 1.1rem; color: var(--fs-text, inherit); font-size: .92rem; }
+.fs-trash { margin-top: 2rem; }
+.fs-trash__list { list-style: none; margin: 0; padding: 0; display: grid; gap: .5rem; }
+.fs-trash__list li { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
+.fs-trash__list img { border-radius: 6px; object-fit: cover; }
+.fs-cat-history { margin: 1.5rem 0; }
+.fs-cat-history summary { cursor: pointer; font-weight: 800; min-height: 44px; display: flex; align-items: center; }

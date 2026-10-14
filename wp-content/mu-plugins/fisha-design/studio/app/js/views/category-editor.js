@@ -10,6 +10,7 @@ import { textField, selectField, toggleField } from '../fields.js';
 import { imagesField } from '../images.js';
 import { previewPane } from '../preview.js';
 import { resolveConflicts } from '../conflicts.js';
+import { historyList } from '../history.js';
 
 const heroValues = ( ids ) => ( { image_id: ids?.[ 0 ] || 0, gallery_image_ids: ( ids || [] ).slice( 1 ) } );
 
@@ -211,6 +212,22 @@ export function categoryEditor( main, id ) {
 		}
 	}
 
+	async function restoreVersion( entry ) {
+		if ( ! ( await flush() ) ) return;
+		try {
+			const d = await api( 'POST', `categories/${ id }/restore`, { log_id: entry.id } );
+			clearErrors();
+			apply( d );
+			for ( const k of Object.keys( ed.widgets ) ) delete ed.widgets[ k ];
+			build( d );
+			refreshPreview( d );
+			toast( 'That version is now in your draft. Check the preview, then publish.' );
+			( d.skipped || [] ).forEach( ( s ) => toast( s, 'warn' ) );
+		} catch ( e ) {
+			toast( e.message, e.code === 'fisha_studio_same' ? 'ok' : 'error' );
+		}
+	}
+
 	async function editAddress() {
 		const d = ed.data;
 		const slug = await modal( {
@@ -310,6 +327,10 @@ export function categoryEditor( main, id ) {
 		W.hero_ids = imagesField( heroValues( v.hero_ids ), d.images, ( x ) => change( 'hero_ids', [ x.image_id, ...x.gallery_image_ids ].filter( Boolean ) ), { label: 'Hero photos', help: 'One or two photos for the top of the page. Leave it empty to use the first product photos.', max: 2, hoverNote: false } );
 		W.shown = toggleField( 'Show on site', v.shown, ( x ) => change( 'shown', x ), { help: 'When on, it appears on the site once it has at least one product.' } );
 		body.replaceChildren( W.name.el, W.slug.el, W.parent.el, W.lead.el, W.hero_ids.el, W.shown.el,
+			h( 'details.fs-cat-history', {},
+				h( 'summary', {}, 'History' ),
+				h( 'p.fs-field__help', {}, 'Restoring puts that version into your draft. Check it in the preview, then publish.' ),
+				historyList( { query: { item_type: 'category', item_id: id, per_page: 20 }, onRestore: restoreVersion } ).el ),
 			d.deletable ? h( 'div.fs-danger-zone', {}, h( 'button.fs-btn.fs-btn--danger', { type: 'button', onclick: remove }, 'Delete category' ) ) : null );
 		paintUrl();
 	}

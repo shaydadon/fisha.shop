@@ -39,3 +39,15 @@ fs_test( 'dashboard: recent and activity come from History; REST works', functio
 	fs_eq( 200, $s );
 	fs_true( isset( $r['counts']['live'] ) );
 } );
+
+fs_test( 'dashboard: 11 newer rows for deleted products do not hide older existing items', function () {
+	fs_as( FISHA_STUDIO_ROLE );
+	$p = fs_product();
+	$old = fisha_studio_log( 'product', $p->get_id(), 'publish', array( 'name' => 'a' ), array( 'name' => 'b' ) );
+	$gone = array();
+	for ( $i = 0; $i < 11; $i++ ) $gone[] = fisha_studio_log( 'product', 99999990 + $i, 'publish', array( 'name' => 'a' ), array( 'name' => 'b' ) );
+	fs_on_cleanup( function () use ( $old, $gone ) { global $wpdb; foreach ( array_merge( array( $old ), $gone ) as $i ) $wpdb->delete( fisha_studio_log_table(), array( 'id' => $i ) ); } );
+	$ids = array_column( fisha_studio_dashboard()['recent'], 'id' );
+	fs_true( in_array( $p->get_id(), $ids, true ) );
+	fs_true( count( $ids ) <= 10 );
+} );
