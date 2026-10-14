@@ -217,7 +217,15 @@ textarea.fs-input { resize: vertical; }
 	.fs-editor.is-previewing .fs-ed-side { display: block; }
 	.fs-preview-toggle, .fs-preview-close { display: inline-flex; }
 }
+/* Small tablets: row buttons stack in the actions column so three of them fit (phones get card rows below). */
+@media (max-width: 900px) {
+	.fs-table th, .fs-table td { padding-left: .5rem; padding-right: .5rem; }
+	.fs-table__actions .fs-btn { display: flex; justify-content: center; width: 100%; }
+	.fs-table__actions .fs-btn + .fs-btn { margin: .3rem 0 0; }
+}
 @media (max-width: 760px) {
+	.fs-table__actions .fs-btn { display: inline-flex; width: auto; }
+	.fs-table__actions .fs-btn + .fs-btn { margin: 0; }
 	.fs-shell { grid-template-columns: 1fr; }
 	.fs-nav { display: flex; padding: .5rem 16px; border-right: 0; border-bottom: 1px solid var(--fs-line); overflow-x: auto; }
 	.fs-main { padding: 1rem 16px 4rem; }
