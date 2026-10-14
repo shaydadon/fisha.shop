@@ -57,7 +57,7 @@ function fisha_studio_duplicate_product( int $id ) {
 	$values = array();
 	foreach ( $draft as $k => $v ) {
 		$k = (string) $k;
-		if ( in_array( $k, array( 'name', 'slug', 'sku', 'status' ), true ) ) continue;
+		if ( in_array( $k, array( 'name', 'slug', 'sku', 'status', 'featured' ), true ) ) continue;
 		$parsed = fisha_studio_parse_var_key( $k );
 		if ( $parsed ) {
 			if ( ! isset( $map[ $parsed[0] ] ) || 'sku' === $parsed[1] ) continue;

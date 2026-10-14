@@ -67,3 +67,13 @@ fs_test( 'duplicate: REST returns 201 with the copy', function () {
 	fs_eq( 'new', $d['state'] );
 	fs_true( $d['id'] !== $src->get_id() );
 } );
+
+fs_test( 'duplicate: a draft Featured switch does not make the copy featured', function () {
+	fs_as( FISHA_STUDIO_ROLE );
+	$src = fs_product();
+	fisha_studio_product_edit( $src, array( 'featured' => true ) );
+	$copy = fisha_studio_duplicate_product( $src->get_id() );
+	fs_false( is_wp_error( $copy ) );
+	fs_on_cleanup( function () use ( $copy ) { fs_delete_product( $copy->get_id() ); } );
+	fs_false( wc_get_product( $copy->get_id() )->get_featured(), 'copy is not featured' );
+} );
