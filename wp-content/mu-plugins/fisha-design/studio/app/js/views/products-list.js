@@ -112,7 +112,21 @@ export function productsList( main ) {
 				h( 'div.fs-badges', {}, badges( r ) ) ),
 			h( 'td', { 'data-label': 'Price' }, price ),
 			h( 'td', { 'data-label': 'Stock' }, stock ),
-			h( 'td.fs-table__actions', {}, save, h( 'a.fs-btn.fs-btn--small', { href: '#/products/' + r.id }, 'Edit' ) ) );
+			h( 'td.fs-table__actions', {}, save, h( 'a.fs-btn.fs-btn--small', { href: '#/products/' + r.id }, 'Edit' ),
+				r.editable ? h( 'button.fs-btn.fs-btn--small', { type: 'button', onclick: duplicate }, 'Duplicate' ) : null ) );
+		async function duplicate( e ) {
+			const btn = e.currentTarget;
+			if ( btn.disabled ) return;
+			btn.disabled = true;
+			try {
+				const d = await api( 'POST', `products/${ r.id }/duplicate` );
+				toast( `Made "${ d.values.name }". It is not on the site yet.` );
+				location.hash = '#/products/' + d.id;
+			} catch ( err ) {
+				btn.disabled = false;
+				toast( err.message, 'error' );
+			}
+		}
 		const changed = () => ( price.tagName === 'INPUT' && price.value !== r.regular_price )
 			|| ( stock.tagName === 'INPUT' && stock.value !== String( r.stock_quantity ?? '' ) );
 		for ( const input of [ price, stock ] ) {
