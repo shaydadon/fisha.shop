@@ -290,14 +290,8 @@ function fisha_studio_2fa_finish( string $token, WP_User $u, string $ip, string 
 	fisha_studio_login_clear( $u->user_login, $ip );
 	// Enrolment ends every earlier session (some may have started with the password alone, before 2-step sign-in).
 	if ( $end_other_sessions ) WP_Session_Tokens::get_instance( $u->ID )->destroy_all();
-	// The only place an owner's auth cookie may be sent (see fisha_studio_2fa_guard_cookies()).
-	$GLOBALS['fisha_studio_2fa_ok'] = $u->ID;
-	try {
-		wp_set_auth_cookie( $u->ID, false, is_ssl() );
-	} finally {
-		unset( $GLOBALS['fisha_studio_2fa_ok'] );
-	}
-	wp_set_current_user( $u->ID );
+	// Through the one session helper allowed past the cookie guard (see fisha_studio_2fa_guard_cookies()).
+	fisha_studio_issue_session( $u );
 	do_action( 'wp_login', $u->user_login, $u );
 	fisha_studio_log( 'user', $u->ID, $action, null, array( 'ip' => $ip ) );
 }
@@ -395,7 +389,7 @@ function fisha_studio_2fa_backup_note( int $left ): string {
 
 /* ---------- closing the other ways in ---------- */
 
-/** May an auth cookie be sent for this user now? Always for non-owners; for an owner only inside fisha_studio_2fa_finish(). */
+/** May an auth cookie be sent for this user now? Always for non-owners; for an owner only inside fisha_studio_issue_session(). */
 function fisha_studio_2fa_cookie_allowed( int $uid ): bool {
 	if ( $uid <= 0 ) return true;
 	$u = get_user_by( 'id', $uid );
