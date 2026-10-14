@@ -25,3 +25,4 @@ require_once __DIR__ . '/api-products.php';
 require_once __DIR__ . '/api-attributes.php';
 require_once __DIR__ . '/api-inventory.php';
 require_once __DIR__ . '/api-categories.php';
+require_once __DIR__ . '/api-history.php';

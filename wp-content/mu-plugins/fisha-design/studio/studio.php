@@ -175,6 +175,7 @@ require_once FISHA_STUDIO_DIR . 'studio-publish.php';
 require_once FISHA_STUDIO_DIR . 'studio-categories.php';
 require_once FISHA_STUDIO_DIR . 'studio-categories-publish.php';
 require_once FISHA_STUDIO_DIR . 'studio-convert.php';
+require_once FISHA_STUDIO_DIR . 'studio-history.php';
 
 require_once FISHA_STUDIO_DIR . 'studio-preview.php';
 
