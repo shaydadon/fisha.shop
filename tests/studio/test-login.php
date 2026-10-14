@@ -123,10 +123,12 @@ fs_test( 'login: username and email of one owner share one counter', function ()
 fs_test( 'login: the lock ends 15 minutes after the first failure, later failures do not extend it', function () {
 	$u   = fs_owner_with_password( 'right-password-123' );
 	$key = fisha_studio_login_key( 'u', fisha_studio_login_account( $u->user_login ) );
+	// The counter is an atomic options row "first:count" (fix round 1); move its start back.
 	$age = function ( int $seconds ) use ( $key ) {
-		$rec          = get_transient( $key );
-		$rec['first'] = time() - $seconds;
-		set_transient( $key, $rec, HOUR_IN_SECONDS );
+		global $wpdb;
+		$opt = fisha_studio_counter_option( $key );
+		$val = (string) $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", $opt ) );
+		$wpdb->update( $wpdb->options, array( 'option_value' => ( time() - $seconds ) . ':' . explode( ':', $val )[1] ), array( 'option_name' => $opt ) );
 	};
 	for ( $i = 0; $i < 4; $i++ ) fisha_studio_check_credentials( $u->user_login, 'wrong', fs_ip() );
 	$age( 14 * MINUTE_IN_SECONDS );

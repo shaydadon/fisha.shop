@@ -6,16 +6,21 @@
 
 /** Records whether an auth cookie would be set during this test (and never sends real cookies from the CLI). */
 function fs_2fa_watch_cookies(): object {
-	$seen = (object) array( 'auth' => 0, 'logged_in' => 0 );
+	$seen = (object) array( 'auth' => 0, 'logged_in' => 0, 'sent' => array() );
 	$a    = function () use ( $seen ) { $seen->auth++; };
 	$b    = function () use ( $seen ) { $seen->logged_in++; };
+	// Runs last: records whether the cookies would really be sent (after the Studio guard), then never sends from the CLI.
+	$c    = function ( $send, $expire = 0, $expiration = 0, $user_id = 0 ) use ( $seen ) {
+		if ( $user_id ) $seen->sent[] = array( (int) $user_id, (bool) $send );
+		return false;
+	};
 	add_action( 'set_auth_cookie', $a );
 	add_action( 'set_logged_in_cookie', $b );
-	add_filter( 'send_auth_cookies', '__return_false' );
-	fs_on_cleanup( function () use ( $a, $b ) {
+	add_filter( 'send_auth_cookies', $c, PHP_INT_MAX, 4 );
+	fs_on_cleanup( function () use ( $a, $b, $c ) {
 		remove_action( 'set_auth_cookie', $a );
 		remove_action( 'set_logged_in_cookie', $b );
-		remove_filter( 'send_auth_cookies', '__return_false' );
+		remove_filter( 'send_auth_cookies', $c, PHP_INT_MAX );
 		unset( $_COOKIE[ LOGGED_IN_COOKIE ], $_COOKIE['fisha_studio_2fa'] );
 	} );
 	return $seen;
@@ -36,6 +41,7 @@ function fs_2fa_owner( bool $enable = true ): array {
 	fs_on_cleanup( function () use ( $u ) {
 		global $wpdb;
 		fisha_studio_login_clear( $u->user_login, '' );
+		fisha_studio_counter_clear( 'fs_2fa_day_' . $u->ID );
 		$wpdb->delete( $wpdb->prefix . 'fisha_studio_log', array( 'item_type' => 'user', 'item_id' => $u->ID ) );
 	} );
 	return array( get_user_by( 'id', $u->ID ), $secret );
@@ -148,8 +154,8 @@ fs_test( '2fa: wrong codes count toward the lock, five lock the account', functi
 	$seen        = fs_2fa_watch_cookies();
 	list( $u, $s ) = fs_2fa_owner();
 	$ip          = fs_2fa_ip();
-	$r           = fisha_studio_sign_in( $u->user_login, 'right-password-123', $ip, FS_2FA_UA );
 	for ( $i = 0; $i < 4; $i++ ) {
+		if ( 0 === $i % 2 ) $r = fisha_studio_sign_in( $u->user_login, 'right-password-123', $ip, FS_2FA_UA );
 		$e = fisha_studio_2fa_code_step( $r['token'], '000000' === fs_2fa_code( $s ) ? '111111' : '000000', $ip, FS_2FA_UA );
 		fs_eq( 'fisha_studio_2fa_wrong', is_wp_error( $e ) ? $e->get_error_code() : 'ok', "try $i" );
 	}
@@ -306,14 +312,16 @@ fs_test( '2fa: REST login asks an owner for the code without a cookie, the code 
 	} );
 	list( $st, $d ) = fs_2fa_from_ip( $ip, function () use ( $u ) { return fs_api( 'POST', '/login', array( 'login' => $u->user_login, 'password' => 'right-password-123' ) ); } );
 	fs_eq( 200, $st );
-	fs_eq( 'code', $d['step'] ?? null );
-	fs_true( ! isset( $d['nonce'] ), 'no nonce yet' );
+	fs_eq( array( 'step' => 'code' ), $d, 'only the step, the token travels in the HttpOnly cookie' );
+	$token = (string) ( $_COOKIE['fisha_studio_2fa'] ?? '' );
+	fs_true( 64 === strlen( $token ), 'token cookie set' );
 	fs_eq( 0, $seen->auth, 'no cookie' );
 	fs_eq( 0, get_current_user_id() );
 
-	list( $st, $d2 ) = fs_2fa_from_ip( $ip, function () { return fs_api( 'POST', '/login/code', array( 'code' => 'zzzz-zzzz' ) ); } );
-	fs_eq( 401, $st, 'no token (no cookie, none sent): ' . wp_json_encode( $d2 ) );
-	$_COOKIE['fisha_studio_2fa'] = $d['token'];
+	unset( $_COOKIE['fisha_studio_2fa'] );
+	list( $st, $d2 ) = fs_2fa_from_ip( $ip, function () use ( $token, $s ) { return fs_api( 'POST', '/login/code', array( 'code' => fs_2fa_code( $s ), 'token' => $token ) ); } );
+	fs_eq( 401, $st, 'a token in the body is not accepted: ' . wp_json_encode( $d2 ) );
+	$_COOKIE['fisha_studio_2fa'] = $token;
 	list( $st, $d2 ) = fs_2fa_from_ip( $ip, function () { return fs_api( 'POST', '/login/code', array( 'code' => 'zzzz-zzzz' ) ); } );
 	fs_eq( 401, $st, 'wrong code' );
 	list( $st, $d2 ) = fs_2fa_from_ip( $ip, function () use ( $s ) { return fs_api( 'POST', '/login/code', array( 'code' => fs_2fa_code( $s ) ) ); } );
@@ -355,4 +363,150 @@ fs_test( '2fa: a secret that cannot be decrypted never falls back to a password-
 	fs_true( is_wp_error( fisha_studio_2fa_code_step( $r['token'], '123456', $ip, FS_2FA_UA ) ), 'no app code can work' );
 	$done = fisha_studio_2fa_code_step( $r['token'], $codes[0], $ip, FS_2FA_UA );
 	fs_true( is_array( $done ) && ! empty( $done['done'] ), 'a backup code still works' );
+} );
+
+/* ---------- fix round 1 ---------- */
+
+fs_test( '2fa fix C1: no other auth-cookie caller (WooCommerce reset) gives an owner a session', function () {
+	$seen      = fs_2fa_watch_cookies();
+	list( $u ) = fs_2fa_owner();
+	wc_set_customer_auth_cookie( $u->ID );   // what WooCommerce's My Account password reset does
+	wp_set_auth_cookie( $u->ID, true );
+	fs_eq( array( array( $u->ID, false ), array( $u->ID, false ) ), $seen->sent, 'cookies not sent for the owner' );
+	fs_eq( array(), WP_Session_Tokens::get_instance( $u->ID )->get_all(), 'no session token left' );
+	fs_eq( 0, get_current_user_id(), 'not the current user' );
+	fs_false( isset( $_COOKIE[ LOGGED_IN_COOKIE ] ), 'no logged-in cookie in this request' );
+
+	$c = fs_user( 'customer' );
+	$a = fs_user( 'administrator' );
+	$seen->sent = array();
+	wc_set_customer_auth_cookie( $c->ID );
+	wp_set_auth_cookie( $a->ID );
+	fs_eq( array( array( $c->ID, true ), array( $a->ID, true ) ), $seen->sent, 'customer and admin unchanged' );
+	WP_Session_Tokens::get_instance( $c->ID )->destroy_all();
+	WP_Session_Tokens::get_instance( $a->ID )->destroy_all();
+} );
+
+fs_test( '2fa fix C1: the code step still gives the owner a session; the WooCommerce reset sends owners to the Studio', function () {
+	$seen          = fs_2fa_watch_cookies();
+	list( $u, $s ) = fs_2fa_owner();
+	$ip            = fs_2fa_ip();
+	$r             = fisha_studio_sign_in( $u->user_login, 'right-password-123', $ip, FS_2FA_UA );
+	$done          = fisha_studio_2fa_code_step( $r['token'], fs_2fa_code( $s ), $ip, FS_2FA_UA );
+	fs_true( is_array( $done ) && ! empty( $done['done'] ), 'signed in' );
+	fs_eq( array( array( $u->ID, true ) ), $seen->sent, 'cookie sent' );
+	fs_eq( 1, count( WP_Session_Tokens::get_instance( $u->ID )->get_all() ), 'one session' );
+	WP_Session_Tokens::get_instance( $u->ID )->destroy_all();
+	fs_eq( home_url( '/studio/login/?reset=1' ), fisha_studio_2fa_reset_redirect( $u ) );
+	fs_eq( null, fisha_studio_2fa_reset_redirect( fs_user( 'customer' ) ) );
+	fs_true( false !== has_action( 'woocommerce_customer_reset_password', 'fisha_studio_2fa_after_wc_reset' ), 'wired to the WooCommerce reset' );
+} );
+
+fs_test( '2fa fix I1: the atomic counter counts every call and restarts after its window', function () {
+	$name = 'fs_test_ctr_' . wp_rand();
+	fs_on_cleanup( function () use ( $name ) { fisha_studio_counter_clear( $name ); } );
+	for ( $i = 1; $i <= 7; $i++ ) fs_eq( $i, fisha_studio_counter_incr( $name, 60 ), "call $i" );
+	fs_eq( 7, fisha_studio_counter_get( $name, 60 ) );
+	global $wpdb;
+	$wpdb->update( $wpdb->options, array( 'option_value' => ( time() - 61 ) . ':7' ), array( 'option_name' => fisha_studio_counter_option( $name ) ) );
+	fs_eq( 0, fisha_studio_counter_get( $name, 60 ), 'window over' );
+	fs_eq( 1, fisha_studio_counter_incr( $name, 60 ), 'starts again' );
+	fisha_studio_counter_clear( $name );
+	fs_eq( 0, fisha_studio_counter_get( $name, 60 ), 'cleared' );
+} );
+
+fs_test( '2fa fix I1: three wrong codes end a pending sign-in', function () {
+	fs_2fa_watch_cookies();
+	list( $u, $s ) = fs_2fa_owner();
+	$ip            = fs_2fa_ip();
+	$r             = fisha_studio_sign_in( $u->user_login, 'right-password-123', $ip, FS_2FA_UA );
+	for ( $i = 1; $i <= 3; $i++ ) $e = fisha_studio_2fa_code_step( $r['token'], 'zzzz-zzzz', $ip, FS_2FA_UA );
+	fs_eq( 'fisha_studio_2fa_expired', $e->get_error_code(), 'third wrong code ends it' );
+	fs_false( get_transient( fisha_studio_2fa_pending_key( $r['token'] ) ), 'token gone' );
+	$e = fisha_studio_2fa_code_step( $r['token'], fs_2fa_code( $s ), $ip, FS_2FA_UA );
+	fs_eq( 'fisha_studio_2fa_expired', is_wp_error( $e ) ? $e->get_error_code() : 'ok', 'right code no longer helps' );
+} );
+
+fs_test( '2fa fix I1: twenty wrong codes in 24 hours lock code entry until reset', function () {
+	fs_2fa_watch_cookies();
+	list( $u, $s ) = fs_2fa_owner();
+	$ip            = fs_2fa_ip();
+	for ( $i = 0; $i < 19; $i++ ) fisha_studio_counter_incr( 'fs_2fa_day_' . $u->ID, DAY_IN_SECONDS );
+	$r = fisha_studio_sign_in( $u->user_login, 'right-password-123', $ip, FS_2FA_UA );
+	$e = fisha_studio_2fa_code_step( $r['token'], 'zzzz-zzzz', $ip, FS_2FA_UA );
+	fs_eq( 'fisha_studio_2fa_day_lock', $e->get_error_code(), 'the 20th wrong code' );
+	fs_eq( 'Too many wrong codes. Please contact your web developer.', $e->get_error_message() );
+	global $wpdb;
+	fs_eq( '1', $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . fisha_studio_log_table() . " WHERE item_type = 'user' AND item_id = %d AND action = '2fa-code-lock'", $u->ID ) ), 'audit row' );
+	fisha_studio_login_clear( $u->user_login, $ip );
+	$r = fisha_studio_sign_in( $u->user_login, 'right-password-123', $ip, FS_2FA_UA );
+	$e = fisha_studio_2fa_code_step( $r['token'], fs_2fa_code( $s ), $ip, FS_2FA_UA );
+	fs_eq( 'fisha_studio_2fa_day_lock', is_wp_error( $e ) ? $e->get_error_code() : 'ok', 'even the right code' );
+	fisha_studio_2fa_reset( $u->ID );
+	fisha_studio_2fa_enable( $u->ID, $s );
+	$r    = fisha_studio_sign_in( $u->user_login, 'right-password-123', $ip, FS_2FA_UA );
+	$done = fisha_studio_2fa_code_step( $r['token'], fs_2fa_code( $s ), $ip, FS_2FA_UA );
+	fs_true( is_array( $done ) && ! empty( $done['done'] ), 'reset lifts it' );
+	WP_Session_Tokens::get_instance( $u->ID )->destroy_all();
+} );
+
+fs_test( '2fa fix I2: a second pending setup cannot replace the authenticator after enrolment', function () {
+	fs_2fa_watch_cookies();
+	list( $u ) = fs_2fa_owner( false );
+	$ip        = fs_2fa_ip();
+	$ra        = fisha_studio_sign_in( $u->user_login, 'right-password-123', $ip, FS_2FA_UA );
+	$rb        = fisha_studio_sign_in( $u->user_login, 'right-password-123', $ip, FS_2FA_UA );
+	$sa        = fisha_studio_base32_decode( fisha_studio_2fa_setup_info( $ra['token'], $ip, FS_2FA_UA )['key'] );
+	$sb        = fisha_studio_base32_decode( fisha_studio_2fa_setup_info( $rb['token'], $ip, FS_2FA_UA )['key'] );
+	$step      = fisha_studio_2fa_code_step( $ra['token'], fs_2fa_code( $sa ), $ip, FS_2FA_UA );
+	fs_true( is_array( $step ) && 10 === count( $step['codes'] ), 'A enrolled' );
+	$hashes = get_user_meta( $u->ID, '_fisha_2fa_backup', true );
+	$e      = fisha_studio_2fa_code_step( $rb['token'], fs_2fa_code( $sb ), $ip, FS_2FA_UA );
+	fs_eq( 'fisha_studio_2fa_expired', is_wp_error( $e ) ? $e->get_error_code() : 'ok', 'B refused' );
+	fs_eq( $sa, fisha_studio_2fa_secret( $u->ID ), 'A secret kept' );
+	fs_eq( $hashes, get_user_meta( $u->ID, '_fisha_2fa_backup', true ), 'A backup codes kept' );
+	fs_true( is_wp_error( fisha_studio_2fa_saved_step( $rb['token'], $ip, FS_2FA_UA ) ), 'B cannot finish' );
+	fs_false( fisha_studio_2fa_enable( $u->ID, random_bytes( 20 ) ), 'enable is first-wins' );
+	fs_eq( $sa, fisha_studio_2fa_secret( $u->ID ), 'still A' );
+} );
+
+fs_test( '2fa fix M1: the time step is claimed with compare-and-set', function () {
+	list( $u ) = fs_2fa_owner();
+	fs_true( fisha_studio_2fa_claim_counter( $u->ID, 100, null ), 'first claim' );
+	fs_false( fisha_studio_2fa_claim_counter( $u->ID, 101, null ), 'a second first-time claim loses' );
+	fs_false( fisha_studio_2fa_claim_counter( $u->ID, 101, 99 ), 'stale previous value loses' );
+	fs_true( fisha_studio_2fa_claim_counter( $u->ID, 101, 100 ), 'right previous value wins' );
+	fs_false( fisha_studio_2fa_claim_counter( $u->ID, 102, 100 ), 'the same previous value cannot be claimed twice' );
+	fs_eq( '101', (string) get_user_meta( $u->ID, '_fisha_2fa_last', true ) );
+} );
+
+fs_test( '2fa fix M7: finishing setup ends older sessions of the owner', function () {
+	fs_2fa_watch_cookies();
+	list( $u ) = fs_2fa_owner( false );
+	$old       = WP_Session_Tokens::get_instance( $u->ID )->create( time() + HOUR_IN_SECONDS );
+	$ip        = fs_2fa_ip();
+	$r         = fisha_studio_sign_in( $u->user_login, 'right-password-123', $ip, FS_2FA_UA );
+	$secret    = fisha_studio_base32_decode( fisha_studio_2fa_setup_info( $r['token'], $ip, FS_2FA_UA )['key'] );
+	fisha_studio_2fa_code_step( $r['token'], fs_2fa_code( $secret ), $ip, FS_2FA_UA );
+	fs_true( fisha_studio_2fa_saved_step( $r['token'], $ip, FS_2FA_UA ) instanceof WP_User, 'signed in' );
+	$m = WP_Session_Tokens::get_instance( $u->ID );
+	fs_false( $m->verify( $old ), 'old session ended' );
+	fs_eq( 1, count( $m->get_all() ), 'only the new session' );
+	$m->destroy_all();
+} );
+
+fs_test( '2fa fix I1: old counter rows are swept when a sign-in starts', function () {
+	fs_2fa_watch_cookies();
+	global $wpdb;
+	$old = 'fs_2fa_tok_zz' . wp_rand();
+	$new = 'fs_2fa_tok_zz' . wp_rand() . 'b';
+	fs_on_cleanup( function () use ( $old, $new ) { fisha_studio_counter_clear( $old ); fisha_studio_counter_clear( $new ); } );
+	fisha_studio_counter_incr( $old, 300 );
+	fisha_studio_counter_incr( $new, 300 );
+	$wpdb->update( $wpdb->options, array( 'option_value' => ( time() - 301 ) . ':2' ), array( 'option_name' => fisha_studio_counter_option( $old ) ) );
+	list( $u ) = fs_2fa_owner();
+	fisha_studio_sign_in( $u->user_login, 'right-password-123', fs_2fa_ip(), FS_2FA_UA );
+	$has = function ( $n ) use ( $wpdb ) { return (bool) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->options} WHERE option_name = %s", fisha_studio_counter_option( $n ) ) ); };
+	fs_false( $has( $old ), 'expired row removed' );
+	fs_true( $has( $new ), 'current row kept' );
 } );

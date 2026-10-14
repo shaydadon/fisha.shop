@@ -36,20 +36,58 @@ function fisha_studio_login_is_studio( string $login ): bool {
 	return $u && user_can( $u, 'fisha_studio' );
 }
 
-/** Failures in the current window, 0 when there are none or the window (15 min from the first failure) has ended. */
-function fisha_studio_login_count( string $key ): int {
-	$rec = get_transient( $key );
-	if ( ! is_array( $rec ) || time() >= (int) ( $rec['first'] ?? 0 ) + FISHA_STUDIO_LOGIN_LOCK ) return 0;
-	return (int) ( $rec['count'] ?? 0 );
+/* Atomic counters with a fixed window: one autoload-off options row "first:count", changed only by single SQL
+   statements, so parallel requests cannot lose an increment. The window runs from the first count; when it has
+   ended, the next increment starts a new one. Used for every sign-in failure counter (password and code). */
+
+function fisha_studio_counter_option( string $name ): string {
+	return 'fisha_ctr_' . $name;
 }
 
-function fisha_studio_login_bump( string $key ): void {
+/** Adds one and returns the count in the current window (at least this call's own count). */
+function fisha_studio_counter_incr( string $name, int $window ): int {
+	global $wpdb;
 	$now = time();
-	$rec = get_transient( $key );
-	if ( ! is_array( $rec ) || $now >= (int) ( $rec['first'] ?? 0 ) + FISHA_STUDIO_LOGIN_LOCK ) $rec = array( 'first' => $now, 'count' => 0 );
-	$rec['count'] = (int) $rec['count'] + 1;
-	// Expires when the window ends: a later failure keeps the original end time instead of starting a new 15 minutes.
-	set_transient( $key, $rec, max( 1, (int) $rec['first'] + FISHA_STUDIO_LOGIN_LOCK - $now ) );
+	$wpdb->query( $wpdb->prepare(
+		"INSERT INTO {$wpdb->options} ( option_name, option_value, autoload ) VALUES ( %s, %s, 'off' )
+		ON DUPLICATE KEY UPDATE option_value = IF(
+			CAST( SUBSTRING_INDEX( option_value, ':', 1 ) AS UNSIGNED ) + %d <= %d,
+			%s,
+			CONCAT( SUBSTRING_INDEX( option_value, ':', 1 ), ':', CAST( SUBSTRING_INDEX( option_value, ':', -1 ) AS UNSIGNED ) + 1 ) )",
+		fisha_studio_counter_option( $name ), $now . ':1', $window, $now, $now . ':1'
+	) );
+	return max( 1, fisha_studio_counter_get( $name, $window ) );
+}
+
+/** The count in the current window, 0 when there is none or the window has ended. Reads the database, never a cache. */
+function fisha_studio_counter_get( string $name, int $window ): int {
+	global $wpdb;
+	$v = $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", fisha_studio_counter_option( $name ) ) );
+	if ( ! is_string( $v ) || ! preg_match( '/^(\d+):(\d+)$/', $v, $m ) ) return 0;
+	return time() >= (int) $m[1] + $window ? 0 : (int) $m[2];
+}
+
+/** Deletes the rows of counters named $prefix* whose window has ended (abandoned sign-ins, old IP counts). */
+function fisha_studio_counter_sweep( string $prefix, int $window ): void {
+	global $wpdb;
+	$wpdb->query( $wpdb->prepare(
+		"DELETE FROM {$wpdb->options} WHERE option_name LIKE %s AND CAST( SUBSTRING_INDEX( option_value, ':', 1 ) AS UNSIGNED ) + %d <= %d",
+		$wpdb->esc_like( fisha_studio_counter_option( $prefix ) ) . '%', $window, time()
+	) );
+}
+
+function fisha_studio_counter_clear( string $name ): void {
+	global $wpdb;
+	$wpdb->delete( $wpdb->options, array( 'option_name' => fisha_studio_counter_option( $name ) ) );
+}
+
+/** Failures in the current window, 0 when there are none or the window (15 min from the first failure) has ended. */
+function fisha_studio_login_count( string $key ): int {
+	return fisha_studio_counter_get( $key, FISHA_STUDIO_LOGIN_LOCK );
+}
+
+function fisha_studio_login_bump( string $key ): int {
+	return fisha_studio_counter_incr( $key, FISHA_STUDIO_LOGIN_LOCK );
 }
 
 function fisha_studio_login_locked( string $login, string $ip ): bool {
@@ -60,9 +98,19 @@ function fisha_studio_login_failed( string $login, string $ip, bool $count_accou
 	if ( $count_account && '' !== trim( $login ) ) fisha_studio_login_bump( fisha_studio_login_key( 'u', fisha_studio_login_account( $login ) ) );
 	if ( '' !== $ip ) fisha_studio_login_bump( fisha_studio_login_key( 'ip', $ip ) );
 }
+/**
+ * Counts a try as failed before it is checked (the success path clears the counters again), and says whether it may
+ * go ahead. Parallel requests each take their own slot, so no more than FISHA_STUDIO_LOGIN_TRIES are ever checked.
+ */
+function fisha_studio_login_reserve( string $login, string $ip ): bool {
+	$ok = true;
+	if ( '' !== trim( $login ) ) $ok = fisha_studio_login_bump( fisha_studio_login_key( 'u', fisha_studio_login_account( $login ) ) ) <= FISHA_STUDIO_LOGIN_TRIES && $ok;
+	if ( '' !== $ip ) $ok = fisha_studio_login_bump( fisha_studio_login_key( 'ip', $ip ) ) <= FISHA_STUDIO_LOGIN_TRIES && $ok;
+	return $ok;
+}
 function fisha_studio_login_clear( string $login, string $ip ): void {
-	if ( '' !== trim( $login ) ) delete_transient( fisha_studio_login_key( 'u', fisha_studio_login_account( $login ) ) );
-	if ( '' !== $ip ) delete_transient( fisha_studio_login_key( 'ip', $ip ) );
+	if ( '' !== trim( $login ) ) fisha_studio_counter_clear( fisha_studio_login_key( 'u', fisha_studio_login_account( $login ) ) );
+	if ( '' !== $ip ) fisha_studio_counter_clear( fisha_studio_login_key( 'ip', $ip ) );
 }
 
 /** @return WP_User|WP_Error */
@@ -120,5 +168,9 @@ add_filter( 'authenticate', function ( $user, $login ) {
 add_action( 'wp_login_failed', function ( $login ) {
 	if ( empty( $GLOBALS['fisha_studio_in_check'] ) && fisha_studio_login_is_studio( (string) $login ) ) fisha_studio_login_failed( (string) $login, fisha_client_ip() );
 } );
-// A fresh REST nonce right after signing in needs the new cookie in this request too.
-add_action( 'set_logged_in_cookie', function ( $cookie ) { $_COOKIE[ LOGGED_IN_COOKIE ] = $cookie; } );
+// A fresh REST nonce right after signing in needs the new cookie in this request too (never for an owner the
+// 2-step guard in studio-2fa.php refuses).
+add_action( 'set_logged_in_cookie', function ( $cookie, $expire = 0, $expiration = 0, $user_id = 0 ) {
+	if ( function_exists( 'fisha_studio_2fa_cookie_allowed' ) && ! fisha_studio_2fa_cookie_allowed( (int) $user_id ) ) return;
+	$_COOKIE[ LOGGED_IN_COOKIE ] = $cookie;
+}, 10, 4 );

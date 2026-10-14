@@ -76,12 +76,13 @@ function fisha_studio_login_page(): void {
 	$setup   = null;
 	$mode    = ( isset( $_GET['backup'] ) || 'backup' === ( $_POST['fs_mode'] ?? '' ) ) ? 'backup' : 'code';
 	$restart = function () use ( &$pending, $token ) {
-		if ( '' !== $token ) delete_transient( fisha_studio_2fa_pending_key( $token ) );
+		if ( '' !== $token ) fisha_studio_2fa_drop( $token );
 		fisha_studio_2fa_cookie( '' );
 		$pending = null;
 	};
 
 	if ( isset( $_GET['restart'] ) && 'POST' !== ( $_SERVER['REQUEST_METHOD'] ?? '' ) ) $restart();
+	if ( isset( $_GET['reset'] ) && 'POST' !== ( $_SERVER['REQUEST_METHOD'] ?? '' ) ) $notice = 'Your password was changed. Please sign in.';
 	if ( 'POST' === ( $_SERVER['REQUEST_METHOD'] ?? '' ) ) {
 		$posted = sanitize_key( $_POST['fs_step'] ?? 'password' );
 		if ( 'password' === $posted ) {

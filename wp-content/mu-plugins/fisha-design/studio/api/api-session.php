@@ -1,8 +1,8 @@
 <?php
 /**
  * Fisha Studio REST: who is signed in (and a fresh nonce), and signing in again from inside the app.
- * Owners sign in again in two calls: POST /login (password) returns { step: 'code', token } without a session,
- * then POST /login/code { code } (app code or backup code; token from the cookie or the body) starts it.
+ * Owners sign in again in two calls: POST /login (password) returns { step: 'code' } without a session (the pending
+ * token is only in the HttpOnly cookie), then POST /login/code { code } (app code or backup code) starts it.
  */
 if ( ! defined( 'ABSPATH' ) ) exit;
 
@@ -18,7 +18,7 @@ function fisha_studio_rest_session(): array {
 }
 
 function fisha_studio_rest_login_error( WP_Error $e ): WP_Error {
-	$status = array( 'fisha_studio_locked' => 429, 'fisha_studio_2fa_setup' => 403 )[ $e->get_error_code() ] ?? 401;
+	$status = array( 'fisha_studio_locked' => 429, 'fisha_studio_2fa_day_lock' => 429, 'fisha_studio_2fa_setup' => 403 )[ $e->get_error_code() ] ?? 401;
 	return new WP_Error( $e->get_error_code(), $e->get_error_message(), array( 'status' => $status ) );
 }
 
@@ -26,15 +26,14 @@ function fisha_studio_rest_login( WP_REST_Request $r ) {
 	$b = fisha_studio_body( $r );
 	$u = fisha_studio_sign_in( (string) ( $b['login'] ?? '' ), (string) ( $b['password'] ?? '' ), fisha_client_ip(), null, false, fisha_studio_2fa_rest_cookie_path() );
 	if ( is_wp_error( $u ) ) return fisha_studio_rest_login_error( $u );
-	if ( is_array( $u ) ) return array( 'step' => 'code', 'token' => $u['token'] );
+	if ( is_array( $u ) ) return array( 'step' => 'code' );
 	return array( 'nonce' => wp_create_nonce( 'wp_rest' ), 'user' => array( 'id' => $u->ID, 'name' => $u->display_name ) );
 }
 
 function fisha_studio_rest_login_code( WP_REST_Request $r ) {
 	$b     = fisha_studio_body( $r );
 	$token = (string) ( $_COOKIE[ FISHA_STUDIO_2FA_COOKIE ] ?? '' );
-	if ( '' === $token ) $token = (string) ( $b['token'] ?? '' );
-	$res = fisha_studio_2fa_code_step( $token, (string) ( $b['code'] ?? '' ), fisha_client_ip(), fisha_studio_2fa_ua(), false );
+	$res   = fisha_studio_2fa_code_step( $token, (string) ( $b['code'] ?? '' ), fisha_client_ip(), fisha_studio_2fa_ua(), false );
 	if ( is_wp_error( $res ) ) return fisha_studio_rest_login_error( $res );
 	if ( empty( $res['done'] ) ) return fisha_studio_rest_login_error( fisha_studio_2fa_expired() ); // setup is only on /studio/login/
 	$u = $res['user'];

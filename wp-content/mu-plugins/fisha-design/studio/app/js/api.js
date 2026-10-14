@@ -47,10 +47,10 @@ async function send( method, path, body, form, { withNonce = true } = {} ) {
 	return data;
 }
 
-const STOP_CODES = [ 'fisha_studio_2fa_expired', 'fisha_studio_locked', 'fisha_studio_2fa_setup' ];
+const STOP_CODES = [ 'fisha_studio_2fa_expired', 'fisha_studio_locked', 'fisha_studio_2fa_setup', 'fisha_studio_2fa_day_lock' ];
 
 /** Second step for an owner: the app code or a backup code. True when signed in, false to go back to the password. */
-async function askCode( token ) {
+async function askCode() {
 	let backup = false;
 	for ( ;; ) {
 		const values = await modal( {
@@ -72,7 +72,7 @@ async function askCode( token ) {
 		}
 		if ( ! values ) return false;
 		try {
-			const r = await send( 'POST', 'login/code', { code: values.code, token }, null, { withNonce: false } );
+			const r = await send( 'POST', 'login/code', { code: values.code }, null, { withNonce: false } );
 			nonce = r.nonce;
 			if ( r.note ) await modal( { title: 'Backup code used', body: h( 'p', {}, r.note ) } );
 			return true;
@@ -99,7 +99,7 @@ function askLogin() {
 			try {
 				const r = await send( 'POST', 'login', values, null, { withNonce: false } );
 				if ( r.step === 'code' ) {
-					if ( await askCode( r.token ) ) return;
+					if ( await askCode() ) return;
 					continue;
 				}
 				nonce = r.nonce;

@@ -35,6 +35,7 @@ $fs_titles = array(
 		<h1><?php echo esc_html( 'password' === $step ? 'Fisha Studio' : $fs_titles[ $step ] ); ?></h1>
 		<?php if ( 'password' === $step ) : ?>
 			<p class="fs-login__sub">Sign in to manage the shop.</p>
+			<?php if ( $notice ) : ?><p class="fs-login__notice" role="status"><?php echo esc_html( $notice ); ?></p><?php endif; ?>
 		<?php endif; ?>
 		<?php if ( $error ) : ?><p class="fs-login__error" role="alert"><?php echo esc_html( $error ); ?></p><?php endif; ?>
 
