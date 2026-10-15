@@ -50,3 +50,25 @@ fs_test( 'mail: every email goes out through the mailbox, other senders become R
 	fisha_mail_apply_smtp( $m, $c );
 	fs_eq( array( 'customer@example.org' ), array_column( $m->getReplyToAddresses(), 0 ), 'an existing Reply-To is kept' );
 } );
+
+fs_test( 'mail: dev site sends owner and admin emails to them, everything else to the site admin', function () {
+	$owner = fs_user( FISHA_STUDIO_ROLE );
+	$admin = get_option( 'admin_email' );
+	$out   = fisha_dev_mail_redirect( array( 'to' => $owner->user_email, 'subject' => 'Set your password' ) );
+	fs_eq( $owner->user_email, $out['to'], 'owner email is delivered to the owner' );
+	fs_eq( 'Set your password', $out['subject'] );
+
+	$out = fisha_dev_mail_redirect( array( 'to' => array( 'Owner <' . strtoupper( $owner->user_email ) . '>' ), 'subject' => 'Hi' ) );
+	fs_eq( array( 'Owner <' . strtoupper( $owner->user_email ) . '>' ), $out['to'], 'name form and case do not matter' );
+
+	$out = fisha_dev_mail_redirect( array( 'to' => 'customer@example.org', 'subject' => 'Your order' ) );
+	fs_eq( $admin, $out['to'] );
+	fs_eq( '[DEV → customer@example.org] Your order', $out['subject'] );
+
+	$out = fisha_dev_mail_redirect( array( 'to' => array( $owner->user_email, 'customer@example.org' ), 'subject' => 'Both' ) );
+	fs_eq( $admin, $out['to'], 'one customer in the list sends the whole email to the admin' );
+
+	$cust = fs_user( 'customer' );
+	$out  = fisha_dev_mail_redirect( array( 'to' => $cust->user_email, 'subject' => 'Account' ) );
+	fs_eq( $admin, $out['to'], 'customer accounts are not let through' );
+} );

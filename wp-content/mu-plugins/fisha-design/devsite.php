@@ -11,6 +11,27 @@ function fisha_is_dev_site() {
 	return (bool) preg_match( '/^(dev|staging)\./', (string) $host );
 }
 
+/**
+ * Dev email goes to the site admin with the real recipient in the subject, except email whose
+ * every recipient is a Studio owner or an administrator (invites, password resets, sign-in
+ * notices), which those people need to receive on dev too.
+ */
+function fisha_dev_mail_redirect( $args ) {
+	$to = is_array( $args['to'] ) ? $args['to'] : explode( ',', (string) $args['to'] );
+	$staff = (bool) $to;
+	foreach ( $to as $addr ) {
+		$addr = trim( (string) $addr );
+		if ( preg_match( '/<([^>]+)>/', $addr, $m ) ) $addr = $m[1];
+		$u = get_user_by( 'email', $addr );
+		if ( ! $u || ! array_intersect( array( 'administrator', 'fisha_owner' ), (array) $u->roles ) ) { $staff = false; break; }
+	}
+	if ( $staff ) return $args;
+	$orig            = is_array( $args['to'] ) ? implode( ', ', $args['to'] ) : $args['to'];
+	$args['to']      = get_option( 'admin_email' );
+	$args['subject'] = '[DEV → ' . $orig . '] ' . $args['subject'];
+	return $args;
+}
+
 if ( fisha_is_dev_site() ) {
 	// Never indexed. The X-Robots-Tag noindex header is set by the server
 	// (.htaccess block "Fisha dev noindex", added by docker/publish) so it also
@@ -27,12 +48,7 @@ if ( fisha_is_dev_site() ) {
 	}, 99 );
 
 	// orders / contact forms on dev never email real people
-	add_filter( 'wp_mail', function ( $args ) {
-		$orig          = is_array( $args['to'] ) ? implode( ', ', $args['to'] ) : $args['to'];
-		$args['to']    = get_option( 'admin_email' );
-		$args['subject'] = '[DEV → ' . $orig . '] ' . $args['subject'];
-		return $args;
-	}, 999 );
+	add_filter( 'wp_mail', 'fisha_dev_mail_redirect', 999 );
 
 	// visible ribbon
 	$ribbon = function () {
